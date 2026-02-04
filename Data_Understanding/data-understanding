@@ -1,1 +1,94 @@
 
+# Week 1: Data Understanding & Collection - Streamlit Dashboard
+
+import streamlit as st
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# -----------------------------
+# Load Dataset
+# -----------------------------
+st.sidebar.title("Week 1: Data Understanding & Collection")
+section = st.sidebar.radio("Navigate:", 
+                           ["Home", "Dataset Info", "Missing Values", 
+                            "Data Cleaning", "Visualizations", "Features & Target"])
+
+# Load CSV dataset
+df = pd.read_csv("your_dataset.csv")  # Replace with your dataset path
+
+# -----------------------------
+# Home Section
+# -----------------------------
+if section == "Home":
+    st.title("Week 1: Data Understanding & Collection")
+    st.write("""
+    Welcome to Week 1 of the Predictive Analytics Project!
+    Here we will:
+    - Understand the dataset
+    - Handle missing values
+    - Clean the data
+    - Explore basic visualizations
+    - Identify features and target
+    """)
+
+# -----------------------------
+# Dataset Info Section
+# -----------------------------
+elif section == "Dataset Info":
+    st.header("Dataset Info")
+    st.write("Shape of dataset:", df.shape)
+    st.write("Columns and Data Types:")
+    st.write(df.dtypes)
+    st.write("First 5 rows of dataset:")
+    st.dataframe(df.head())
+
+# -----------------------------
+# Missing Values Section
+# -----------------------------
+elif section == "Missing Values":
+    st.header("Missing Values")
+    missing = df.isnull().sum()
+    st.write(missing)
+    st.write("Percentage of Missing Values:")
+    st.write(round((df.isnull().sum()/len(df))*100, 2))
+
+# -----------------------------
+# Data Cleaning Section
+# -----------------------------
+elif section == "Data Cleaning":
+    st.header("Data Cleaning")
+    st.write("Duplicate Rows:", df.duplicated().sum())
+    st.write("Drop duplicates and reset index")
+    df_clean = df.drop_duplicates().reset_index(drop=True)
+    st.write("Cleaned dataset shape:", df_clean.shape)
+    st.write("Data types after cleaning:")
+    st.write(df_clean.dtypes)
+
+# -----------------------------
+# Visualizations Section
+# -----------------------------
+elif section == "Visualizations":
+    st.header("Initial Visualizations")
+    
+    numeric_cols = df.select_dtypes(include=['int64', 'float64']).columns.tolist()
+    st.write("Numeric columns for visualization:", numeric_cols)
+    
+    for col in numeric_cols:
+        st.subheader(f"Distribution of {col}")
+        fig, ax = plt.subplots()
+        sns.histplot(df[col], kde=True, ax=ax)
+        st.pyplot(fig)
+
+# -----------------------------
+# Features & Target Section
+# -----------------------------
+elif section == "Features & Target":
+    st.header("Features & Target Variable")
+    st.write("List your potential features and target variable here:")
+    # Example (replace with your dataset columns)
+    features = df.columns[:-1].tolist()  # All columns except last
+    target = df.columns[-1]              # Last column as target
+    st.write("Features:", features)
+    st.write("Target:", target)
+
