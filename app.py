@@ -26,7 +26,7 @@ else:
     link = st.sidebar.text_input("Enter dataset URL or filename")
     if link:
         try:
-            df = pd.read_csv(https://github.com/augustinetirkey-gif/predictive-analytics-project/blob/main/cleaned_sales_data.csv)
+            df = pd.read_csv("https://github.com/augustinetirkey-gif/predictive-analytics-project/blob/main/cleaned_sales_data.csv")
         except:
             st.sidebar.error("Unable to load dataset")
 
