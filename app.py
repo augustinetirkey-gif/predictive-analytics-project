@@ -48,16 +48,105 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
 
 # ---------------- TAB 1 ----------------
 with tab1:
-    st.subheader("Dataset Overview")
+    st.subheader("📂 Complete Dataset Understanding")
+
     if df is None:
         st.warning("Please upload a dataset")
     else:
-        st.write("Rows & Columns:", df.shape)
-        st.dataframe(df.head())
-        st.write("Column Types")
-        st.write(df.dtypes)
-        st.write("Missing Values")
-        st.write(df.isnull().sum())
+        # ---------------- BASIC INFO ----------------
+        st.markdown("## 1️⃣ Dataset Identity")
+        st.write(f"Total Rows (Records): **{df.shape[0]}**")
+        st.write(f"Total Columns (Features): **{df.shape[1]}**")
+
+        st.info(
+            "➡ Each row represents ONE observation.\n"
+            "➡ Each column represents ONE variable used for analysis or prediction."
+        )
+
+        # ---------------- SAMPLE DATA ----------------
+        st.markdown("## 2️⃣ Sample Records (How data actually looks)")
+        st.dataframe(df.head(10))
+
+        # ---------------- COLUMN LEVEL DETAILS ----------------
+        st.markdown("## 3️⃣ Column-wise Complete Information")
+
+        col_info = pd.DataFrame({
+            "Column Name": df.columns,
+            "Data Type": df.dtypes.astype(str),
+            "Non-Null Values": df.notnull().sum().values,
+            "Missing Values": df.isnull().sum().values,
+            "Unique Values": df.nunique().values
+        })
+
+        st.dataframe(col_info)
+
+        st.markdown("""
+        **How to read this table:**
+        - *Data Type* → numeric or text  
+        - *Missing Values* → data quality issue  
+        - *Unique Values* → tells variability  
+        """)
+
+        # ---------------- NUMERIC VS CATEGORICAL ----------------
+        st.markdown("## 4️⃣ Data Type Classification")
+
+        num_cols = df.select_dtypes(include=np.number).columns.tolist()
+        cat_cols = df.select_dtypes(exclude=np.number).columns.tolist()
+
+        st.write("🔢 Numeric Columns (Used for prediction):")
+        st.write(num_cols if num_cols else "No numeric columns")
+
+        st.write("🔤 Categorical Columns (Labels / categories):")
+        st.write(cat_cols if cat_cols else "No categorical columns")
+
+        # ---------------- MISSING VALUE ANALYSIS ----------------
+        st.markdown("## 5️⃣ Missing Value Analysis")
+
+        missing_df = df.isnull().sum()
+        missing_df = missing_df[missing_df > 0]
+
+        if missing_df.empty:
+            st.success("✅ No missing values found")
+        else:
+            st.warning("⚠ Missing values detected")
+            st.dataframe(missing_df)
+
+        # ---------------- STATISTICAL KNOWLEDGE ----------------
+        st.markdown("## 6️⃣ Statistical Summary (Numeric Data)")
+
+        if num_cols:
+            st.dataframe(df[num_cols].describe())
+            st.markdown("""
+            **Meaning of statistics:**
+            - *Mean* → average value  
+            - *Min / Max* → range  
+            - *Std* → data spread  
+            """)
+        else:
+            st.info("No numeric data available for statistics")
+
+        # ---------------- DATA QUALITY INSIGHTS ----------------
+        st.markdown("## 7️⃣ Data Quality Insights")
+
+        st.write("Duplicate Rows:", df.duplicated().sum())
+
+        if df.duplicated().sum() == 0:
+            st.success("No duplicate records")
+        else:
+            st.warning("Duplicate records found")
+
+        # ---------------- FINAL UNDERSTANDING ----------------
+        st.markdown("## 8️⃣ What we understand from this dataset")
+
+        st.markdown("""
+        ✔ Data structure is now clear  
+        ✔ We know which columns can be used for prediction  
+        ✔ We identified missing & duplicate data  
+        ✔ Dataset is ready for cleaning, visualization & modeling  
+        """)
+
+        st.success("📌 Dataset fully explored and understood")
+
 
 # ---------------- TAB 2 ----------------
 with tab2:
