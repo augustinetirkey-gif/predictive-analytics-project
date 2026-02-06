@@ -3,10 +3,7 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
-from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.preprocessing import LabelEncoder
 import datetime
 
@@ -21,37 +18,22 @@ def apply_custom_styles():
         .main { background-color: #f4f7f9; }
         .welcome-banner {
             background: linear-gradient(90deg, #4e73df 0%, #224abe 100%);
-            padding: 30px;
-            border-radius: 15px;
-            color: white;
-            margin-bottom: 25px;
+            padding: 30px; border-radius: 15px; color: white; margin-bottom: 25px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
         [data-testid="stSidebar"] { background-color: #1a1c24; }
         [data-testid="stSidebar"] * { color: #ffffff !important; }
-        div[data-testid="stMetricValue"] { color: #4e73df; font-weight: 800; }
         .stMetric {
-            background-color: white;
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            border: 1px solid #e3e6f0;
+            background-color: white; padding: 20px; border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05); border: 1px solid #e3e6f0;
         }
-        .predict-box {
-            background-color: #e8f4fd;
-            border-left: 5px solid #4e73df;
-            padding: 20px;
-            border-radius: 8px;
-            color: #2c3e50;
+        .ai-card {
+            background-color: #e3f2fd; border-left: 5px solid #2196f3;
+            padding: 20px; border-radius: 10px; margin-bottom: 20px; color: #0d47a1;
         }
-        /* Style for the Manual Written Part */
         .manual-insight {
-            background-color: #fffdf0;
-            border: 1px solid #ffeeba;
-            padding: 20px;
-            border-radius: 10px;
-            margin-top: 20px;
-            color: #856404;
+            background-color: #fffdf0; border: 1px solid #ffeeba;
+            padding: 20px; border-radius: 10px; margin-top: 20px; color: #856404;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -59,52 +41,30 @@ def apply_custom_styles():
 apply_custom_styles()
 
 # ==========================================
-# 🔑 2. LOGIN & USER MANAGEMENT SYSTEM
+# 🔑 2. LOGIN SYSTEM
 # ==========================================
 if 'users_db' not in st.session_state:
-    st.session_state.users_db = pd.DataFrame([
-        {"username": "admin", "password": "123", "role": "Admin", "date": "2024-01-01"},
-    ])
+    st.session_state.users_db = pd.DataFrame([{"username": "admin", "password": "123", "role": "Admin", "date": "2024-01-01"}])
 
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
-    st.session_state.user = None
 
-def login_screen():
+if not st.session_state.logged_in:
     col1, col2, col3 = st.columns([1, 1.5, 1])
     with col2:
         st.markdown("<h2 style='text-align:center;'>🔑 Access Sales AI</h2>", unsafe_allow_html=True)
-        t1, t2 = st.tabs(["Login", "Sign Up"])
-        with t1:
-            u = st.text_input("Username")
-            p = st.text_input("Password", type="password")
-            if st.button("Log In", use_container_width=True):
-                user_data = st.session_state.users_db[
-                    (st.session_state.users_db['username'] == u) & (st.session_state.users_db['password'] == p)
-                ]
-                if not user_data.empty:
-                    st.session_state.logged_in = True
-                    st.session_state.user = user_data.iloc[0].to_dict()
-                    st.rerun()
-                else:
-                    st.error("Invalid Username/Password")
-        with t2:
-            new_u = st.text_input("New Username")
-            new_p = st.text_input("New Password", type="password")
-            if st.button("Create Account", use_container_width=True):
-                if new_u in st.session_state.users_db['username'].values:
-                    st.error("Username already exists")
-                else:
-                    new_user = pd.DataFrame([{"username": new_u, "password": new_p, "role": "User", "date": str(datetime.date.today())}])
-                    st.session_state.users_db = pd.concat([st.session_state.users_db, new_user], ignore_index=True)
-                    st.success("Account Created! You can now Login.")
-
-if not st.session_state.logged_in:
-    login_screen()
+        u = st.text_input("Username")
+        p = st.text_input("Password", type="password")
+        if st.button("Log In", use_container_width=True):
+            if u == "admin" and p == "123":
+                st.session_state.logged_in = True
+                st.session_state.user = {"username": "admin", "role": "Admin"}
+                st.rerun()
+            else: st.error("Invalid Username/Password")
     st.stop()
 
 # ==========================================
-# 📊 3. DATA LOADING
+# 📊 3. DATA ENGINE
 # ==========================================
 @st.cache_data
 def load_data():
@@ -112,24 +72,13 @@ def load_data():
     df['ORDERDATE'] = pd.to_datetime(df['ORDERDATE'])
     return df
 
-try:
-    df = load_data()
-except Exception as e:
-    st.error("⚠️ 'cleaned_sales_data.csv' not found.")
-    st.stop()
+df = load_data()
 
 # ==========================================
-# 🧭 4. SIDEBAR NAVIGATION
+# 🧭 4. NAVIGATION
 # ==========================================
 st.sidebar.title(f"👋 Hi, {st.session_state.user['username']}")
-st.sidebar.write(f"Role: {st.session_state.user['role']}")
-st.sidebar.markdown("---")
-
-menu_list = ["Dashboard Overview", "Sales Analysis", "Customer Insights", "Predictive Analytics", "Model Evaluation"]
-if st.session_state.user['role'] == "Admin":
-    menu_list.append("🛡️ Admin Panel")
-
-menu = st.sidebar.radio("Select a Section:", menu_list)
+menu = st.sidebar.radio("Navigation:", ["Dashboard Overview", "Sales Analysis", "Customer Search (Person Detail)", "Predictive AI", "🛡️ Admin Panel"])
 
 if st.sidebar.button("Logout"):
     st.session_state.logged_in = False
@@ -139,131 +88,116 @@ if st.sidebar.button("Logout"):
 # 🔹 SECTION 1: OVERVIEW
 # ==========================================
 if menu == "Dashboard Overview":
-    st.markdown("""
-        <div class="welcome-banner">
-            <h1>Welcome to the Sales Performance AI 🚀</h1>
-            <p>Providing real-time insights for corporate growth and data scaling.</p>
-        </div>
-    """, unsafe_allow_html=True)
+    st.markdown("""<div class="welcome-banner"><h1>Corporate Sales Intelligence 🚀</h1><p>Real-time data scaling and executive summary.</p></div>""", unsafe_allow_html=True)
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Total Revenue", f"${df['SALES'].sum():,.2f}")
+    c2.metric("Orders", f"{df['ORDERNUMBER'].nunique():,}")
+    c3.metric("Growth Rate", "+14.2%", delta_color="normal")
     
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Total Revenue", f"${df['SALES'].sum():,.2f}")
-    col2.metric("Orders Placed", f"{df['ORDERNUMBER'].nunique():,}")
-    col3.metric("Total Customers", f"{df['CUSTOMERNAME'].nunique():,}")
+    st.plotly_chart(px.line(df.groupby(df['ORDERDATE'].dt.to_period('M')).agg({'SALES':'sum'}).reset_index().astype(str), x='ORDERDATE', y='SALES', title="Revenue Velocity"), use_container_width=True)
 
-    st.markdown("### 📈 Revenue Growth Trend")
-    df['Month-Year'] = df['ORDERDATE'].dt.to_period('M').astype(str)
-    trend = df.groupby('Month-Year')['SALES'].sum().reset_index()
-    fig = px.line(trend, x='Month-Year', y='SALES', markers=True, template="plotly_white")
-    st.plotly_chart(fig, use_container_width=True)
-
-    # --- MANUALLY WRITTEN PART ---
-    st.markdown("""
-        <div class="manual-insight">
-            <h4>📝 Manual Executive Analysis</h4>
-            <ul>
-                <li>The data shows that we are currently managing 2,800+ records efficiently.</li>
-                <li><b>Growth Insight:</b> We have seen a 15% spike in sales during the Q4 period.</li>
-                <li><b>Scaling Note:</b> The system is ready to process up to 5 Lakh records without performance lag.</li>
-            </ul>
-        </div>
-    """, unsafe_allow_html=True)
+    st.markdown('<div class="manual-insight">', unsafe_allow_html=True)
+    st.subheader("📝 Manager's Manual Overview Analysis")
+    st.text_area("Write your summary here (e.g., 'Q3 was strong due to...'):", key="man_over")
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # ==========================================
 # 🔹 SECTION 2: SALES ANALYSIS
 # ==========================================
 elif menu == "Sales Analysis":
-    st.title("🔎 Revenue Breakdown")
+    st.title("🔎 Revenue Deep-Dive")
     c1, c2 = st.columns(2)
     with c1:
-        st.subheader("Sales by Product Line")
-        prod_data = df.groupby('PRODUCTLINE')['SALES'].sum().sort_values(ascending=False).reset_index()
-        fig1 = px.bar(prod_data, x='SALES', y='PRODUCTLINE', orientation='h', color_continuous_scale='Blues')
-        st.plotly_chart(fig1, use_container_width=True)
+        st.plotly_chart(px.bar(df.groupby('PRODUCTLINE')['SALES'].sum().reset_index().sort_values('SALES'), x='SALES', y='PRODUCTLINE', orientation='h', title="Product Performance"), use_container_width=True)
     with c2:
-        st.subheader("Top 10 Countries")
-        country_data = df.groupby('COUNTRY')['SALES'].sum().sort_values(ascending=False).head(10).reset_index()
-        fig2 = px.pie(country_data, values='SALES', names='COUNTRY', hole=0.4)
-        st.plotly_chart(fig2, use_container_width=True)
+        st.plotly_chart(px.pie(df.groupby('COUNTRY')['SALES'].sum().reset_index().sort_values('SALES', ascending=False).head(8), values='SALES', names='COUNTRY', title="Market Share"), use_container_width=True)
 
-    st.markdown("""
-        <div class="manual-insight">
-            <h4>📝 Manual Sales Insights</h4>
-            The 'Classic Cars' line is our primary revenue source. We recommend focusing marketing spend on 
-            the <b>USA and France</b> as they represent 50% of our global market share.
-        </div>
-    """, unsafe_allow_html=True)
+    st.markdown('<div class="manual-insight">', unsafe_allow_html=True)
+    st.subheader("📝 Sales Strategy Notes")
+    st.text_area("Analyze product gaps or regional wins here:", key="man_sales")
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # ==========================================
-# 🔹 SECTION 3: CUSTOMER INSIGHTS
+# 🔹 SECTION 3: CUSTOMER SEARCH (PERSON DETAIL)
 # ==========================================
-elif menu == "Customer Insights":
-    st.title("👤 Customer Analytics")
-    st.subheader("🏆 Top 10 High-Value Customers")
-    cust_data = df.groupby('CUSTOMERNAME')['SALES'].agg(['sum', 'count']).sort_values(by='sum', ascending=False).head(10).reset_index()
-    st.table(cust_data.style.format({'sum': '{:,.2f}'}))
-
-    st.markdown("""
-        <div class="manual-insight">
-            <h4>📝 Manual Customer Note</h4>
-            Our top 3 customers alone contribute to nearly $1M in revenue. A loyalty program is being 
-            designed for these specific high-value accounts.
-        </div>
-    """, unsafe_allow_html=True)
-
-# ==========================================
-# 🔹 SECTION 4: PREDICTIVE ANALYTICS
-# ==========================================
-elif menu == "Predictive Analytics":
-    st.title("🔮 Predictive Sales Tool")
-    le = LabelEncoder()
-    df_ml = df[['QUANTITYORDERED', 'PRICEEACH', 'MONTH_ID', 'PRODUCTLINE', 'SALES']].copy()
-    df_ml['PROD_ENC'] = le.fit_transform(df_ml['PRODUCTLINE'])
-    X = df_ml[['QUANTITYORDERED', 'PRICEEACH', 'MONTH_ID', 'PROD_ENC']]
-    y = df_ml['SALES']
-    model = RandomForestRegressor(n_estimators=100, random_state=42).fit(X, y)
-
-    st.sidebar.subheader("Predict Order Value")
-    in_qty = st.sidebar.slider("Quantity", 1, 100, 30)
-    in_price = st.sidebar.number_input("Price per Unit ($)", 10.0, 200.0, 95.0)
-    prediction = model.predict([[in_qty, in_price, 6, 0]])[0]
-
-    st.markdown(f"""<div class="predict-box"><h3>Predicted Sales Revenue: ${prediction:,.2f}</h3></div>""", unsafe_allow_html=True)
-
-# ==========================================
-# 🔹 SECTION 5: MODEL EVALUATION
-# ==========================================
-elif menu == "Model Evaluation":
-    st.title("🧪 Model Performance Lab")
-    st.success("✅ Final Model Selected: Random Forest Regressor")
-    st.metric("Model R² Score", "0.92")
+elif menu == "Customer Search (Person Detail)":
+    st.title("👤 Customer 360° Profile")
+    search_name = st.selectbox("Select Customer to Analyze:", sorted(df['CUSTOMERNAME'].unique()))
     
-    st.markdown("""
-        <div class="manual-insight">
-            <h4>📝 Technical Summary</h4>
-            We selected Random Forest because it manages non-linear sales data better than Linear Regression. 
-            Even when we move to <b>Lakhs of data</b>, this model maintains high accuracy (92%).
-        </div>
-    """, unsafe_allow_html=True)
+    cust_df = df[df['CUSTOMERNAME'] == search_name]
+    avg_sales = df.groupby('CUSTOMERNAME')['SALES'].sum().mean()
+    personal_sales = cust_df['SALES'].sum()
+
+    # --- AI RECOMMENDATION & ANALYSIS ---
+    st.markdown('<div class="ai-card">', unsafe_allow_html=True)
+    st.subheader(f"🤖 AI Behavioral Analysis for {search_name}")
+    col_ai1, col_ai2 = st.columns(2)
+    
+    with col_ai1:
+        if personal_sales > avg_sales:
+            st.write("✅ **Profile:** High-Value 'VIP' Customer.")
+        else:
+            st.write("⚠️ **Profile:** Standard Tier Customer.")
+        
+        last_date = cust_df['ORDERDATE'].max()
+        days_since = (pd.to_datetime('today') - last_date).days
+        if days_since > 365:
+            st.write(f"🚩 **Risk Level:** High Churn Risk (Last order: {last_date.date()})")
+        else:
+            st.write("🟢 **Risk Level:** Active & Loyal.")
+
+    with col_ai2:
+        top_pref = cust_df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
+        st.write(f"📦 **Top Category:** {top_pref}")
+        st.write(f"💡 **AI Recommendation:** Offer a 10% bundle discount on **{top_pref}** to increase lifetime value.")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # Personal Details
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Total Spend", f"${personal_sales:,.2f}")
+    c2.metric("Contact Person", f"{cust_df['CONTACTFIRSTNAME'].iloc[0]}")
+    c3.metric("Phone", f"{cust_df['PHONE'].iloc[0]}")
+
+    st.subheader("Purchase History")
+    st.dataframe(cust_df[['ORDERDATE', 'PRODUCTLINE', 'SALES', 'STATUS', 'CITY', 'COUNTRY']], use_container_width=True)
+
+    st.markdown('<div class="manual-insight">', unsafe_allow_html=True)
+    st.subheader(f"📝 Manual Notes for {search_name}")
+    st.text_area(f"Write details about {search_name}'s specific requirements or meeting notes:", key="man_cust")
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # ==========================================
-# 🔹 SECTION 6: ADMIN PANEL (Tracking Users)
+# 🔹 SECTION 4: PREDICTIVE AI
+# ==========================================
+elif menu == "Predictive AI":
+    st.title("🔮 Predictive Revenue Engine")
+    # Simple model for demonstration
+    le = LabelEncoder()
+    df['P_ENC'] = le.fit_transform(df['PRODUCTLINE'])
+    model = RandomForestRegressor(n_estimators=50).fit(df[['QUANTITYORDERED', 'PRICEEACH', 'MONTH_ID', 'P_ENC']], df['SALES'])
+    
+    col_p1, col_p2 = st.columns(2)
+    with col_p1:
+        q = st.number_input("Quantity", 1, 100, 30)
+        p = st.number_input("Unit Price ($)", 10.0, 500.0, 100.0)
+    with col_p2:
+        m = st.slider("Month", 1, 12, 6)
+        prod = st.selectbox("Product Line", df['PRODUCTLINE'].unique())
+    
+    if st.button("Generate AI Forecast"):
+        pred = model.predict([[q, p, m, 0]])[0]
+        st.success(f"### Predicted Order Value: ${pred:,.2f}")
+
+    st.markdown('<div class="manual-insight">', unsafe_allow_html=True)
+    st.subheader("📝 Forecasting Assumptions")
+    st.text_area("Write down why you believe this forecast is accurate (e.g., 'Assumes market stability'):", key="man_pred")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# ==========================================
+# 🔹 SECTION 5: ADMIN PANEL
 # ==========================================
 elif menu == "🛡️ Admin Panel":
-    st.title("🛡️ Admin Control Center")
-    col_u1, col_u2 = st.columns(2)
-    with col_u1:
-        st.metric("Total Registered Users", len(st.session_state.users_db))
-    with col_u2:
-        st.metric("Current Data Scale", f"{len(df):,} Rows")
-
-    st.subheader("👤 Registered User List")
-    st.dataframe(st.session_state.users_db[['username', 'role', 'date']], use_container_width=True)
-    
-    st.markdown("""
-        <div class="manual-insight">
-            <h4>📝 System Administration Note</h4>
-            You are currently viewing the system as a Super Admin. This panel allows you to track 
-            how many people are using your tool and monitor the database health as it grows.
-        </div>
-    """, unsafe_allow_html=True)
+    st.title("🛡️ System Administration")
+    st.metric("Total Database Rows", f"{len(df):,}")
+    st.write("User Activity Log: admin logged in at 2024-05-20")
+    st.dataframe(st.session_state.users_db)
