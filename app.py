@@ -2,204 +2,155 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
 from sklearn.metrics import r2_score
 
-# ---------------- PAGE CONFIG ----------------
-st.set_page_config(page_title="Data Analysis & Forecast App", layout="wide")
+st.set_page_config("Universal CSV Analyzer", layout="wide")
 
 # ---------------- SIDEBAR ----------------
-st.sidebar.title("Upload Dataset")
-
-option = st.sidebar.radio(
-    "Choose data input method:",
-    ("Browse File", "Paste CSV Link")
-)
+st.sidebar.title("📂 Upload CSV")
+file = st.sidebar.file_uploader("Upload any CSV file", type="csv")
 
 df = None
+if file:
+    df = pd.read_csv(file)
 
-if option == "Browse File":
-    file = st.sidebar.file_uploader("Upload CSV file", type=["csv"])
-    if file:
-        df = pd.read_csv(file)
-else:
-    link = st.sidebar.text_input("Enter CSV URL")
-    if link:
-        try:
-            df = pd.read_csv(link)
-        except:
-            st.sidebar.error("Invalid CSV link")
+st.title("📊 Universal Data Analytics System")
 
-st.sidebar.markdown("---")
-st.sidebar.info("Simple & Student Friendly App 😊")
-
-# ---------------- TITLE ----------------
-st.title("📊 Data Analysis and Prediction Tool")
-
-# ---------------- TABS ----------------
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "Data Overview",
-    "Data Cleaning",
-    "Visualization",
-    "Model Building",
-    "Future Forecasting"
+    "📘 Dataset Knowledge",
+    "🧹 Data Cleaning",
+    "📈 Visualization",
+    "🤖 Prediction",
+    "🔮 Insights & Forecast"
 ])
 
-# ---------------- TAB 1 ----------------
+# ======================================================
+# TAB 1 — COMPLETE DATASET KNOWLEDGE
+# ======================================================
 with tab1:
-    st.subheader("📂 Complete Dataset Understanding")
-
     if df is None:
-        st.warning("Please upload a dataset")
+        st.warning("Upload a CSV file")
     else:
-        # ---------------- BASIC INFO ----------------
-        st.markdown("## 1️⃣ Dataset Identity")
-        st.write(f"Total Rows (Records): **{df.shape[0]}**")
-        st.write(f"Total Columns (Features): **{df.shape[1]}**")
+        st.header("Dataset Overview")
 
-        st.info(
-            "➡ Each row represents ONE observation.\n"
-            "➡ Each column represents ONE variable used for analysis or prediction."
-        )
+        st.write("Rows:", df.shape[0])
+        st.write("Columns:", df.shape[1])
 
-        # ---------------- SAMPLE DATA ----------------
-        st.markdown("## 2️⃣ Sample Records (How data actually looks)")
-        st.dataframe(df.head(10))
+        st.subheader("Sample Data")
+        st.dataframe(df.head())
 
-        # ---------------- COLUMN LEVEL DETAILS ----------------
-        st.markdown("## 3️⃣ Column-wise Complete Information")
-
-        col_info = pd.DataFrame({
-            "Column Name": df.columns,
+        st.subheader("Column Information")
+        info = pd.DataFrame({
+            "Column": df.columns,
             "Data Type": df.dtypes.astype(str),
-            "Non-Null Values": df.notnull().sum().values,
-            "Missing Values": df.isnull().sum().values,
-            "Unique Values": df.nunique().values
+            "Missing Values": df.isnull().sum(),
+            "Unique Values": df.nunique()
         })
+        st.dataframe(info)
 
-        st.dataframe(col_info)
-
-        st.markdown("""
-        **How to read this table:**
-        - *Data Type* → numeric or text  
-        - *Missing Values* → data quality issue  
-        - *Unique Values* → tells variability  
-        """)
-
-        # ---------------- NUMERIC VS CATEGORICAL ----------------
-        st.markdown("## 4️⃣ Data Type Classification")
-
+        st.subheader("Numeric Columns")
         num_cols = df.select_dtypes(include=np.number).columns.tolist()
+        st.write(num_cols)
+
+        st.subheader("Categorical Columns")
         cat_cols = df.select_dtypes(exclude=np.number).columns.tolist()
+        st.write(cat_cols)
 
-        st.write("🔢 Numeric Columns (Used for prediction):")
-        st.write(num_cols if num_cols else "No numeric columns")
-
-        st.write("🔤 Categorical Columns (Labels / categories):")
-        st.write(cat_cols if cat_cols else "No categorical columns")
-
-        # ---------------- MISSING VALUE ANALYSIS ----------------
-        st.markdown("## 5️⃣ Missing Value Analysis")
-
-        missing_df = df.isnull().sum()
-        missing_df = missing_df[missing_df > 0]
-
-        if missing_df.empty:
-            st.success("✅ No missing values found")
-        else:
-            st.warning("⚠ Missing values detected")
-            st.dataframe(missing_df)
-
-        # ---------------- STATISTICAL KNOWLEDGE ----------------
-        st.markdown("## 6️⃣ Statistical Summary (Numeric Data)")
-
-        if num_cols:
-            st.dataframe(df[num_cols].describe())
-            st.markdown("""
-            **Meaning of statistics:**
-            - *Mean* → average value  
-            - *Min / Max* → range  
-            - *Std* → data spread  
-            """)
-        else:
-            st.info("No numeric data available for statistics")
-
-        # ---------------- DATA QUALITY INSIGHTS ----------------
-        st.markdown("## 7️⃣ Data Quality Insights")
-
+        st.subheader("Duplicates")
         st.write("Duplicate Rows:", df.duplicated().sum())
 
-        if df.duplicated().sum() == 0:
-            st.success("No duplicate records")
-        else:
-            st.warning("Duplicate records found")
+        st.subheader("Memory Usage")
+        st.write(f"{df.memory_usage().sum() / 1024:.2f} KB")
 
-        # ---------------- FINAL UNDERSTANDING ----------------
-        st.markdown("## 8️⃣ What we understand from this dataset")
+        st.subheader("Categorical Value Counts")
+        for col in cat_cols:
+            st.write(col)
+            st.write(df[col].value_counts())
 
-        st.markdown("""
-        ✔ Data structure is now clear  
-        ✔ We know which columns can be used for prediction  
-        ✔ We identified missing & duplicate data  
-        ✔ Dataset is ready for cleaning, visualization & modeling  
-        """)
-
-        st.success("📌 Dataset fully explored and understood")
-
-
-# ---------------- TAB 2 ----------------
+# ======================================================
+# TAB 2 — DATA CLEANING
+# ======================================================
 with tab2:
-    st.subheader("Simple Data Cleaning")
     if df is None:
-        st.warning("Upload dataset first")
+        st.warning("Upload a CSV file")
     else:
-        if st.checkbox("Remove duplicates"):
+        st.header("Data Cleaning Options")
+
+        if st.checkbox("Remove duplicate rows"):
             df = df.drop_duplicates()
             st.success("Duplicates removed")
 
-        if st.checkbox("Fill missing numeric values with mean"):
-            num_cols = df.select_dtypes(include=np.number).columns
-            df[num_cols] = df[num_cols].fillna(df[num_cols].mean())
+        fill_method = st.selectbox(
+            "Fill missing numeric values using",
+            ["None", "Mean", "Median"]
+        )
+
+        if fill_method != "None":
+            for col in num_cols:
+                if fill_method == "Mean":
+                    df[col].fillna(df[col].mean(), inplace=True)
+                else:
+                    df[col].fillna(df[col].median(), inplace=True)
             st.success("Missing values filled")
 
-        st.write("Cleaned Data")
+        st.subheader("Cleaned Dataset")
         st.dataframe(df.head())
 
-# ---------------- TAB 3 ----------------
+# ======================================================
+# TAB 3 — VISUALIZATION
+# ======================================================
 with tab3:
-    st.subheader("Data Visualization")
     if df is None:
-        st.warning("Upload dataset first")
+        st.warning("Upload a CSV file")
     else:
-        num_cols = df.select_dtypes(include=np.number).columns.tolist()
+        st.header("Automatic Visualization")
 
         if num_cols:
             col = st.selectbox("Select numeric column", num_cols)
 
             fig = plt.figure()
             plt.hist(df[col], bins=20)
-            plt.xlabel(col)
-            plt.ylabel("Frequency")
-            plt.title(f"Distribution of {col}")
+            plt.title("Histogram")
             st.pyplot(fig)
-        else:
-            st.info("No numeric columns found")
 
-# ---------------- TAB 4 ----------------
+            fig = plt.figure()
+            plt.boxplot(df[col])
+            plt.title("Boxplot")
+            st.pyplot(fig)
+
+            fig = plt.figure()
+            plt.plot(df[col])
+            plt.title("Line Trend")
+            st.pyplot(fig)
+
+        if cat_cols:
+            col2 = st.selectbox("Select categorical column", cat_cols)
+            fig = plt.figure()
+            df[col2].value_counts().plot(kind="bar")
+            plt.title("Category Count")
+            st.pyplot(fig)
+
+        if len(num_cols) > 1:
+            st.subheader("Correlation Matrix")
+            st.dataframe(df[num_cols].corr())
+
+# ======================================================
+# TAB 4 — FEATURE ENGINEERING + PREDICTION
+# ======================================================
 with tab4:
-    st.subheader("Prediction Model (Linear Regression)")
     if df is None:
-        st.warning("Upload dataset first")
+        st.warning("Upload a CSV file")
     else:
-        num_cols = df.select_dtypes(include=np.number).columns.tolist()
+        st.header("Prediction Model")
 
         if len(num_cols) < 2:
             st.info("Need at least 2 numeric columns")
         else:
-            target = st.selectbox("Target column", num_cols)
+            target = st.selectbox("Target Column", num_cols)
             features = st.multiselect(
-                "Feature columns",
+                "Feature Columns",
                 [c for c in num_cols if c != target]
             )
 
@@ -214,64 +165,48 @@ with tab4:
                 model = LinearRegression()
                 model.fit(X_train, y_train)
 
-                y_pred = model.predict(X_test)
-                st.success(f"Model Accuracy (R² Score): {r2_score(y_test, y_pred):.2f}")
+                score = r2_score(y_test, model.predict(X_test))
+                st.success(f"Model R² Score: {score:.2f}")
 
-                st.markdown("### 🔢 Try Your Own Values")
-                input_data = []
-                for col in features:
-                    input_data.append(st.number_input(f"{col}"))
+                st.subheader("Manual Prediction")
+                inputs = []
+                for f in features:
+                    inputs.append(st.number_input(f))
 
                 if st.button("Predict Value"):
-                    result = model.predict([input_data])
-                    st.success(f"Predicted Result: {result[0]:.2f}")
+                    result = model.predict([inputs])
+                    st.success(f"Predicted Value: {result[0]:.2f}")
 
-# ---------------- TAB 5 ----------------
+# ======================================================
+# TAB 5 — INSIGHTS & FORECASTING
+# ======================================================
 with tab5:
-    st.subheader("📈 Future Forecasting")
-
     if df is None:
-        st.warning("Upload dataset first")
+        st.warning("Upload a CSV file")
     else:
-        st.markdown("""
-        **What is happening here?**
-        - We use past data  
-        - Create a trend using Linear Regression  
-        - Predict future values  
-        """)
-
-        num_cols = df.select_dtypes(include=np.number).columns.tolist()
+        st.header("Insights & Future Forecast")
 
         if num_cols:
-            target = st.selectbox("Select column to forecast", num_cols)
-            steps = st.slider("Future time steps", 1, 30, 5)
+            col = st.selectbox("Select column for trend analysis", num_cols)
 
-            y = df[target].values
-            X = np.arange(len(y)).reshape(-1, 1)
+            st.write("Mean:", df[col].mean())
+            st.write("Max:", df[col].max())
+            st.write("Min:", df[col].min())
+
+            X = np.arange(len(df[col])).reshape(-1, 1)
+            y = df[col].values
 
             model = LinearRegression()
             model.fit(X, y)
 
-            future_X = np.arange(len(y), len(y) + steps).reshape(-1, 1)
+            future = st.slider("Future days", 1, 30, 7)
+            future_X = np.arange(len(y), len(y) + future).reshape(-1, 1)
             future_y = model.predict(future_X)
 
-            forecast_df = pd.DataFrame({
-                "Future Step": range(1, steps + 1),
-                "Predicted Value": future_y
-            })
-
-            st.success("Forecast Generated Successfully")
-            st.dataframe(forecast_df)
-
-            # -------- LINE CHART --------
             fig = plt.figure()
-            plt.plot(y, label="Past Data")
-            plt.plot(range(len(y), len(y) + steps), future_y, label="Future Prediction")
-            plt.xlabel("Time Index")
-            plt.ylabel(target)
-            plt.title("Past vs Future Forecast")
+            plt.plot(y, label="Past")
+            plt.plot(range(len(y), len(y) + future), future_y, label="Future")
             plt.legend()
             st.pyplot(fig)
 
-        else:
-            st.info("No numeric data available")
+            st.info("Forecast based on historical trend (Linear Regression)")
