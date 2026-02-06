@@ -1,188 +1,180 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.express as px
-import plotly.graph_objects as go
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.preprocessing import LabelEncoder
-import datetime
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score
 
-# ==========================================
-# 🎨 1. PROFESSIONAL CSS & PAGE CONFIG
-# ==========================================
-st.set_page_config(page_title="Sales AI Dashboard", layout="wide", page_icon="📈")
+# ------------------ PAGE CONFIG ------------------
+st.set_page_config(page_title="Data Analysis and Prediction Tool", layout="wide")
 
-def apply_custom_styles():
-    st.markdown("""
-        <style>
-        .main { background-color: #f4f7f9; }
-        .welcome-banner {
-            background: linear-gradient(90deg, #4e73df 0%, #224abe 100%);
-            padding: 30px; border-radius: 15px; color: white; margin-bottom: 25px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        }
-        [data-testid="stSidebar"] { background-color: #1a1c24; }
-        [data-testid="stSidebar"] * { color: #ffffff !important; }
-        .stMetric {
-            background-color: white; padding: 20px; border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05); border: 1px solid #e3e6f0;
-        }
-        .ai-card {
-            background-color: #e3f2fd; border-left: 5px solid #2196f3;
-            padding: 20px; border-radius: 10px; margin-bottom: 20px; color: #0d47a1;
-        }
-        .analysis-box {
-            background-color: #fffdf0; border: 1px solid #ffeeba;
-            padding: 20px; border-radius: 10px; margin-top: 10px; color: #856404;
-        }
-        </style>
-    """, unsafe_allow_html=True)
+# ------------------ SIDEBAR ------------------
+st.sidebar.title("Import Data")
+option = st.sidebar.radio(
+    "Select any one method to fetch data:",
+    ("Browse Files", "Link/Name")
+)
 
-apply_custom_styles()
+df = None
 
-# ==========================================
-# 📊 2. DATA ENGINE
-# ==========================================
-@st.cache_data
-def load_data():
-    df = pd.read_csv('cleaned_sales_data.csv')
-    df['ORDERDATE'] = pd.to_datetime(df['ORDERDATE'])
-    # Clean string data
-    for col in ['CITY', 'STATE', 'TERRITORY']:
-        df[col] = df[col].fillna('N/A')
-    return df
+if option == "Browse Files":
+    file = st.sidebar.file_uploader("Upload CSV file", type=["csv"])
+    if file is not None:
+        df = pd.read_csv(file)
+else:
+    link = st.sidebar.text_input("Enter dataset URL or filename")
+    if link:
+        try:
+            df = pd.read_csv(link)
+        except:
+            st.sidebar.error("Unable to load dataset")
 
-df = load_data()
+st.sidebar.markdown("---")
+st.sidebar.button("Follow Me 👍😎")
 
-# ==========================================
-# 🧭 3. NAVIGATION & LOGIN (SIMULATED)
-# ==========================================
-if 'logged_in' not in st.session_state:
-    st.session_state.logged_in = True  # Simplified for deployment
+# ------------------ MAIN TITLE ------------------
+st.title("Data Analysis and Prediction Tool")
 
-st.sidebar.title("📈 Sales AI Menu")
-menu = st.sidebar.radio("Navigate Sections:", 
-    ["1. Overview Dashboard", "2. Sales Analysis", "3. Customer Search (Person Detail)", "4. Predictive AI", "5. 🛡️ Admin Panel"])
+# ------------------ TABS ------------------
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    "Data Overview",
+    "Data Cleaning",
+    "Data Visualization",
+    "Model Building",
+    "Future Forecasting"
+])
 
-# ==========================================
-# 🔹 SECTION 1: OVERVIEW DASHBOARD
-# ==========================================
-if menu == "1. Overview Dashboard":
-    st.markdown("""<div class="welcome-banner"><h1>Corporate Sales Overview 🚀</h1><p>Quick business snapshot for management decision-making.</p></div>""", unsafe_allow_html=True)
-    
-    # KPIs
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Total Sales (Revenue)", f"${df['SALES'].sum():,.2f}")
-    c2.metric("Total Orders", f"{df['ORDERNUMBER'].nunique():,}")
-    c3.metric("Total Customers", f"{df['CUSTOMERNAME'].nunique():,}")
+# ------------------ DATA OVERVIEW ------------------
+with tab1:
+    st.subheader("Data Profile")
+    if df is None:
+        st.error("Please upload dataset!")
+    else:
+        st.write("Dataset Shape:", df.shape)
+        st.dataframe(df.head())
+        st.write("Column Types")
+        st.write(df.dtypes)
+        st.write("Missing Values")
+        st.write(df.isnull().sum())
 
-    # Year-wise Trend
-    st.subheader("📈 Year-wise Sales Trend")
-    yearly_trend = df.groupby('YEAR_ID')['SALES'].sum().reset_index()
-    fig_year = px.bar(yearly_trend, x='YEAR_ID', y='SALES', text_auto='.2s', color='SALES', template="plotly_white")
-    st.plotly_chart(fig_year, use_container_width=True)
+# ------------------ DATA CLEANING ------------------
+with tab2:
+    st.subheader("Data Cleaning")
+    if df is None:
+        st.warning("Upload dataset first")
+    else:
+        if st.checkbox("Remove duplicate rows"):
+            df = df.drop_duplicates()
+            st.success("Duplicate rows removed")
 
-    st.markdown('<div class="analysis-box">', unsafe_allow_html=True)
-    st.subheader("📝 Executive Proper Analysis")
-    st.write(f"Business health is stable with **{df['CUSTOMERNAME'].nunique()}** active clients. The system is currently scaling smoothly with over **{len(df)}** historical records.")
-    st.markdown('</div>', unsafe_allow_html=True)
+        if st.checkbox("Fill missing numeric values with mean"):
+            num_cols = df.select_dtypes(include=np.number).columns
+            df[num_cols] = df[num_cols].fillna(df[num_cols].mean())
+            st.success("Missing values filled")
 
-# ==========================================
-# 🔹 SECTION 2: SALES ANALYSIS
-# ==========================================
-elif menu == "2. Sales Analysis":
-    st.title("🔎 Revenue Performance Drivers")
-    
-    col_a, col_b = st.columns(2)
-    
-    with col_a:
-        st.subheader("Sales by Product Line")
-        prod_data = df.groupby('PRODUCTLINE')['SALES'].sum().reset_index().sort_values('SALES')
-        st.plotly_chart(px.bar(prod_data, x='SALES', y='PRODUCTLINE', orientation='h', color='SALES'), use_container_width=True)
-        
-        st.subheader("Sales by Deal Size")
-        deal_data = df.groupby('DEALSIZE')['SALES'].sum().reset_index()
-        st.plotly_chart(px.pie(deal_data, values='SALES', names='DEALSIZE', hole=0.4), use_container_width=True)
+        st.write("Cleaned Data Preview")
+        st.dataframe(df.head())
 
-    with col_b:
-        st.subheader("Top 10 Countries by Sales")
-        country_data = df.groupby('COUNTRY')['SALES'].sum().reset_index().sort_values('SALES', ascending=False).head(10)
-        st.plotly_chart(px.bar(country_data, x='COUNTRY', y='SALES', color='SALES'), use_container_width=True)
+# ------------------ DATA VISUALIZATION ------------------
+with tab3:
+    st.subheader("Data Visualization")
+    if df is None:
+        st.warning("Upload dataset first")
+    else:
+        numeric_cols = df.select_dtypes(include=np.number).columns.tolist()
 
-    st.markdown('<div class="analysis-box">', unsafe_allow_html=True)
-    st.subheader("📝 Sales Strategy Notes")
-    st.write("Current revenue is highly concentrated in specific product lines. Diversification in 'Trains' and 'Ships' is recommended.")
-    st.markdown('</div>', unsafe_allow_html=True)
+        if len(numeric_cols) > 0:
+            col = st.selectbox("Select numeric column", numeric_cols)
 
-# ==========================================
-# 🔹 SECTION 3: CUSTOMER SEARCH (PERSON DETAIL)
-# ==========================================
-elif menu == "3. Customer Search (Person Detail)":
-    st.title("👤 Individual Customer Deep-Dive")
-    search_name = st.selectbox("Select Customer to View Details:", sorted(df['CUSTOMERNAME'].unique()))
-    
-    cust_df = df[df['CUSTOMERNAME'] == search_name]
-    
-    # AI Recommendation Logic
-    st.markdown('<div class="ai-card">', unsafe_allow_html=True)
-    st.subheader(f"🤖 AI Recommendation for {search_name}")
-    top_cat = cust_df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
-    st.write(f"**Insight:** This customer has the highest affinity for **{top_cat}**.")
-    st.write(f"**Strategy:** Next campaign should focus on bulk-discounts for **{top_cat}** or early access to new **{cust_df['TERRITORY'].iloc[0]}** inventory.")
-    st.markdown('</div>', unsafe_allow_html=True)
+            fig = plt.figure()
+            plt.hist(df[col], bins=20)
+            plt.xlabel(col)
+            plt.ylabel("Frequency")
+            plt.title(f"Histogram of {col}")
+            st.pyplot(fig)
+        else:
+            st.info("No numeric columns found")
 
-    # Detailed Info
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Total Value", f"${cust_df['SALES'].sum():,.2f}")
-    c2.metric("Contact Person", f"{cust_df['CONTACTFIRSTNAME'].iloc[0]} {cust_df['CONTACTLASTNAME'].iloc[0]}")
-    c3.metric("Phone Number", f"{cust_df['PHONE'].iloc[0]}")
+# ------------------ MODEL BUILDING ------------------
+with tab4:
+    st.subheader("Prediction Model")
+    if df is None:
+        st.warning("Upload dataset first")
+    else:
+        numeric_cols = df.select_dtypes(include=np.number).columns.tolist()
 
-    st.subheader("📍 Location Details")
-    st.info(f"**Address:** {cust_df['ADDRESSLINE1'].iloc[0]}, {cust_df['CITY'].iloc[0]}, {cust_df['COUNTRY'].iloc[0]}")
+        if len(numeric_cols) < 2:
+            st.info("Need at least 2 numeric columns")
+        else:
+            target = st.selectbox("Select Target Column", numeric_cols)
+            features = st.multiselect(
+                "Select Feature Columns",
+                [c for c in numeric_cols if c != target]
+            )
 
-    st.subheader("🕒 Full Purchase History")
-    st.dataframe(cust_df[['ORDERDATE', 'ORDERNUMBER', 'PRODUCTLINE', 'SALES', 'STATUS', 'DEALSIZE']], use_container_width=True)
+            if len(features) > 0:
+                X = df[features]
+                y = df[target]
 
-# ==========================================
-# 🔹 SECTION 4: PREDICTIVE AI
-# ==========================================
-elif menu == "4. Predictive AI":
-    st.title("🔮 AI Revenue Forecasting")
-    
-    # Feature Engineering for Prediction
-    le = LabelEncoder()
-    pred_df = df.copy()
-    
-    # Encode requested features
-    cat_cols = ['PRODUCTLINE', 'DEALSIZE', 'COUNTRY', 'TERRITORY']
-    for col in cat_cols:
-        pred_df[col] = le.fit_transform(pred_df[col])
-    
-    # Define Model Features (Using your specific Input Variables)
-    features = ['QUANTITYORDERED', 'PRICEEACH', 'MSRP', 'YEAR_ID', 'MONTH_ID', 'PRODUCTLINE', 'DEALSIZE']
-    X = pred_df[features]
-    y = pred_df['SALES']
-    
-    model = RandomForestRegressor(n_estimators=100, random_state=42).fit(X, y)
+                X_train, X_test, y_train, y_test = train_test_split(
+                    X, y, test_size=0.2, random_state=42
+                )
 
-    st.sidebar.subheader("Adjust Forecast Inputs")
-    qty = st.sidebar.slider("Quantity Ordered", 1, 100, 30)
-    price = st.sidebar.number_input("Price Each ($)", 10.0, 200.0, 100.0)
-    msrp = st.sidebar.number_input("MSRP ($)", 10.0, 250.0, 120.0)
-    
-    if st.button("Run AI Prediction"):
-        # Dummy values for other features for prediction
-        input_data = [[qty, price, msrp, 2005, 11, 0, 1]] 
-        prediction = model.predict(input_data)[0]
-        st.success(f"### Predicted Order Value: ${prediction:,.2f}")
-        st.write("Note: Model utilizes Quantity, Price, MSRP, and Time-based factors for high accuracy.")
+                model = LinearRegression()
+                model.fit(X_train, y_train)
 
-# ==========================================
-# 🔹 SECTION 5: ADMIN PANEL
-# ==========================================
-elif menu == "5. 🛡️ Admin Panel":
-    st.title("🛡️ System Administration")
-    st.write(f"**Database Size:** {len(df)} Records")
-    st.write("**Columns Tracked:**", list(df.columns))
-    st.subheader("Raw Data Preview")
-    st.dataframe(df.head(20), use_container_width=True)
+                y_pred = model.predict(X_test)
+                st.write("R² Score:", r2_score(y_test, y_pred))
+
+                st.subheader("Make Single Prediction")
+                input_data = []
+
+                for col in features:
+                    val = st.number_input(f"Enter {col}")
+                    input_data.append(val)
+
+                if st.button("Predict"):
+                    result = model.predict([input_data])
+                    st.success(f"Predicted Value: {result[0]}")
+
+# ------------------ FUTURE FORECASTING ------------------
+with tab5:
+    st.subheader("Future Forecasting")
+
+    if df is None:
+        st.warning("Upload dataset first")
+    else:
+        numeric_cols = df.select_dtypes(include=np.number).columns.tolist()
+
+        if len(numeric_cols) < 1:
+            st.info("No numeric column available")
+        else:
+            target = st.selectbox(
+                "Select Target Column to Forecast",
+                numeric_cols
+            )
+
+            steps = st.number_input(
+                "How many future values to predict?",
+                min_value=1,
+                max_value=50,
+                value=5
+            )
+
+            y = df[target].values
+            X = np.arange(len(y)).reshape(-1, 1)
+
+            model = LinearRegression()
+            model.fit(X, y)
+
+            future_X = np.arange(len(y), len(y) + steps).reshape(-1, 1)
+            future_predictions = model.predict(future_X)
+
+            forecast_df = pd.DataFrame({
+                "Future Step": range(1, steps + 1),
+                "Predicted Value": future_predictions
+            })
+
+            st.success("Future Forecast Generated ✅")
+            st.dataframe(forecast_df)
