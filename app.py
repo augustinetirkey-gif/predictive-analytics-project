@@ -63,7 +63,7 @@ apply_custom_styles()
 @st.cache_data
 def load_data():
     # Ensure this file is in your folder
-    df = pd.read_csv('cleaned_sales_data.csv')
+    df = pd.read_csv('"D:\data analyst\cleaned_sales_data.csv"')
     df['ORDERDATE'] = pd.to_datetime(df['ORDERDATE'])
     return df
 
