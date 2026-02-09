@@ -104,36 +104,45 @@ with tabs[0]:
     top_country = country_sales.iloc[0]['COUNTRY']
     st.write(f"**Analysis:** The {top_country} is the leading market, accounting for a major portion of total revenue.")
     st.info("This geographic concentration helps our AI model (Week 4) understand where the highest-value transactions are likely to occur.")
-# --- WEEK 3: FEATURE ENGINEERING ---
+
+
+# --- WEEK 4: MODEL BUILDING ---
+with tabs[2]:
+    st.header("AI Model Construction")
+    # --- WEEK 3: FEATURE ENGINEERING ---
 # --- TAB 2: FEATURE ENGINEERING ---
 elif selection == "⚙️ Tab 2: Feature Engineering":
     st.header("Advanced Feature Engineering")
     st.write("Turning raw data into 'Smart Features' for the AI.")
 
-    # Engineering Logic
     fe_df = df.copy()
+
+    # Convert ORDERDATE to datetime
+    fe_df['ORDERDATE'] = pd.to_datetime(fe_df['ORDERDATE'], errors='coerce')
     fe_df['MONTH'] = fe_df['ORDERDATE'].dt.month
-    
+
+    # Encode categorical columns
     le = LabelEncoder()
     for col in ['PRODUCTLINE', 'COUNTRY', 'DEALSIZE']:
-        fe_df[col+'_ENC'] = le.fit_transform(fe_df[col])
-    
-    # Visual 1: Heatmap
+        fe_df[col + '_ENC'] = le.fit_transform(fe_df[col])
+
+    # Correlation Heatmap
     st.subheader("Correlation Heatmap")
     corr = fe_df[['SALES', 'QUANTITYORDERED', 'PRICEEACH', 'MONTH', 'DEALSIZE_ENC']].corr()
+
     fig_corr, ax = plt.subplots()
     sns.heatmap(corr, annot=True, cmap='RdBu', ax=ax)
     st.pyplot(fig_corr)
 
-    # Visual 2: Log Transformation
+    # Log Transformation
     st.subheader("Data Normalization (Log Transformation)")
-    fig_hist = px.histogram(fe_df, x=np.log1p(fe_df['SALES']), title="Log-Transformed Sales (Bell Curve)")
+    fig_hist = px.histogram(
+        fe_df,
+        x=np.log1p(fe_df['SALES']),
+        title="Log-Transformed Sales Distribution"
+    )
     st.plotly_chart(fig_hist)
 
-# --- WEEK 4: MODEL BUILDING ---
-with tabs[2]:
-    st.header("AI Model Construction")
-    
     # ML Logic
     features = ['MONTH', 'QTR', 'MSRP', 'QUANTITYORDERED', 'PRODUCTLINE', 'COUNTRY']
     X = df[features].copy()
