@@ -1,212 +1,151 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-from sklearn.linear_model import LinearRegression
+import plotly.express as px
+import plotly.graph_objects as go
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import r2_score
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.preprocessing import LabelEncoder
 
-st.set_page_config("Universal CSV Analyzer", layout="wide")
+# --- PAGE CONFIG ---
+st.set_page_config(page_title="AI Sales Predictive System", layout="wide")
 
-# ---------------- SIDEBAR ----------------
-st.sidebar.title("📂 Upload CSV")
-file = st.sidebar.file_uploader("Upload any CSV file", type="csv")
+# --- WEEK 1: DATA COLLECTION & CLEANING ---
+@st.cache_data
+def load_data():
+    df = pd.read_csv('cleaned_sales_data.csv')
+    df['ORDERDATE'] = pd.to_datetime(df['ORDERDATE'])
+    # Week 3: Simple Feature Engineering (Extracting date parts)
+    df['MONTH'] = df['ORDERDATE'].dt.month
+    df['YEAR'] = df['ORDERDATE'].dt.year
+    df['DAY_OF_WEEK'] = df['ORDERDATE'].dt.dayofweek
+    return df
 
-df = None
-if file:
-    df = pd.read_csv(file)
+df = load_data()
 
-st.title("📊 Universal Data Analytics System")
+# --- SIDEBAR NAVIGATION ---
+st.sidebar.title("📊 Project Phases")
+page = st.sidebar.radio("Go to", ["Dashboard & EDA", "Sales Prediction Model", "Business Insights"])
 
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "📘 Dataset Knowledge",
-    "🧹 Data Cleaning",
-    "📈 Visualization",
-    "🤖 Prediction",
-    "🔮 Insights & Forecast"
-])
+# --- PAGE 1: DASHBOARD & EDA (WEEK 2) ---
+if page == "Dashboard & EDA":
+    st.title("📈 Business Exploratory Data Analysis")
+    
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Total Revenue", f"${df['SALES'].sum():,.2f}")
+    col2.metric("Total Orders", len(df))
+    col3.metric("Avg Order Value", f"${df['SALES'].mean():,.2f}")
 
-# ======================================================
-# TAB 1 — COMPLETE DATASET KNOWLEDGE
-# ======================================================
-with tab1:
-    if df is None:
-        st.warning("Upload a CSV file")
-    else:
-        st.header("Dataset Overview")
+    st.subheader("Sales Trends Over Time")
+    time_series = df.groupby('ORDERDATE')['SALES'].sum().reset_index()
+    fig_line = px.line(time_series, x='ORDERDATE', y='SALES', title="Daily Revenue Trend")
+    st.plotly_chart(fig_line, use_container_width=True)
 
-        st.write("Rows:", df.shape[0])
-        st.write("Columns:", df.shape[1])
+    col_left, col_right = st.columns(2)
+    
+    with col_left:
+        st.subheader("Sales by Product Line")
+        prod_sales = df.groupby('PRODUCTLINE')['SALES'].sum().sort_values(ascending=False).reset_index()
+        fig_bar = px.bar(prod_sales, x='PRODUCTLINE', y='SALES', color='SALES', color_continuous_scale='Blues')
+        st.plotly_chart(fig_bar)
 
-        st.subheader("Sample Data")
-        st.dataframe(df.head())
+    with col_right:
+        st.subheader("Geographic Sales Distribution")
+        geo_sales = df.groupby('COUNTRY')['SALES'].sum().reset_index()
+        fig_pie = px.pie(geo_sales, values='SALES', names='COUNTRY', hole=0.4)
+        st.plotly_chart(fig_pie)
 
-        st.subheader("Column Information")
-        info = pd.DataFrame({
-            "Column": df.columns,
-            "Data Type": df.dtypes.astype(str),
-            "Missing Values": df.isnull().sum(),
-            "Unique Values": df.nunique()
-        })
-        st.dataframe(info)
+# --- PAGE 2: SALES PREDICTION MODEL (WEEK 4 & 5) ---
+elif page == "Sales Prediction Model":
+    st.title("🤖 AI Prediction Engine")
+    st.write("This model predicts the **Sales Value** of a potential order based on product and timing.")
 
-        st.subheader("Numeric Columns")
-        num_cols = df.select_dtypes(include=np.number).columns.tolist()
-        st.write(num_cols)
+    # --- WEEK 3: FEATURE ENGINEERING ---
+    # Prepare data for ML
+    features = ['MONTH', 'YEAR', 'PRODUCTLINE', 'MSRP', 'COUNTRY', 'DEALSIZE']
+    X = df[features].copy()
+    y = df['SALES']
 
-        st.subheader("Categorical Columns")
-        cat_cols = df.select_dtypes(exclude=np.number).columns.tolist()
-        st.write(cat_cols)
+    # Encoding Categorical Data
+    le = LabelEncoder()
+    for col in ['PRODUCTLINE', 'COUNTRY', 'DEALSIZE']:
+        X[col] = le.fit_transform(X[col])
 
-        st.subheader("Duplicates")
-        st.write("Duplicate Rows:", df.duplicated().sum())
+    # --- WEEK 4: MODEL BUILDING ---
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    model = RandomForestRegressor(n_estimators=100, random_state=42)
+    model.fit(X_train, y_train)
 
-        st.subheader("Memory Usage")
-        st.write(f"{df.memory_usage().sum() / 1024:.2f} KB")
+    # --- WEEK 5: EVALUATION ---
+    preds = model.predict(X_test)
+    mae = mean_absolute_error(y_test, preds)
+    rmse = np.sqrt(mean_squared_error(y_test, preds))
+    r2 = r2_score(y_test, preds)
 
-        st.subheader("Categorical Value Counts")
-        for col in cat_cols:
-            st.write(col)
-            st.write(df[col].value_counts())
+    st.sidebar.subheader("Model Performance")
+    st.sidebar.write(f"**MAE:** ${mae:.2f}")
+    st.sidebar.write(f"**RMSE:** ${rmse:.2f}")
+    st.sidebar.write(f"**R² Score:** {r2:.2f}")
 
-# ======================================================
-# TAB 2 — DATA CLEANING
-# ======================================================
-with tab2:
-    if df is None:
-        st.warning("Upload a CSV file")
-    else:
-        st.header("Data Cleaning Options")
+    # --- USER PREDICTION INPUT ---
+    st.subheader("Live Prediction Tool")
+    c1, c2, c3 = st.columns(3)
+    
+    with c1:
+        in_prod = st.selectbox("Product Line", df['PRODUCTLINE'].unique())
+        in_country = st.selectbox("Country", df['COUNTRY'].unique())
+    with c2:
+        in_msrp = st.number_input("MSRP of Product", min_value=30, max_value=250, value=100)
+        in_deal = st.selectbox("Deal Size", df['DEALSIZE'].unique())
+    with c3:
+        in_month = st.slider("Month", 1, 12, 6)
+        in_year = st.selectbox("Year", [2005, 2006])
 
-        if st.checkbox("Remove duplicate rows"):
-            df = df.drop_duplicates()
-            st.success("Duplicates removed")
+    if st.button("Predict Order Value"):
+        # Process input
+        input_data = pd.DataFrame([[in_month, in_year, in_prod, in_msrp, in_country, in_deal]], 
+                                  columns=features)
+        
+        # We need to use the same label encoding as training
+        # Simplified for demo: map categorical back to codes
+        for col in ['PRODUCTLINE', 'COUNTRY', 'DEALSIZE']:
+            temp_le = LabelEncoder()
+            temp_le.fit(df[col])
+            input_data[col] = temp_le.transform(input_data[col])
+        
+        prediction = model.predict(input_data)
+        st.success(f"### Predicted Sales Value: ${prediction[0]:,.2f}")
+        st.info("The model suggests this order size based on historical patterns for this product and region.")
 
-        fill_method = st.selectbox(
-            "Fill missing numeric values using",
-            ["None", "Mean", "Median"]
-        )
-
-        if fill_method != "None":
-            for col in num_cols:
-                if fill_method == "Mean":
-                    df[col].fillna(df[col].mean(), inplace=True)
-                else:
-                    df[col].fillna(df[col].median(), inplace=True)
-            st.success("Missing values filled")
-
-        st.subheader("Cleaned Dataset")
-        st.dataframe(df.head())
-
-# ======================================================
-# TAB 3 — VISUALIZATION
-# ======================================================
-with tab3:
-    if df is None:
-        st.warning("Upload a CSV file")
-    else:
-        st.header("Automatic Visualization")
-
-        if num_cols:
-            col = st.selectbox("Select numeric column", num_cols)
-
-            fig = plt.figure()
-            plt.hist(df[col], bins=20)
-            plt.title("Histogram")
-            st.pyplot(fig)
-
-            fig = plt.figure()
-            plt.boxplot(df[col])
-            plt.title("Boxplot")
-            st.pyplot(fig)
-
-            fig = plt.figure()
-            plt.plot(df[col])
-            plt.title("Line Trend")
-            st.pyplot(fig)
-
-        if cat_cols:
-            col2 = st.selectbox("Select categorical column", cat_cols)
-            fig = plt.figure()
-            df[col2].value_counts().plot(kind="bar")
-            plt.title("Category Count")
-            st.pyplot(fig)
-
-        if len(num_cols) > 1:
-            st.subheader("Correlation Matrix")
-            st.dataframe(df[num_cols].corr())
-
-# ======================================================
-# TAB 4 — FEATURE ENGINEERING + PREDICTION
-# ======================================================
-with tab4:
-    if df is None:
-        st.warning("Upload a CSV file")
-    else:
-        st.header("Prediction Model")
-
-        if len(num_cols) < 2:
-            st.info("Need at least 2 numeric columns")
-        else:
-            target = st.selectbox("Target Column", num_cols)
-            features = st.multiselect(
-                "Feature Columns",
-                [c for c in num_cols if c != target]
-            )
-
-            if features:
-                X = df[features]
-                y = df[target]
-
-                X_train, X_test, y_train, y_test = train_test_split(
-                    X, y, test_size=0.2, random_state=42
-                )
-
-                model = LinearRegression()
-                model.fit(X_train, y_train)
-
-                score = r2_score(y_test, model.predict(X_test))
-                st.success(f"Model R² Score: {score:.2f}")
-
-                st.subheader("Manual Prediction")
-                inputs = []
-                for f in features:
-                    inputs.append(st.number_input(f))
-
-                if st.button("Predict Value"):
-                    result = model.predict([inputs])
-                    st.success(f"Predicted Value: {result[0]:.2f}")
-
-# ======================================================
-# TAB 5 — INSIGHTS & FORECASTING
-# ======================================================
-with tab5:
-    if df is None:
-        st.warning("Upload a CSV file")
-    else:
-        st.header("Insights & Future Forecast")
-
-        if num_cols:
-            col = st.selectbox("Select column for trend analysis", num_cols)
-
-            st.write("Mean:", df[col].mean())
-            st.write("Max:", df[col].max())
-            st.write("Min:", df[col].min())
-
-            X = np.arange(len(df[col])).reshape(-1, 1)
-            y = df[col].values
-
-            model = LinearRegression()
-            model.fit(X, y)
-
-            future = st.slider("Future days", 1, 30, 7)
-            future_X = np.arange(len(y), len(y) + future).reshape(-1, 1)
-            future_y = model.predict(future_X)
-
-            fig = plt.figure()
-            plt.plot(y, label="Past")
-            plt.plot(range(len(y), len(y) + future), future_y, label="Future")
-            plt.legend()
-            st.pyplot(fig)
-
-            st.info("Forecast based on historical trend (Linear Regression)")
+# --- PAGE 3: BUSINESS INSIGHTS (WEEK 6) ---
+elif page == "Business Insights":
+    st.title("💡 Strategic Recommendations")
+    
+    # Simple logic-based insights
+    top_country = df.groupby('COUNTRY')['SALES'].sum().idxmax()
+    top_prod = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
+    peak_month = df.groupby('MONTH_ID')['SALES'].sum().idxmax()
+    
+    st.markdown(f"""
+    ### Key Takeaways for Management:
+    1. **Primary Market:** Your strongest market is **{top_country}**. Consider increasing marketing budget here.
+    2. **Star Product:** **{top_prod}** is your highest revenue generator. Ensure supply chain priority for this line.
+    3. **Seasonality:** Historical data shows peak demand occurs in **Month {peak_month}**. Prepare inventory 2 months in advance.
+    4. **Deal Strategy:** Medium-sized deals contribute the most to consistent cash flow compared to rare Large deals.
+    """)
+    
+    # Feature Importance visualization
+    st.subheader("What drives Sales?")
+    st.write("Based on the Machine Learning model, these factors impact revenue the most:")
+    # (Note: Feature importance needs the model from Page 2)
+    # Re-running logic briefly for chart
+    features = ['MONTH', 'YEAR', 'PRODUCTLINE', 'MSRP', 'COUNTRY', 'DEALSIZE']
+    X_sample = df[features].copy()
+    for col in ['PRODUCTLINE', 'COUNTRY', 'DEALSIZE']:
+        X_sample[col] = LabelEncoder().fit_transform(X_sample[col])
+    m = RandomForestRegressor().fit(X_sample, df['SALES'])
+    
+    imp_df = pd.DataFrame({'Feature': features, 'Importance': m.feature_importances_}).sort_values(by='Importance', ascending=False)
+    fig_imp = px.bar(imp_df, x='Importance', y='Feature', orientation='h')
+    st.plotly_chart(fig_imp)
