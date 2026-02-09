@@ -74,6 +74,16 @@ with tab1:
         fig_geo = px.pie(df.groupby('COUNTRY')['SALES'].sum().reset_index(), 
                          values='SALES', names='COUNTRY', hole=0.4)
         st.plotly_chart(fig_geo, use_container_width=True)
+        # Define the exchange rate
+usd_to_inr = 90.55
+
+# Convert your historical revenue
+total_revenue_inr = total_revenue_usd * usd_to_inr
+avg_order_inr = avg_order_usd * usd_to_inr
+
+# Display in Streamlit using the Rupee symbol
+st.metric("Total Historical Revenue (INR)", f"₹{total_revenue_inr:,.2f}")
+st.metric("Average Order Value (INR)", f"₹{avg_order_inr:,.2f}")
 
 # --- WEEK 3: FEATURE ENGINEERING ---
 with tab2:
