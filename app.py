@@ -40,14 +40,6 @@ def get_system_data():
 
 df = get_system_data()
 
-# --- SIDEBAR CONTROL PANEL ---
-with st.sidebar:
-    st.image("https://cdn-icons-png.flaticon.com/512/2103/2103633.png", width=80)
-    st.title("System Control")
-    st.info("AI-Based Predictive Analytics Platform v1.0")
-    st.write("---")
-    st.markdown("**Internship Timeline:** Week 6 of 6")
-    st.progress(100)
 
 # --- MAIN INTERFACE ---
 st.title("🚀 PredictiCorp Executive AI Platform")
