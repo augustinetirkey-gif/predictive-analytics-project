@@ -56,6 +56,8 @@ tabs = st.tabs([
 # --- WEEK 1-2: EXPLORATORY DATA ANALYSIS ---
 with tabs[0]:
     st.header("Exploratory Data Analysis")
+    
+    # KPI Metrics Row
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Gross Revenue", f"${df['SALES'].sum()/1e6:.2f}M")
     col2.metric("Avg Order", f"${df['SALES'].mean():,.0f}")
@@ -63,6 +65,8 @@ with tabs[0]:
     col4.metric("Growth %", "+12.4%")
 
     st.write("---")
+
+    # Row 1: Revenue Trend and Product Pie Chart
     c1, c2 = st.columns([2, 1])
     with c1:
         st.subheader("Revenue Trend Analysis")
@@ -74,6 +78,32 @@ with tabs[0]:
         fig_pie = px.pie(df, values='SALES', names='PRODUCTLINE', hole=0.5)
         st.plotly_chart(fig_pie, use_container_width=True)
 
+    st.write("---")
+
+    # Row 2: Market Distribution by Country
+    st.subheader("🌍 Market Distribution by Country")
+    
+    # 1. Group data by country and calculate total sales
+    country_sales = df.groupby('COUNTRY')['SALES'].sum().reset_index()
+    country_sales = country_sales.sort_values(by='SALES', ascending=False)
+    
+    # 2. Create the Bar Chart
+    fig_bar = px.bar(
+        country_sales, 
+        x='COUNTRY', 
+        y='SALES',
+        title="Total Sales by Country",
+        labels={'SALES': 'Revenue ($)', 'COUNTRY': 'Country'},
+        color='SALES',
+        color_continuous_scale='Blues'
+    )
+    
+    st.plotly_chart(fig_bar, use_container_width=True)
+    
+    # 3. Dynamic Summary Analysis
+    top_country = country_sales.iloc[0]['COUNTRY']
+    st.write(f"**Analysis:** The {top_country} is the leading market, accounting for a major portion of total revenue.")
+    st.info("This geographic concentration helps our AI model (Week 4) understand where the highest-value transactions are likely to occur.")
 # --- WEEK 3: FEATURE ENGINEERING ---
 with tabs[1]:
     st.header("Advanced Feature Engineering")
