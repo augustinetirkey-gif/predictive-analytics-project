@@ -105,6 +105,7 @@ with tabs[0]:
     st.write(f"**Analysis:** The {top_country} is the leading market, accounting for a major portion of total revenue.")
     st.info("This geographic concentration helps our AI model (Week 4) understand where the highest-value transactions are likely to occur.")
 # --- WEEK 3: FEATURE ENGINEERING ---
+# --- TAB 2: FEATURE ENGINEERING ---
 elif selection == "⚙️ Tab 2: Feature Engineering":
     st.header("Advanced Feature Engineering")
     st.write("Turning raw data into 'Smart Features' for the AI.")
