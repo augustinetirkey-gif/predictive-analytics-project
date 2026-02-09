@@ -7,6 +7,11 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error, rmse_score, r2_score
 from sklearn.preprocessing import LabelEncoder
+# Change this:
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+
+# And later in the code where you calculate RMSE, use this:
+rmse = np.sqrt(mean_squared_error(y_test, y_pred))
 
 # --- APP CONFIGURATION ---
 st.set_page_config(page_title="AI Predictive Platform", layout="wide")
