@@ -105,57 +105,32 @@ with tabs[0]:
     st.write(f"**Analysis:** The {top_country} is the leading market, accounting for a major portion of total revenue.")
     st.info("This geographic concentration helps our AI model (Week 4) understand where the highest-value transactions are likely to occur.")
 # --- WEEK 3: FEATURE ENGINEERING ---
-import streamlit as st
-import pandas as pd
-import plotly.express as px
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.preprocessing import LabelEncoder
 
-# Assuming df is your cleaned_sales_data.csv
-with tabs[1]:
-    st.header("Advanced Feature Engineering")
-    st.write("In this phase, we rank the variables to see what truly drives the $10.03M revenue.")
+   # 1. Date Decomposition
+# Extracts meaningful time signals from the raw ORDERDATE string
+df['ORDERDATE'] = pd.to_datetime(df['ORDERDATE'])
+df['MONTH'] = df['ORDERDATE'].dt.month
+df['YEAR'] = df['ORDERDATE'].dt.year
+df['QUARTER'] = df['ORDERDATE'].dt.quarter
 
-    # 1. Prepare data for the importance check
-    # We create a copy to avoid changing your original display data
-    temp_df = df.copy()
-    le = LabelEncoder()
-    
-    # Encode categorical columns so the model can read them
-    for col in ['PRODUCTLINE', 'COUNTRY', 'DEALSIZE']:
-        temp_df[col] = le.fit_transform(temp_df[col])
-    
-    # Define Features (X) and Target (y)
-    X = temp_df[['PRODUCTLINE', 'COUNTRY', 'DEALSIZE', 'QUANTITYORDERED', 'PRICEEACH']]
-    y = temp_df['SALES']
-    
-    # 2. Run a quick Random Forest to get "Importance"
-    model = RandomForestRegressor(n_estimators=100, random_state=42)
-    model.fit(X, y)
-    
-    # 3. Create a DataFrame for the results
-    importance_df = pd.DataFrame({
-        'Feature': X.columns,
-        'Importance': model.feature_importances_
-    }).sort_values(by='Importance', ascending=False)
+# 2. Categorical Encoding
+# Converts text labels into numerical values for the AI model
+le = LabelEncoder()
+for col in ['PRODUCTLINE', 'COUNTRY', 'DEALSIZE']:
+    df[col + '_ENCODED'] = le.fit_transform(df[col])
 
-    # 4. Display the Chart
-    st.subheader("💡 What Drives Our Sales?")
-    fig_imp = px.bar(
-        importance_df, 
-        x='Importance', 
-        y='Feature', 
-        orientation='h',
-        title="Feature Importance Ranking",
-        color='Importance',
-        color_continuous_scale='Viridis'
-    )
-    st.plotly_chart(fig_imp, use_container_width=True)
+# 3. Outlier Handling (IQR Method)
+# Removes extreme values that could distort the model's accuracy
+Q1 = df['SALES'].quantile(0.25)
+Q3 = df['SALES'].quantile(0.75)
+IQR = Q3 - Q1
+lower_bound = Q1 - 1.5 * IQR
+upper_bound = Q3 + 1.5 * IQR
+df = df[(df['SALES'] >= lower_bound) & (df['SALES'] <= upper_bound)]
 
-    # 5. Summary Explanation
-    top_f = importance_df.iloc[0]['Feature']
-    st.success(f"**Insight:** The model found that **{top_f}** is the #1 predictor of sales revenue.")
-    st.write("This explains why those blue dots in the scatter plot were shaped that way—they were following the influence of these top features.")
+# 4. Target Variable Normalization (Log Transformation)
+# Squashes large sales spikes into a normal distribution
+df['SALES_LOG'] = np.log1p(df['SALES'])
 
 # --- WEEK 4: MODEL BUILDING ---
 with tabs[2]:
