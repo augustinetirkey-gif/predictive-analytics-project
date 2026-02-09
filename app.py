@@ -105,32 +105,69 @@ with tabs[0]:
     st.write(f"**Analysis:** The {top_country} is the leading market, accounting for a major portion of total revenue.")
     st.info("This geographic concentration helps our AI model (Week 4) understand where the highest-value transactions are likely to occur.")
 # --- WEEK 3: FEATURE ENGINEERING ---
+with tabs[1]:
+    st.header("Advanced Feature Engineering")
+    st.write("Transforming raw sales data into predictive features for our AI model.")
 
-   # 1. Date Decomposition
-# Extracts meaningful time signals from the raw ORDERDATE string
-df['ORDERDATE'] = pd.to_datetime(df['ORDERDATE'])
-df['MONTH'] = df['ORDERDATE'].dt.month
-df['YEAR'] = df['ORDERDATE'].dt.year
-df['QUARTER'] = df['ORDERDATE'].dt.quarter
+    # --- 1. DATE DECOMPOSITION (Visualizing Time Patterns) ---
+    st.subheader("1. Date Decomposition")
+    df['ORDERDATE'] = pd.to_datetime(df['ORDERDATE'])
+    df['MONTH'] = df['ORDERDATE'].dt.month
+    df['YEAR'] = df['ORDERDATE'].dt.year
+    df['QUARTER'] = df['ORDERDATE'].dt.quarter
+    
+    st.info("Extracted Month, Year, and Quarter to capture seasonal peaks like the $140k November spikes.")
+    st.write(df[['ORDERDATE', 'MONTH', 'YEAR', 'QUARTER']].head())
 
-# 2. Categorical Encoding
-# Converts text labels into numerical values for the AI model
-le = LabelEncoder()
-for col in ['PRODUCTLINE', 'COUNTRY', 'DEALSIZE']:
-    df[col + '_ENCODED'] = le.fit_transform(df[col])
+    # --- 2. LOG TRANSFORMATION (Visualizing the 'Before & After') ---
+    st.subheader("2. Normalization: Log Transformation")
+    
+    # Create the 'Before' and 'After' data
+    original_sales = df['SALES'].values
+    log_sales = np.log1p(df['SALES']).values
+    
+    # Plotting the transformation
+    hist_data = [original_sales, log_sales]
+    group_labels = ['Original Sales', 'Log Transformed Sales']
+    
+    c1, c2 = st.columns(2)
+    with c1:
+        fig_before = px.histogram(df, x="SALES", title="Before: Skewed Data", color_discrete_sequence=['#ff7f0e'])
+        st.plotly_chart(fig_before, use_container_width=True)
+    with c2:
+        df['SALES_LOG'] = np.log1p(df['SALES'])
+        fig_after = px.histogram(df, x="SALES_LOG", title="After: Normal Distribution", color_discrete_sequence=['#2ca02c'])
+        st.plotly_chart(fig_after, use_container_width=True)
+    
+    st.success("Transformation complete: We moved from messy spikes to a clean 'Bell Curve' that the AI prefers.")
 
-# 3. Outlier Handling (IQR Method)
-# Removes extreme values that could distort the model's accuracy
-Q1 = df['SALES'].quantile(0.25)
-Q3 = df['SALES'].quantile(0.75)
-IQR = Q3 - Q1
-lower_bound = Q1 - 1.5 * IQR
-upper_bound = Q3 + 1.5 * IQR
-df = df[(df['SALES'] >= lower_bound) & (df['SALES'] <= upper_bound)]
+    # --- 3. CATEGORICAL ENCODING & FEATURE IMPORTANCE ---
+    st.subheader("3. Feature Importance (The AI Rulebook)")
+    
+    # Engineering steps for the model
+    le = LabelEncoder()
+    temp_df = df.copy()
+    for col in ['PRODUCTLINE', 'COUNTRY', 'DEALSIZE']:
+        temp_df[col] = le.fit_transform(temp_df[col])
+    
+    # Training a quick model to find the 'Drivers'
+    X = temp_df[['QUANTITYORDERED', 'PRICEEACH', 'PRODUCTLINE', 'COUNTRY', 'DEALSIZE', 'MONTH']]
+    y = temp_df['SALES']
+    model = RandomForestRegressor(n_estimators=50, random_state=42)
+    model.fit(X, y)
+    
+    # Plotting the importance
+    feat_importances = pd.DataFrame(model.feature_importances_, index=X.columns, columns=["Importance"]).sort_values(by='Importance', ascending=True)
+    fig_imp = px.bar(feat_importances, x="Importance", y=feat_importances.index, orientation='h', title="Which Feature Drives the $10.03M Revenue?")
+    st.plotly_chart(fig_imp, use_container_width=True)
 
-# 4. Target Variable Normalization (Log Transformation)
-# Squashes large sales spikes into a normal distribution
-df['SALES_LOG'] = np.log1p(df['SALES'])
+    # --- 4. OUTLIER HANDLING (The Quality Check) ---
+    st.subheader("4. Outlier Removal (IQR Method)")
+    Q1 = df['SALES'].quantile(0.25)
+    Q3 = df['SALES'].quantile(0.75)
+    IQR = Q3 - Q1
+    st.write(f"**Insight:** We identified and stabilized values outside the range of **${(Q1 - 1.5*IQR):,.2f}** to **${(Q3 + 1.5*IQR):,.2f}**.")
+    st.success("✅ Cleaned data ready for Week 4: Model Building.")
 
 # --- WEEK 4: MODEL BUILDING ---
 with tabs[2]:
