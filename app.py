@@ -3,149 +3,168 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
-from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_absolute_error, rmse_score, r2_score
 from sklearn.preprocessing import LabelEncoder
 
-# --- PAGE CONFIG ---
-st.set_page_config(page_title="AI Sales Predictive System", layout="wide")
+# --- APP CONFIGURATION ---
+st.set_page_config(page_title="AI Predictive Platform", layout="wide")
 
-# --- WEEK 1: DATA COLLECTION & CLEANING ---
+# Custom CSS for Professional Branding
+st.markdown("""
+    <style>
+    .main { background-color: #f0f2f6; }
+    .stTabs [data-baseweb="tab-list"] { gap: 24px; }
+    .stTabs [data-baseweb="tab"] { height: 50px; white-space: pre-wrap; background-color: #ffffff; border-radius: 5px; padding: 10px; }
+    .stMetric { border: 1px solid #d1d5db; padding: 15px; border-radius: 10px; background: white; }
+    </style>
+    """, unsafe_allow_html=True)
+
 @st.cache_data
-def load_data():
+def load_and_clean():
+    # Week 1: Data Understanding & Collection
     df = pd.read_csv('cleaned_sales_data.csv')
     df['ORDERDATE'] = pd.to_datetime(df['ORDERDATE'])
-    # Week 3: Simple Feature Engineering (Extracting date parts)
+    # Week 3: Feature Engineering
     df['MONTH'] = df['ORDERDATE'].dt.month
     df['YEAR'] = df['ORDERDATE'].dt.year
-    df['DAY_OF_WEEK'] = df['ORDERDATE'].dt.dayofweek
+    df['QUARTER'] = df['ORDERDATE'].dt.quarter
     return df
 
-df = load_data()
+df = load_and_clean()
 
-# --- SIDEBAR NAVIGATION ---
-st.sidebar.title("📊 Project Phases")
-page = st.sidebar.radio("Go to", ["Dashboard & EDA", "Sales Prediction Model", "Business Insights"])
+# --- HEADER SECTION ---
+st.title("🎯 AI-Based Predictive Analytics Platform")
+st.caption("Internship Project: Forecasting Trends & Business Outcomes")
+st.write("---")
 
-# --- PAGE 1: DASHBOARD & EDA (WEEK 2) ---
-if page == "Dashboard & EDA":
-    st.title("📈 Business Exploratory Data Analysis")
+# --- 6-WEEK PROJECT WORKFLOW TABS ---
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    "📍 Week 1-2: EDA & Insights", 
+    "📍 Week 3: Feature Engineering", 
+    "📍 Week 4: Model Building", 
+    "📍 Week 5: Evaluation",
+    "📍 Week 6: Deployment Dashboard"
+])
+
+# --- WEEK 1 & 2: EXPLORATORY DATA ANALYSIS ---
+with tab1:
+    st.header("📊 Exploratory Data Analysis (EDA)")
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.metric("Total Revenue", f"${df['SALES'].sum():,.2f}")
+    with c2:
+        st.metric("Top Category", df.groupby('PRODUCTLINE')['SALES'].sum().idxmax())
+    with c3:
+        st.metric("Global Reach", f"{df['COUNTRY'].nunique()} Countries")
+
+    st.subheader("Revenue Distribution by Geography")
+    fig_map = px.choropleth(df.groupby('COUNTRY')['SALES'].sum().reset_index(), 
+                            locations="COUNTRY", locationmode='country names', 
+                            color="SALES", hover_name="COUNTRY", color_continuous_scale="Viridis")
+    st.plotly_chart(fig_map, use_container_width=True)
+
+# --- WEEK 3: FEATURE ENGINEERING ---
+with tab2:
+    st.header("⚙️ Feature Transformation")
+    st.write("In this phase, we converted raw dates and categories into mathematical features.")
     
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Total Revenue", f"${df['SALES'].sum():,.2f}")
-    col2.metric("Total Orders", len(df))
-    col3.metric("Avg Order Value", f"${df['SALES'].mean():,.2f}")
-
-    st.subheader("Sales Trends Over Time")
-    time_series = df.groupby('ORDERDATE')['SALES'].sum().reset_index()
-    fig_line = px.line(time_series, x='ORDERDATE', y='SALES', title="Daily Revenue Trend")
-    st.plotly_chart(fig_line, use_container_width=True)
-
-    col_left, col_right = st.columns(2)
+    col_f1, col_f2 = st.columns(2)
+    with col_f1:
+        st.write("**Before Transformation:**")
+        st.dataframe(df[['ORDERDATE', 'PRODUCTLINE', 'COUNTRY']].head(3))
+    with col_f2:
+        st.write("**After Encoding:**")
+        # Visual representation of the logic
+        encoded_sample = df[['MONTH', 'QUARTER', 'MSRP']].head(3)
+        st.dataframe(encoded_sample)
     
-    with col_left:
-        st.subheader("Sales by Product Line")
-        prod_sales = df.groupby('PRODUCTLINE')['SALES'].sum().sort_values(ascending=False).reset_index()
-        fig_bar = px.bar(prod_sales, x='PRODUCTLINE', y='SALES', color='SALES', color_continuous_scale='Blues')
-        st.plotly_chart(fig_bar)
+    st.info("💡 Insight: Added 'Month' and 'Quarter' features to capture seasonality spikes found during EDA.")
 
-    with col_right:
-        st.subheader("Geographic Sales Distribution")
-        geo_sales = df.groupby('COUNTRY')['SALES'].sum().reset_index()
-        fig_pie = px.pie(geo_sales, values='SALES', names='COUNTRY', hole=0.4)
-        st.plotly_chart(fig_pie)
-
-# --- PAGE 2: SALES PREDICTION MODEL (WEEK 4 & 5) ---
-elif page == "Sales Prediction Model":
-    st.title("🤖 AI Prediction Engine")
-    st.write("This model predicts the **Sales Value** of a potential order based on product and timing.")
-
-    # --- WEEK 3: FEATURE ENGINEERING ---
-    # Prepare data for ML
-    features = ['MONTH', 'YEAR', 'PRODUCTLINE', 'MSRP', 'COUNTRY', 'DEALSIZE']
+# --- WEEK 4: MODEL BUILDING ---
+with tab3:
+    st.header("🤖 Machine Learning Model (Random Forest)")
+    
+    # Model Preparation
+    features = ['MONTH', 'QUARTER', 'MSRP', 'QUANTITYORDERED', 'PRODUCTLINE', 'COUNTRY']
     X = df[features].copy()
     y = df['SALES']
-
-    # Encoding Categorical Data
-    le = LabelEncoder()
-    for col in ['PRODUCTLINE', 'COUNTRY', 'DEALSIZE']:
+    
+    # Label Encoding for categorical columns
+    le_dict = {}
+    for col in ['PRODUCTLINE', 'COUNTRY']:
+        le = LabelEncoder()
         X[col] = le.fit_transform(X[col])
+        le_dict[col] = le
 
-    # --- WEEK 4: MODEL BUILDING ---
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    
     model = RandomForestRegressor(n_estimators=100, random_state=42)
     model.fit(X_train, y_train)
-
-    # --- WEEK 5: EVALUATION ---
-    preds = model.predict(X_test)
-    mae = mean_absolute_error(y_test, preds)
-    rmse = np.sqrt(mean_squared_error(y_test, preds))
-    r2 = r2_score(y_test, preds)
-
-    st.sidebar.subheader("Model Performance")
-    st.sidebar.write(f"**MAE:** ${mae:.2f}")
-    st.sidebar.write(f"**RMSE:** ${rmse:.2f}")
-    st.sidebar.write(f"**R² Score:** {r2:.2f}")
-
-    # --- USER PREDICTION INPUT ---
-    st.subheader("Live Prediction Tool")
-    c1, c2, c3 = st.columns(3)
     
-    with c1:
-        in_prod = st.selectbox("Product Line", df['PRODUCTLINE'].unique())
-        in_country = st.selectbox("Country", df['COUNTRY'].unique())
-    with c2:
-        in_msrp = st.number_input("MSRP of Product", min_value=30, max_value=250, value=100)
-        in_deal = st.selectbox("Deal Size", df['DEALSIZE'].unique())
-    with c3:
-        in_month = st.slider("Month", 1, 12, 6)
-        in_year = st.selectbox("Year", [2005, 2006])
-
-    if st.button("Predict Order Value"):
-        # Process input
-        input_data = pd.DataFrame([[in_month, in_year, in_prod, in_msrp, in_country, in_deal]], 
-                                  columns=features)
-        
-        # We need to use the same label encoding as training
-        # Simplified for demo: map categorical back to codes
-        for col in ['PRODUCTLINE', 'COUNTRY', 'DEALSIZE']:
-            temp_le = LabelEncoder()
-            temp_le.fit(df[col])
-            input_data[col] = temp_le.transform(input_data[col])
-        
-        prediction = model.predict(input_data)
-        st.success(f"### Predicted Sales Value: ${prediction[0]:,.2f}")
-        st.info("The model suggests this order size based on historical patterns for this product and region.")
-
-# --- PAGE 3: BUSINESS INSIGHTS (WEEK 6) ---
-elif page == "Business Insights":
-    st.title("💡 Strategic Recommendations")
+    st.success("Model trained successfully using Random Forest Regressor.")
     
-    # Simple logic-based insights
-    top_country = df.groupby('COUNTRY')['SALES'].sum().idxmax()
-    top_prod = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
-    peak_month = df.groupby('MONTH_ID')['SALES'].sum().idxmax()
-    
-    st.markdown(f"""
-    ### Key Takeaways for Management:
-    1. **Primary Market:** Your strongest market is **{top_country}**. Consider increasing marketing budget here.
-    2. **Star Product:** **{top_prod}** is your highest revenue generator. Ensure supply chain priority for this line.
-    3. **Seasonality:** Historical data shows peak demand occurs in **Month {peak_month}**. Prepare inventory 2 months in advance.
-    4. **Deal Strategy:** Medium-sized deals contribute the most to consistent cash flow compared to rare Large deals.
-    """)
-    
-    # Feature Importance visualization
-    st.subheader("What drives Sales?")
-    st.write("Based on the Machine Learning model, these factors impact revenue the most:")
-    # (Note: Feature importance needs the model from Page 2)
-    # Re-running logic briefly for chart
-    features = ['MONTH', 'YEAR', 'PRODUCTLINE', 'MSRP', 'COUNTRY', 'DEALSIZE']
-    X_sample = df[features].copy()
-    for col in ['PRODUCTLINE', 'COUNTRY', 'DEALSIZE']:
-        X_sample[col] = LabelEncoder().fit_transform(X_sample[col])
-    m = RandomForestRegressor().fit(X_sample, df['SALES'])
-    
-    imp_df = pd.DataFrame({'Feature': features, 'Importance': m.feature_importances_}).sort_values(by='Importance', ascending=False)
-    fig_imp = px.bar(imp_df, x='Importance', y='Feature', orientation='h')
+    st.subheader("Feature Importance (How the AI Decides)")
+    importance = pd.DataFrame({'Feature': features, 'Weight': model.feature_importances_}).sort_values('Weight', ascending=False)
+    fig_imp = px.bar(importance, x='Weight', y='Feature', orientation='h', color='Weight')
     st.plotly_chart(fig_imp)
+
+# --- WEEK 5: EVALUATION & OPTIMIZATION ---
+with tab4:
+    st.header("📉 Model Performance Metrics")
+    y_pred = model.predict(X_test)
+    
+    mae = mean_absolute_error(y_test, y_pred)
+    rmse = np.sqrt(mean_absolute_error(y_test, y_pred))
+    r2 = r2_score(y_test, y_pred)
+    
+    m1, m2, m3 = st.columns(3)
+    m1.metric("MAE (Mean Absolute Error)", f"${mae:.2f}")
+    m2.metric("RMSE", f"${rmse:.2f}")
+    m3.metric("R² Score", f"{r2:.4f}")
+    
+    st.subheader("Actual vs. Predicted Sales")
+    fig_res = px.scatter(x=y_test, y=y_pred, labels={'x': 'Actual Sales', 'y': 'Predicted Sales'}, 
+                         trendline="ols", title="Model Reliability Check")
+    st.plotly_chart(fig_res, use_container_width=True)
+
+# --- WEEK 6: DEPLOYMENT & REPORTING ---
+with tab5:
+    st.header("🚀 Predictive Dashboard for Decision Makers")
+    
+    with st.expander("📝 Generate Business Prediction"):
+        col_in1, col_in2, col_in3 = st.columns(3)
+        with col_in1:
+            in_month = st.slider("Select Forecast Month", 1, 12, 6)
+            in_qtr = (in_month-1)//3 + 1
+        with col_in2:
+            in_prod = st.selectbox("Product Line", df['PRODUCTLINE'].unique())
+            in_qty = st.number_input("Quantity Ordered", value=35)
+        with col_in3:
+            in_country = st.selectbox("Market Country", df['COUNTRY'].unique())
+            in_msrp = st.number_input("MSRP", value=100)
+
+        if st.button("Run Business Prediction"):
+            # Encode Input
+            p_prod = le_dict['PRODUCTLINE'].transform([in_prod])[0]
+            p_country = le_dict['COUNTRY'].transform([in_country])[0]
+            
+            input_array = np.array([[in_month, in_qtr, in_msrp, in_qty, p_prod, p_country]])
+            prediction = model.predict(input_array)[0]
+            
+            st.markdown(f"### 🔮 Predicted Order Value: **${prediction:,.2f}**")
+            
+            # Scenario Analysis
+            if prediction > df['SALES'].mean():
+                st.warning("High Value Transaction: Recommend priority fulfillment and manager approval.")
+            else:
+                st.info("Standard Transaction: Automated processing recommended.")
+
+    st.write("---")
+    st.subheader("Final Project Summary")
+    st.write("""
+    - **Goal:** Shift from experience-based to data-driven decision making.
+    - **Outcome:** System can forecast revenue with an R² accuracy of **{:.2f}**.
+    - **Impact:** Identified MSRP and Quantity as the primary drivers of revenue variance.
+    """.format(r2))
