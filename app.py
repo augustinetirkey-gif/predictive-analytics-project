@@ -13,7 +13,7 @@ import io
 # --- SYSTEM CONFIGURATION ---
 st.set_page_config(page_title="PredictiCorp BI Suite", layout="wide", initial_sidebar_state="expanded")
 
-# --- EXECUTIVE THEMING (Custom CSS) ---
+# --- EXECUTIVE THEMING ---
 st.markdown("""
     <style>
     .main { background-color: #f4f7f9; }
@@ -23,27 +23,14 @@ st.markdown("""
     .stTabs [aria-selected="true"] { background-color: #1f4e79 !important; color: white !important; }
     .card { background-color: #ffffff; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; border-left: 8px solid #1f4e79; }
     
-    /* Welcome Page Styles */
     .welcome-header {
         background: linear-gradient(90deg, #1f4e79 0%, #2c3e50 100%);
-        color: white;
-        padding: 60px;
-        border-radius: 20px;
-        text-align: center;
-        margin-bottom: 40px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        color: white; padding: 60px; border-radius: 20px; text-align: center; margin-bottom: 40px;
     }
     .feature-box {
-        background: white;
-        padding: 30px;
-        border-radius: 15px;
-        border-bottom: 4px solid #1f4e79;
-        text-align: center;
-        transition: transform 0.3s ease;
+        background: white; padding: 30px; border-radius: 15px; border-bottom: 4px solid #1f4e79; text-align: center; transition: transform 0.3s ease;
     }
-    .feature-box:hover {
-        transform: translateY(-10px);
-    }
+    .feature-box:hover { transform: translateY(-10px); }
     </style>
     """, unsafe_allow_html=True)
 
@@ -51,7 +38,7 @@ st.markdown("""
 def convert_df_to_csv(df):
     return df.to_csv(index=False).encode('utf-8')
 
-template_df = pd.DataFrame(columns=['ORDERNUMBER', 'QUANTITYORDERED', 'PRICEEACH', 'SALES', 'ORDERDATE', 'QTR_ID', 'MONTH_ID', 'YEAR_ID', 'PRODUCTLINE', 'MSRP', 'COUNTRY'])
+template_df = pd.DataFrame(columns=['ORDERNUMBER', 'QUANTITYORDERED', 'PRICEEACH', 'SALES', 'ORDERDATE', 'STATUS', 'QTR_ID', 'MONTH_ID', 'YEAR_ID', 'PRODUCTLINE', 'MSRP', 'PRODUCTCODE', 'CUSTOMERNAME', 'COUNTRY', 'TERRITORY', 'DEALSIZE'])
 csv_template = convert_df_to_csv(template_df)
 
 # --- SIDEBAR ---
@@ -61,7 +48,6 @@ st.sidebar.divider()
 uploaded_file = st.sidebar.file_uploader("Upload Sales Data (CSV)", type=["csv"])
 
 if uploaded_file is not None:
-    # [EXISTING DASHBOARD CODE START]
     @st.cache_data
     def load_and_process_data(file):
         df = pd.read_csv(file)
@@ -90,8 +76,9 @@ if uploaded_file is not None:
 
     bi_pipe, ai_score = train_bi_model(df_master)
 
-    tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Market Insights"])
+    tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights"])
 
+    # TAB 1
     with tabs[0]:
         st.subheader("Performance KPIs")
         k1, k2, k3, k4 = st.columns(4)
@@ -107,6 +94,7 @@ if uploaded_file is not None:
         with c2:
             st.plotly_chart(px.pie(df, values='SALES', names='PRODUCTLINE', hole=0.5, color_discrete_sequence=px.colors.qualitative.Prism), use_container_width=True)
 
+    # TAB 2
     with tabs[1]:
         st.header("🔮 Strategic Scenario Simulator")
         col1, col2, col3 = st.columns(3)
@@ -120,23 +108,77 @@ if uploaded_file is not None:
             pred = bi_pipe.predict(inp)[0]
             st.markdown(f"<div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;'><h3>Predicted Revenue</h3><h1>${pred:,.2f}</h1><p>AI Accuracy: {ai_score:.1f}%</p></div>", unsafe_allow_html=True)
 
+    # --- TAB 3: STRATEGIC MARKET INSIGHTS (ADVANCED ANALYSIS) ---
     with tabs[2]:
-        st.header("💡 Business Directives")
-        top_prod = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
-        top_country = df.groupby('COUNTRY')['SALES'].sum().idxmax()
-        country_share = (df.groupby('COUNTRY')['SALES'].sum().max() / df['SALES'].sum()) * 100
-        col_i1, col_i2 = st.columns(2)
-        with col_i1:
-            st.markdown(f"<div class='card'><h4>📦 Inventory Optimization</h4><p><b>Insight:</b> <b>{top_prod}</b> is the leader. AI suggests 15% safety stock.</p></div>", unsafe_allow_html=True)
-        with col_i2:
-            st.markdown(f"<div class='card'><h4>🌍 Regional Strategy</h4><p><b>Insight:</b> <b>{top_country}</b> contributes {country_share:.1f}% of revenue.</p></div>", unsafe_allow_html=True)
+        st.header("🔬 Enterprise Strategy & Analysis")
+        st.markdown("This section provides data-driven intelligence to guide global decision making.")
 
-        geo_df = df.groupby('COUNTRY')['SALES'].sum().reset_index()
-        fig_map = px.choropleth(geo_df, locations="COUNTRY", locationmode='country names', color="SALES", hover_name="COUNTRY", color_continuous_scale="Viridis", template="plotly_white")
-        fig_map.update_geos(showcountries=True, countrycolor="Silver", showland=True, landcolor="#f0f2f6", showocean=True, oceancolor="#e3f2fd", projection_type="mercator")
-        fig_map.update_layout(height=600, margin={"r":0,"t":20,"l":0,"b":0}, dragmode="pan", uirevision='constant')
-        st.plotly_chart(fig_map, use_container_width=True, config={'scrollZoom': True})
-    # [EXISTING DASHBOARD CODE END]
+        # SECTION 1: REGIONAL BENCHMARKING
+        st.subheader("🏁 Territory Benchmarking")
+        
+        col_bench1, col_bench2 = st.columns([2, 1])
+        
+        with col_bench1:
+            if 'TERRITORY' in df.columns:
+                bench_df = df.groupby(['TERRITORY', 'PRODUCTLINE'])['SALES'].sum().reset_index()
+                fig_bench = px.bar(bench_df, x='TERRITORY', y='SALES', color='PRODUCTLINE', barmode='group',
+                                   title="Product Performance by Global Territory", template="plotly_white")
+                st.plotly_chart(fig_bench, use_container_width=True)
+            else:
+                st.info("Upload data with 'TERRITORY' for benchmarking.")
+
+        with col_bench2:
+            st.markdown("##### 🏆 Leaderboard")
+            rank_df = df.groupby('COUNTRY')['SALES'].sum().sort_values(ascending=False).reset_index()
+            rank_df['Market Share %'] = (rank_df['SALES'] / rank_df['SALES'].sum() * 100).round(1)
+            st.dataframe(rank_df.head(10), hide_index=True)
+
+        st.markdown("---")
+
+        # SECTION 2: PROFITABILITY & CUSTOMER LOYALTY
+        st.subheader("💎 Customer & Price Dynamics")
+        col_cus1, col_cus2 = st.columns(2)
+
+        with col_cus1:
+            st.markdown("#### Top 10 High-Value Customers")
+            if 'CUSTOMERNAME' in df.columns:
+                cus_df = df.groupby('CUSTOMERNAME')['SALES'].sum().sort_values(ascending=False).head(10).reset_index()
+                fig_cus = px.bar(cus_df, x='SALES', y='CUSTOMERNAME', orientation='h', 
+                                 color='SALES', color_continuous_scale='Greens', template="plotly_white")
+                st.plotly_chart(fig_cus, use_container_width=True)
+
+        with col_cus2:
+            st.markdown("#### Price Realization (Sales vs MSRP)")
+            # Analyze if products are selling above or below MSRP
+            df['Price_Diff'] = df['SALES'] - (df['MSRP'] * df['QUANTITYORDERED'])
+            fig_price = px.histogram(df, x='Price_Diff', nbins=50, title="Revenue Variance from MSRP",
+                                     color_discrete_sequence=['#1f4e79'], template="plotly_white")
+            st.plotly_chart(fig_price, use_container_width=True)
+            st.caption("Negative values indicate high discounting; Positive values indicate premium pricing.")
+
+        st.markdown("---")
+
+        # SECTION 3: AUTOMATED AI BUSINESS DIRECTIVES
+        st.subheader("🤖 AI Executive Directives")
+        
+        # Calculate Logic-Based Insights
+        top_prod = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
+        worst_prod = df.groupby('PRODUCTLINE')['SALES'].sum().idxmin()
+        top_ter = df.groupby('TERRITORY')['SALES'].sum().idxmax() if 'TERRITORY' in df.columns else "Global"
+        
+        d1, d2, d3 = st.columns(3)
+        with d1:
+            st.markdown(f"""<div class='card'><h5>📦 Portfolio Pivot</h5>
+            <p><b>{top_prod}</b> is dominating your revenue stream. <br><br>
+            <b>AI Suggestion:</b> Evaluate if <b>{worst_prod}</b> should be phased out or bundled with high-performers to clear inventory.</p></div>""", unsafe_allow_html=True)
+        with d2:
+            st.markdown(f"""<div class='card'><h5>🌍 Territory Focus</h5>
+            <p>Your primary revenue engine is <b>{top_ter}</b>. <br><br>
+            <b>AI Suggestion:</b> Invest in localized distribution centers in <b>{top_ter}</b> to reduce shipping lead times and increase customer satisfaction.</p></div>""", unsafe_allow_html=True)
+        with d3:
+            st.markdown(f"""<div class='card'><h5>📉 Efficiency Alert</h5>
+            <p>Mean Price Variance: <b>${df['Price_Diff'].mean():,.2f}</b> <br><br>
+            <b>AI Suggestion:</b> Current discounting is impacting margins. AI suggests a 3% price floor for low-volume regions.</p></div>""", unsafe_allow_html=True)
 
 else:
     # --- INTERACTIVE WELCOME PAGE ---
@@ -146,55 +188,26 @@ else:
             <p style="font-size: 1.2em; opacity: 0.9;">The Global Executive Suite for Data-Driven Market Strategy</p>
         </div>
     """, unsafe_allow_html=True)
-
+    
     st.markdown("### 🛠️ Get Started in 3 Simple Steps")
-    
     s1, s2, s3 = st.columns(3)
-    
     with s1:
-        st.markdown("""
-            <div class="feature-box">
-                <h2 style="font-size: 40px;">📋</h2>
-                <h3>Step 1</h3>
-                <p>Download the standardized CSV template from the sidebar to ensure your data format matches the AI engine.</p>
-            </div>
-        """, unsafe_allow_html=True)
-        
+        st.markdown("""<div class="feature-box"><h2>📋</h2><h3>Step 1</h3><p>Download the CSV template from the sidebar.</p></div>""", unsafe_allow_html=True)
     with s2:
-        st.markdown("""
-            <div class="feature-box">
-                <h2 style="font-size: 40px;">📥</h2>
-                <h3>Step 2</h3>
-                <p>Upload your sales data. Our system will automatically clean the data and train a custom Machine Learning model.</p>
-            </div>
-        """, unsafe_allow_html=True)
-        
+        st.markdown("""<div class="feature-box"><h2>📥</h2><h3>Step 2</h3><p>Upload your sales data for automated AI training.</p></div>""", unsafe_allow_html=True)
     with s3:
-        st.markdown("""
-            <div class="feature-box">
-                <h2 style="font-size: 40px;">💡</h2>
-                <h3>Step 3</h3>
-                <p>Navigate through the tabs to explore KPIs, run revenue simulations, and view geographic heatmaps.</p>
-            </div>
-        """, unsafe_allow_html=True)
+        st.markdown("""<div class="feature-box"><h2>💡</h2><h3>Step 3</h3><p>Explore Tab 3 for Deep Market Insights.</p></div>""", unsafe_allow_html=True)
 
     st.markdown("---")
-    
-    # Interactive Demo Section
     c_demo1, c_demo2 = st.columns([1, 1])
-    
     with c_demo1:
         st.image("https://img.freepik.com/free-vector/business-analytics-concept-illustration_114360-3944.jpg", use_column_width=True)
-    
     with c_demo2:
-        st.subheader("🤖 What can our AI do for you?")
-        with st.expander("📈 Predictive Forecasting"):
-            st.write("Our Random Forest model analyzes past sales, MSRP, and quantities to predict the outcome of future deals with over 90% historical accuracy.")
-        with st.expander("🌍 Global Market Heatmaps"):
-            st.write("Identify high-performing territories instantly. Our interactive maps highlight everything from the USA to small markets like Belgium and the Philippines.")
-        with st.expander("💼 Executive Directives"):
-            st.write("The system generates dynamic business actions based on your current market share and inventory performance.")
-        
-        st.warning("👈 Please upload your Sales Data CSV in the sidebar to activate these features.")
-
-    # Image to aid understanding of data flow
+        st.subheader("🤖 Advanced AI Capabilities")
+        with st.expander("🌍 Territory Benchmarking"):
+            st.write("Compare EMEA, APAC, and NA performance side-by-side to identify regional laggards.")
+        with st.expander("📦 Deal Structure Analysis"):
+            st.write("Understand if your revenue is coming from 'Small' high-frequency orders or 'Large' enterprise deals.")
+        with st.expander("🔮 Dynamic Forecasting"):
+            st.write("Retrain the model instantly as you filter data to get context-specific predictions.")
+        st.warning("👈 Please upload your Sales Data CSV in the sidebar to activate.")
