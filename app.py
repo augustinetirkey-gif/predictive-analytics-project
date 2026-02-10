@@ -98,68 +98,81 @@ if uploaded_file is not None:
                 pred = bi_pipe.predict(inp)[0]
                 st.markdown(f"<div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;'><h3>Predicted Revenue</h3><h1>${pred:,.2f}</h1><p>AI Accuracy: {ai_score:.1f}%</p></div>", unsafe_allow_html=True)
 
-    # --- TAB 3: MARKET INSIGHTS (WITH DYNAMIC AI DIRECTIVES) ---
+    # --- TAB 3: MARKET INSIGHTS (WITH AI DIRECTIVES & PINNED MAP) ---
     with tabs[2]:
         st.header("💡 Business Directives")
         
-        # --- DYNAMIC AI LOGIC FOR INSIGHTS ---
-        # 1. Product Logic
+        # AI Logic for Dynamic Suggestions
         top_prod = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
-        top_prod_sales = df.groupby('PRODUCTLINE')['SALES'].sum().max()
-        prod_share = (top_prod_sales / df['SALES'].sum()) * 100
-        
-        if prod_share > 30:
-            prod_action = f"Market dominance detected in {top_prod}. Prioritize supply chain stability and bulk-purchase discounts to protect margins."
-        else:
-            prod_action = f"Portfolio is diversified. Focus on cross-selling {top_prod} with emerging product categories to drive growth."
-
-        # 2. Country Logic
         top_country = df.groupby('COUNTRY')['SALES'].sum().idxmax()
-        top_country_sales = df.groupby('COUNTRY')['SALES'].sum().max()
-        country_share = (top_country_sales / df['SALES'].sum()) * 100
-        
-        if country_share > 25:
-            country_action = f"{top_country} is a high-yield market. Pilot a localized loyalty program here to defend your market share."
+        country_share = (df.groupby('COUNTRY')['SALES'].sum().max() / df['SALES'].sum()) * 100
+
+        # AI Condition for Inventory
+        if "Cars" in top_prod:
+            prod_suggestion = f"Most revenue is driven by {top_prod}. AI suggests prioritizing supply chain efficiency and premium inventory storage for this category."
         else:
-            country_action = f"{top_country} is a key growth hub. Increase digital marketing spend by 15% in this region to capture more market share."
+            prod_suggestion = f"Dynamic shift detected: {top_prod} is leading. AI recommends adjusting manufacturing schedules to match this growing demand."
+
+        # AI Condition for Regional Strategy
+        if country_share > 30:
+            reg_suggestion = f"{top_country} is your dominant market ({country_share:.1f}%). AI suggests defending this territory with exclusive localized loyalty programs."
+        else:
+            reg_suggestion = f"Market spread detected. {top_country} is the leader, but AI suggests cross-regional expansion to diversify revenue away from single-point reliance."
 
         col_i1, col_i2 = st.columns(2)
         with col_i1:
             st.markdown(f"""
             <div class="card">
                 <h4>📦 Inventory Optimization</h4>
-                <p><b>Insight:</b> Most revenue ({prod_share:.1f}%) is driven by <b>{top_prod}</b>.</p>
-                <p><b>AI Action:</b> {prod_action}</p>
+                <p><b>Insight:</b> Current Portfolio Leader: <b>{top_prod}</b>.</p>
+                <p><b>AI Suggestion:</b> {prod_suggestion}</p>
             </div>
             """, unsafe_allow_html=True)
         with col_i2:
             st.markdown(f"""
             <div class="card">
                 <h4>🌍 Regional Strategy</h4>
-                <p><b>Insight:</b> <b>{top_country}</b> is your highest-performing market with {country_share:.1f}% of revenue.</p>
-                <p><b>AI Action:</b> {country_action}</p>
+                <p><b>Insight:</b> <b>{top_country}</b> is your highest-performing market.</p>
+                <p><b>AI Suggestion:</b> {reg_suggestion}</p>
             </div>
             """, unsafe_allow_html=True)
 
-        # --- ENHANCED HEATMAP (Includes all countries like Belgium & Philippines) ---
         st.markdown("### Geographic Performance Heatmap")
-        st.caption("All countries in your dataset are mapped below. Hover to see details.")
+        st.caption("Every country is marked with a 'Pin' to ensure small regions like Belgium and the Philippines are visible.")
         
         geo_df = df.groupby('COUNTRY')['SALES'].sum().reset_index()
         
-        # We use a color scale that ensures low-value countries (Belgium, Philippines) are visible
+        # 1. Base Choropleth Map
         fig_map = px.choropleth(
             geo_df, 
             locations="COUNTRY", 
             locationmode='country names', 
             color="SALES", 
-            color_continuous_scale="Plasma", # Plasma scale makes smaller values easier to spot
+            color_continuous_scale="Plasma",
             hover_name="COUNTRY",
             template="plotly_white"
         )
-        fig_map.update_layout(geo=dict(showframe=False, showcoastlines=True, projection_type='equirectangular'))
+        
+        # 2. Pin Overlay (Scatter Geo) - This ensures small countries are visible
+        fig_pins = px.scatter_geo(
+            geo_df,
+            locations="COUNTRY",
+            locationmode='country names',
+            hover_name="COUNTRY",
+            size=np.full(len(geo_df), 10), # Fixed size pins
+            color_discrete_sequence=['#1f4e79'] # High-contrast blue pins
+        )
+        
+        # Combine the Pin layer onto the Heatmap layer
+        for trace in fig_pins.data:
+            fig_map.add_trace(trace)
+
+        fig_map.update_layout(
+            geo=dict(showframe=False, showcoastlines=True, projection_type='equirectangular'),
+            margin=dict(l=0, r=0, t=0, b=0)
+        )
         st.plotly_chart(fig_map, use_container_width=True)
 
 else:
     st.title("🚀 PredictiCorp Executive Intelligence Suite")
-    st.info("👋 Please upload your Sales Data CSV to launch the intelligence suite.")
+    st.info("👋 Welcome! Please upload your Sales Data CSV to launch the intelligence suite.")
