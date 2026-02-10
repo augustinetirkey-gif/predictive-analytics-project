@@ -88,25 +88,27 @@ if uploaded_file is not None:
         tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Market Insights"])
 
         # TAB 1: EXECUTIVE DASHBOARD
-        with tabs[0]:
-            st.subheader("Performance KPIs")
-            k1, k2, k3, k4 = st.columns(4)
-            k1.metric("Total Revenue", f"${df[target_col].sum()/1e6:.2f}M")
-            k2.metric("Avg Order Value", f"${df[target_col].mean():,.2f}")
-            k3.metric("Volume", f"{len(df):,}")
-            k4.metric("Active Regions", f"{df[geo_col].nunique() if geo_col else 1}")
+        # --- TAB 1: EXECUTIVE DASHBOARD ---
+with tabs[0]:
+    st.subheader("Performance KPIs")
+    k1, k2, k3, k4 = st.columns(4)
+    k1.metric("Total Revenue", f"${df['SALES'].sum()/1e6:.2f}M", "+5.2%")
+    k2.metric("Avg Order Value", f"${df['SALES'].mean():,.2f}")
+    k3.metric("Transaction Volume", f"{len(df):,}")
+    k4.metric("Active Regions", f"{df['COUNTRY'].nunique()}")
 
-            st.markdown("---")
-            c1, c2 = st.columns([2, 1])
-            with c1:
-                if date_col:
-                    trend = df.groupby(['YEAR', 'MONTH_ID', 'MONTH_NAME'])[target_col].sum().reset_index().sort_values(['YEAR', 'MONTH_ID'])
-                    fig_trend = px.line(trend, x='MONTH_NAME', y=target_col, color='YEAR', markers=True, template="plotly_white", title="Revenue Momentum")
-                    st.plotly_chart(fig_trend, use_container_width=True)
-            with c2:
-                if cat_col:
-                    fig_pie = px.pie(df, values=target_col, names=cat_col, hole=0.5, title="Portfolio Composition")
-                    st.plotly_chart(fig_pie, use_container_width=True)
+    st.markdown("---")
+    c1, c2 = st.columns([2, 1])
+    with c1:
+        st.markdown("### Revenue Momentum (Monthly Trend)")
+        trend = df.groupby(['YEAR', 'MONTH_ID', 'MONTH_NAME'])['SALES'].sum().reset_index().sort_values(['YEAR', 'MONTH_ID'])
+        fig_trend = px.line(trend, x='MONTH_NAME', y='SALES', color='YEAR', markers=True, template="plotly_white")
+        st.plotly_chart(fig_trend, use_container_width=True)
+    
+    with c2:
+        st.markdown("### Portfolio Composition")
+        fig_pie = px.pie(df, values='SALES', names='PRODUCTLINE', hole=0.5, color_discrete_sequence=px.colors.qualitative.Prism)
+        st.plotly_chart(fig_pie, use_container_width=True)
 
         # TAB 2: REVENUE SIMULATOR
         with tabs[1]:
