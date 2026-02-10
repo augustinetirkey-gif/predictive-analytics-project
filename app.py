@@ -100,7 +100,7 @@ if uploaded_file is not None:
                 pred = bi_pipe.predict(inp)[0]
                 st.markdown(f"<div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;'><h3>Predicted Revenue</h3><h1>${pred:,.2f}</h1><p>AI Accuracy: {ai_score:.1f}%</p></div>", unsafe_allow_html=True)
 
-    # --- TAB 3: MARKET INSIGHTS (DUAL LAYER MAP) ---
+    # --- TAB 3: MARKET INSIGHTS (INTERACTIVE CHOROPLETH) ---
     with tabs[2]:
         st.header("💡 Business Directives")
         top_prod = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
@@ -113,47 +113,40 @@ if uploaded_file is not None:
         with col_i2:
             st.markdown(f"<div class='card'><h4>🌍 Regional Strategy</h4><p><b>Insight:</b> <b>{top_country}</b> contributes {country_share:.1f}% of revenue. Focus on high-value customer retention.</p></div>", unsafe_allow_html=True)
 
-        st.markdown("### Geographic Performance & Boundaries")
-        st.caption("Colored boundaries show market territory. Blue 'Pins' highlight exact country locations.")
+        st.markdown("### Interactive Market Analysis")
+        st.caption("Hover over any country to identify the market and view its total performance.")
         
         geo_df = df.groupby('COUNTRY')['SALES'].sum().reset_index()
 
-        # 1. BASE LAYER: Heatmap (Choropleth) for Boundaries
+        # Create a High-Contrast Choropleth without Pins
         fig_map = px.choropleth(
             geo_df,
             locations="COUNTRY",
             locationmode='country names',
             color="SALES",
-            color_continuous_scale="Blues",
-            template="plotly_white"
-        )
-
-        # 2. OVERLAY LAYER: Scatter Geo for Pins
-        # This creates a blue dot in every country so you can identify small ones easily
-        fig_pins = px.scatter_geo(
-            geo_df,
-            locations="COUNTRY",
-            locationmode='country names',
             hover_name="COUNTRY",
-            size_max=10,
-            template="plotly_white"
+            color_continuous_scale="Viridis", # High contrast scale helps identify small markets
+            template="plotly_white",
+            labels={'SALES':'Total Revenue ($)'}
         )
-        
-        # Update pin style to be a solid blue marker
-        fig_pins.update_traces(marker=dict(size=10, color='#1f4e79', symbol='circle'))
 
-        # Add Pins to the Heatmap
-        for trace in fig_pins.data:
-            fig_map.add_trace(trace)
-
+        # Update Map Layout for better boundary visibility
         fig_map.update_geos(
             showcountries=True, 
-            countrycolor="Silver", # Boundary lines
+            countrycolor="Silver",     # Sharp silver borders for all countries
             showland=True, 
-            landcolor="white"
+            landcolor="#f0f2f6",       # Light background for countries without data
+            showocean=True, 
+            oceancolor="#e3f2fd",      # Soft blue ocean
+            projection_type="natural earth" # Professional map projection
         )
         
-        fig_map.update_layout(height=600, margin={"r":0,"t":0,"l":0,"b":0})
+        fig_map.update_layout(
+            height=600, 
+            margin={"r":0,"t":20,"l":0,"b":0},
+            coloraxis_colorbar=dict(title="Revenue ($)")
+        )
+        
         st.plotly_chart(fig_map, use_container_width=True)
 
 else:
