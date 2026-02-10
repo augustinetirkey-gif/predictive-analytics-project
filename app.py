@@ -100,7 +100,7 @@ if uploaded_file is not None:
                 pred = bi_pipe.predict(inp)[0]
                 st.markdown(f"<div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;'><h3>Predicted Revenue</h3><h1>${pred:,.2f}</h1><p>AI Accuracy: {ai_score:.1f}%</p></div>", unsafe_allow_html=True)
 
-    # --- TAB 3: MARKET INSIGHTS (INTERACTIVE CHOROPLETH) ---
+    # --- TAB 3: MARKET INSIGHTS (FLUID INTERACTIVE MAP) ---
     with tabs[2]:
         st.header("💡 Business Directives")
         top_prod = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
@@ -114,40 +114,39 @@ if uploaded_file is not None:
             st.markdown(f"<div class='card'><h4>🌍 Regional Strategy</h4><p><b>Insight:</b> <b>{top_country}</b> contributes {country_share:.1f}% of revenue. Focus on high-value customer retention.</p></div>", unsafe_allow_html=True)
 
         st.markdown("### Interactive Market Analysis")
-        st.caption("Hover over any country to identify the market and view its total performance.")
+        st.caption("🖱️ Use the mouse wheel to Zoom. Click and Drag to Pan across the map.")
         
         geo_df = df.groupby('COUNTRY')['SALES'].sum().reset_index()
 
-        # Create a High-Contrast Choropleth without Pins
         fig_map = px.choropleth(
             geo_df,
             locations="COUNTRY",
             locationmode='country names',
             color="SALES",
             hover_name="COUNTRY",
-            color_continuous_scale="Viridis", # High contrast scale helps identify small markets
+            color_continuous_scale="Viridis", 
             template="plotly_white",
             labels={'SALES':'Total Revenue ($)'}
         )
 
-        # Update Map Layout for better boundary visibility
         fig_map.update_geos(
             showcountries=True, 
-            countrycolor="Silver",     # Sharp silver borders for all countries
+            countrycolor="Silver",     # Sharp boundaries for identification
             showland=True, 
-            landcolor="#f0f2f6",       # Light background for countries without data
+            landcolor="#f0f2f6",       
             showocean=True, 
-            oceancolor="#e3f2fd",      # Soft blue ocean
-            projection_type="natural earth" # Professional map projection
+            oceancolor="#e3f2fd",      
+            projection_type="mercator" # Best projection for fluid zooming
         )
         
         fig_map.update_layout(
-            height=600, 
+            height=650, 
             margin={"r":0,"t":20,"l":0,"b":0},
-            coloraxis_colorbar=dict(title="Revenue ($)")
+            dragmode="pan" # Allows clicking and moving while zoomed in
         )
         
-        st.plotly_chart(fig_map, use_container_width=True)
+        # 'scrollZoom' configuration enables the mouse wheel for zoom
+        st.plotly_chart(fig_map, use_container_width=True, config={'scrollZoom': True})
 
 else:
     st.title("🚀 PredictiCorp Executive Intelligence Suite")
