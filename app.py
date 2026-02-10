@@ -9,6 +9,7 @@ from sklearn.metrics import r2_score
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
+import io
 
 # --- SYSTEM CONFIGURATION ---
 st.set_page_config(page_title="PredictiCorp BI Suite", layout="wide", initial_sidebar_state="expanded")
@@ -25,28 +26,52 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- SIDEBAR: STRATEGIC FILTERS ---
+# --- TEMPLATE GENERATOR ---
+def convert_df_to_csv(df):
+    return df.to_csv(index=False).encode('utf-8')
+
+# Sample template based on the required columns
+template_df = pd.DataFrame(columns=[
+    'ORDERNUMBER', 'QUANTITYORDERED', 'PRICEEACH', 'SALES', 
+    'ORDERDATE', 'QTR_ID', 'MONTH_ID', 'YEAR_ID', 
+    'PRODUCTLINE', 'MSRP', 'COUNTRY'
+])
+csv_template = convert_df_to_csv(template_df)
+
+# --- SIDEBAR: STRATEGIC FILTERS & TEMPLATE ---
 st.sidebar.title("🏢 BI Command Center")
 st.sidebar.markdown("**Global Filtering Engine**")
 
-# --- CSV FILE UPLOADER ---
-uploaded_file = st.sidebar.file_uploader("Step 1: Upload Sales Data (CSV)", type=["csv"])
+# Template Download
+st.sidebar.download_button(
+    label="📥 Download CSV Template",
+    data=csv_template,
+    file_name="sales_data_template.csv",
+    mime="text/csv",
+    help="Download this template to see the required column format."
+)
+
+st.sidebar.divider()
+
+# CSV File Uploader
+uploaded_file = st.sidebar.file_uploader("Upload Sales Data (CSV)", type=["csv"])
 
 if uploaded_file is not None:
     # DATA ANALYTICS ENGINE
     @st.cache_data
     def load_and_process_data(file):
         df = pd.read_csv(file)
-        # Standardize dates and extract features
         if 'ORDERDATE' in df.columns:
             df['ORDERDATE'] = pd.to_datetime(df['ORDERDATE'])
             df['YEAR'] = df['ORDERDATE'].dt.year
             df['MONTH_NAME'] = df['ORDERDATE'].dt.month_name()
+        elif 'YEAR_ID' in df.columns:
+            df['YEAR'] = df['YEAR_ID']
         return df
 
     df_master = load_and_process_data(uploaded_file)
 
-    # Sidebar Filter logic (only if columns exist)
+    # Sidebar Filter logic
     st_year = st.sidebar.multiselect("Fiscal Year", options=sorted(df_master['YEAR'].unique()), default=df_master['YEAR'].unique())
     st_country = st.sidebar.multiselect("Active Markets", options=sorted(df_master['COUNTRY'].unique()), default=df_master['COUNTRY'].unique())
 
@@ -146,7 +171,6 @@ if uploaded_file is not None:
         st.header("💡 Business Directives")
         col_i1, col_i2 = st.columns(2)
         
-        # Calculate dynamic insights for the cards
         top_country = df.groupby('COUNTRY')['SALES'].sum().idxmax()
         top_prod = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
 
@@ -174,7 +198,14 @@ if uploaded_file is not None:
         st.plotly_chart(fig_map, use_container_width=True)
 
 else:
-    # Landing state when no file is uploaded
+    # Landing state
     st.title("🚀 PredictiCorp Executive Intelligence Suite")
     st.info("👋 Welcome! Please upload your Sales Data CSV file in the sidebar to launch the intelligence suite.")
-    st.image("https://img.freepik.com/free-vector/business-analytics-concept-illustration_114360-3944.jpg", width=400)
+    st.markdown("""
+    ### How to use this app:
+    1. **Download the Template** from the sidebar to see the required column names.
+    2. **Upload your CSV** to generate real-time KPIs and trends.
+    3. **Run AI Simulations** to predict future revenue based on product and region.
+    4. **Explore Market Insights** to identify your top performers.
+    """)
+    st.image("https://img.freepik.com/free-vector/business-analytics-concept-illustration_114360-3944.jpg", width=600)
