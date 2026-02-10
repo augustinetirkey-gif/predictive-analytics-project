@@ -148,26 +148,3 @@ with tabs[2]:
     fig_map = px.choropleth(geo_df, locations="COUNTRY", locationmode='country names', color="SALES", color_continuous_scale="Blues")
     st.plotly_chart(fig_map, use_container_width=True)
 
-# --- TAB 4: SCIENTIFIC LAB (The "Journey") ---
-with tabs[3]:
-    st.header("🧪 Data Science Methodology & Audit Trail")
-    st.markdown("This section documents the technical rigor behind the predictions.")
-    
-    exp1 = st.expander("🛠️ Week 1-2: EDA & Data Foundations")
-    with exp1:
-        st.write("Ensuring data quality and uncovering hidden distributions.")
-        st.dataframe(df_master.describe())
-    
-    exp2 = st.expander("🛠️ Week 3-4: Feature Engineering & Model Training")
-    with exp2:
-        st.write("Variables impacting the Random Forest Regressor:")
-        importances = pd.DataFrame({'Feature': features, 'Importance': model.feature_importances_}).sort_values('Importance')
-        st.plotly_chart(px.bar(importances, x='Importance', y='Feature', orientation='h'))
-
-    exp3 = st.expander("🛠️ Week 5-6: Quality Metrics & Validation")
-    with exp3:
-        m1, m2 = st.columns(2)
-        m1.metric("Mean Absolute Error", f"${mean_absolute_error(y_test, y_pred):.2f}")
-        m2.metric("R-Squared Score", f"{r2_score(y_test, y_pred):.4f}")
-        fig_acc = px.scatter(x=y_test, y=y_pred, labels={'x': 'Actual Sales', 'y': 'Predicted Sales'}, trendline="ols")
-        st.plotly_chart(fig_acc, use_container_width=True)
