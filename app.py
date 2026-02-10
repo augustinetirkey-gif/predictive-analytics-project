@@ -13,7 +13,7 @@ import io
 # --- SYSTEM CONFIGURATION ---
 st.set_page_config(page_title="PredictiCorp BI Suite", layout="wide", initial_sidebar_state="expanded")
 
-# --- EXECUTIVE THEMING ---
+# --- EXECUTIVE THEMING (Custom CSS) ---
 st.markdown("""
     <style>
     .main { background-color: #f4f7f9; }
@@ -46,6 +46,8 @@ if uploaded_file is not None:
             df['ORDERDATE'] = pd.to_datetime(df['ORDERDATE'])
             df['YEAR'] = df['ORDERDATE'].dt.year
             df['MONTH_NAME'] = df['ORDERDATE'].dt.month_name()
+        elif 'YEAR_ID' in df.columns:
+            df['YEAR'] = df['YEAR_ID']
         return df
 
     df_master = load_and_process_data(uploaded_file)
@@ -98,52 +100,60 @@ if uploaded_file is not None:
                 pred = bi_pipe.predict(inp)[0]
                 st.markdown(f"<div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;'><h3>Predicted Revenue</h3><h1>${pred:,.2f}</h1><p>AI Accuracy: {ai_score:.1f}%</p></div>", unsafe_allow_html=True)
 
-    # --- TAB 3: MARKET INSIGHTS (CLEAN BUBBLE MAP) ---
+    # --- TAB 3: MARKET INSIGHTS (DUAL LAYER MAP) ---
     with tabs[2]:
         st.header("💡 Business Directives")
-        
-        # Logic for Dynamic Insights
         top_prod = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
         top_country = df.groupby('COUNTRY')['SALES'].sum().idxmax()
         country_share = (df.groupby('COUNTRY')['SALES'].sum().max() / df['SALES'].sum()) * 100
 
         col_i1, col_i2 = st.columns(2)
         with col_i1:
-            st.markdown(f"""
-            <div class="card">
-                <h4>📦 Inventory Optimization</h4>
-                <p><b>Insight:</b> <b>{top_prod}</b> is the revenue leader. AI suggests maintaining 15% safety stock for this line.</p>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f"<div class='card'><h4>📦 Inventory Optimization</h4><p><b>Insight:</b> <b>{top_prod}</b> is the revenue leader. AI suggests maintaining 15% safety stock for this line.</p></div>", unsafe_allow_html=True)
         with col_i2:
-            st.markdown(f"""
-            <div class="card">
-                <h4>🌍 Regional Strategy</h4>
-                <p><b>Insight:</b> <b>{top_country}</b> contributes {country_share:.1f}% of revenue. Focus on high-value customer retention.</p>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f"<div class='card'><h4>🌍 Regional Strategy</h4><p><b>Insight:</b> <b>{top_country}</b> contributes {country_share:.1f}% of revenue. Focus on high-value customer retention.</p></div>", unsafe_allow_html=True)
 
-        st.markdown("### Geographic Performance Heatmap")
-        st.caption("Each circle represents a country. Larger circles indicate higher transaction volume.")
+        st.markdown("### Geographic Performance & Boundaries")
+        st.caption("Colored boundaries show market territory. Blue 'Pins' highlight exact country locations.")
         
-        geo_df = df.groupby('COUNTRY').agg({'SALES': 'sum', 'QUANTITYORDERED': 'sum'}).reset_index()
+        geo_df = df.groupby('COUNTRY')['SALES'].sum().reset_index()
 
-        # 
-        fig_map = px.scatter_geo(
+        # 1. BASE LAYER: Heatmap (Choropleth) for Boundaries
+        fig_map = px.choropleth(
             geo_df,
             locations="COUNTRY",
             locationmode='country names',
-            size="SALES", # Circle size based on revenue
-            color="SALES", # Circle color based on revenue
-            hover_name="COUNTRY",
-            template="plotly_white",
-            color_continuous_scale="Plasma",
-            projection="equirectangular"
+            color="SALES",
+            color_continuous_scale="Blues",
+            template="plotly_white"
         )
 
-        fig_map.update_traces(marker=dict(line=dict(width=1, color='DarkSlateGrey')))
-        fig_map.update_geos(showcountries=True, countrycolor="Linen")
+        # 2. OVERLAY LAYER: Scatter Geo for Pins
+        # This creates a blue dot in every country so you can identify small ones easily
+        fig_pins = px.scatter_geo(
+            geo_df,
+            locations="COUNTRY",
+            locationmode='country names',
+            hover_name="COUNTRY",
+            size_max=10,
+            template="plotly_white"
+        )
         
+        # Update pin style to be a solid blue marker
+        fig_pins.update_traces(marker=dict(size=10, color='#1f4e79', symbol='circle'))
+
+        # Add Pins to the Heatmap
+        for trace in fig_pins.data:
+            fig_map.add_trace(trace)
+
+        fig_map.update_geos(
+            showcountries=True, 
+            countrycolor="Silver", # Boundary lines
+            showland=True, 
+            landcolor="white"
+        )
+        
+        fig_map.update_layout(height=600, margin={"r":0,"t":0,"l":0,"b":0})
         st.plotly_chart(fig_map, use_container_width=True)
 
 else:
