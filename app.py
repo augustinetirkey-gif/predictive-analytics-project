@@ -13,7 +13,7 @@ import io
 # --- SYSTEM CONFIGURATION ---
 st.set_page_config(page_title="PredictiCorp BI Suite", layout="wide", initial_sidebar_state="expanded")
 
-# --- EXECUTIVE THEMING (Custom CSS) ---
+# --- EXECUTIVE THEMING ---
 st.markdown("""
     <style>
     .main { background-color: #f4f7f9; }
@@ -98,81 +98,54 @@ if uploaded_file is not None:
                 pred = bi_pipe.predict(inp)[0]
                 st.markdown(f"<div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;'><h3>Predicted Revenue</h3><h1>${pred:,.2f}</h1><p>AI Accuracy: {ai_score:.1f}%</p></div>", unsafe_allow_html=True)
 
-    # --- TAB 3: MARKET INSIGHTS (WITH AI DIRECTIVES & PINNED MAP) ---
+    # --- TAB 3: MARKET INSIGHTS (CLEAN BUBBLE MAP) ---
     with tabs[2]:
         st.header("💡 Business Directives")
         
-        # AI Logic for Dynamic Suggestions
+        # Logic for Dynamic Insights
         top_prod = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
         top_country = df.groupby('COUNTRY')['SALES'].sum().idxmax()
         country_share = (df.groupby('COUNTRY')['SALES'].sum().max() / df['SALES'].sum()) * 100
-
-        # AI Condition for Inventory
-        if "Cars" in top_prod:
-            prod_suggestion = f"Most revenue is driven by {top_prod}. AI suggests prioritizing supply chain efficiency and premium inventory storage for this category."
-        else:
-            prod_suggestion = f"Dynamic shift detected: {top_prod} is leading. AI recommends adjusting manufacturing schedules to match this growing demand."
-
-        # AI Condition for Regional Strategy
-        if country_share > 30:
-            reg_suggestion = f"{top_country} is your dominant market ({country_share:.1f}%). AI suggests defending this territory with exclusive localized loyalty programs."
-        else:
-            reg_suggestion = f"Market spread detected. {top_country} is the leader, but AI suggests cross-regional expansion to diversify revenue away from single-point reliance."
 
         col_i1, col_i2 = st.columns(2)
         with col_i1:
             st.markdown(f"""
             <div class="card">
                 <h4>📦 Inventory Optimization</h4>
-                <p><b>Insight:</b> Current Portfolio Leader: <b>{top_prod}</b>.</p>
-                <p><b>AI Suggestion:</b> {prod_suggestion}</p>
+                <p><b>Insight:</b> <b>{top_prod}</b> is the revenue leader. AI suggests maintaining 15% safety stock for this line.</p>
             </div>
             """, unsafe_allow_html=True)
         with col_i2:
             st.markdown(f"""
             <div class="card">
                 <h4>🌍 Regional Strategy</h4>
-                <p><b>Insight:</b> <b>{top_country}</b> is your highest-performing market.</p>
-                <p><b>AI Suggestion:</b> {reg_suggestion}</p>
+                <p><b>Insight:</b> <b>{top_country}</b> contributes {country_share:.1f}% of revenue. Focus on high-value customer retention.</p>
             </div>
             """, unsafe_allow_html=True)
 
         st.markdown("### Geographic Performance Heatmap")
-        st.caption("Every country is marked with a 'Pin' to ensure small regions like Belgium and the Philippines are visible.")
+        st.caption("Each circle represents a country. Larger circles indicate higher transaction volume.")
         
-        geo_df = df.groupby('COUNTRY')['SALES'].sum().reset_index()
-        
-        # 1. Base Choropleth Map
-        fig_map = px.choropleth(
-            geo_df, 
-            locations="COUNTRY", 
-            locationmode='country names', 
-            color="SALES", 
-            color_continuous_scale="Plasma",
-            hover_name="COUNTRY",
-            template="plotly_white"
-        )
-        
-        # 2. Pin Overlay (Scatter Geo) - This ensures small countries are visible
-        fig_pins = px.scatter_geo(
+        geo_df = df.groupby('COUNTRY').agg({'SALES': 'sum', 'QUANTITYORDERED': 'sum'}).reset_index()
+
+        # 
+        fig_map = px.scatter_geo(
             geo_df,
             locations="COUNTRY",
             locationmode='country names',
+            size="SALES", # Circle size based on revenue
+            color="SALES", # Circle color based on revenue
             hover_name="COUNTRY",
-            size=np.full(len(geo_df), 10), # Fixed size pins
-            color_discrete_sequence=['#1f4e79'] # High-contrast blue pins
+            template="plotly_white",
+            color_continuous_scale="Plasma",
+            projection="equirectangular"
         )
-        
-        # Combine the Pin layer onto the Heatmap layer
-        for trace in fig_pins.data:
-            fig_map.add_trace(trace)
 
-        fig_map.update_layout(
-            geo=dict(showframe=False, showcoastlines=True, projection_type='equirectangular'),
-            margin=dict(l=0, r=0, t=0, b=0)
-        )
+        fig_map.update_traces(marker=dict(line=dict(width=1, color='DarkSlateGrey')))
+        fig_map.update_geos(showcountries=True, countrycolor="Linen")
+        
         st.plotly_chart(fig_map, use_container_width=True)
 
 else:
     st.title("🚀 PredictiCorp Executive Intelligence Suite")
-    st.info("👋 Welcome! Please upload your Sales Data CSV to launch the intelligence suite.")
+    st.info("👋 Welcome! Please upload your Sales Data CSV in the sidebar to begin.")
