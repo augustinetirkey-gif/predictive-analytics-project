@@ -26,6 +26,7 @@ st.markdown("""
     .welcome-header {
         background: linear-gradient(90deg, #1f4e79 0%, #2c3e50 100%);
         color: white; padding: 60px; border-radius: 20px; text-align: center; margin-bottom: 40px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
     }
     .feature-box {
         background: white; padding: 30px; border-radius: 15px; border-bottom: 4px solid #1f4e79; text-align: center; transition: transform 0.3s ease;
@@ -113,8 +114,6 @@ if uploaded_file is not None:
     # TAB 3: Market Insights
     with tabs[2]:
         st.header("💡 Business Directives")
-        
-        # Dynamic Insight Logic
         top_country = df.groupby('COUNTRY')['SALES'].sum().idxmax()
         top_prod = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
         
@@ -124,7 +123,7 @@ if uploaded_file is not None:
             <div class="card">
                 <h4>📦 Inventory Optimization</h4>
                 <p><b>Insight:</b> <b>{top_prod}</b> is currently your highest-performing line.<br>
-                <b>Action:</b> Prioritize supply chain stability for this category to meet predicted Q4 demand.</p>
+                <b>Action:</b> Prioritize supply chain stability for this category to meet predicted demand.</p>
             </div>
             """, unsafe_allow_html=True)
         
@@ -137,9 +136,35 @@ if uploaded_file is not None:
             </div>
             """, unsafe_allow_html=True)
 
-        st.markdown("### Geographic Performance Heatmap")
+        st.markdown("### Vibrant Geographic Performance Map")
+        st.caption("Hover over countries to see exact sales figures. Each country is uniquely colored for clear identification.")
+        
         geo_df = df.groupby('COUNTRY')['SALES'].sum().reset_index()
-        fig_map = px.choropleth(geo_df, locations="COUNTRY", locationmode='country names', color="SALES", color_continuous_scale="Blues")
+        
+        # --- COLORFUL MAP LOGIC ---
+        fig_map = px.choropleth(
+            geo_df, 
+            locations="COUNTRY", 
+            locationmode='country names', 
+            color="COUNTRY",  # Unique color per country
+            hover_data={'SALES': ':$,.2f', 'COUNTRY': False},
+            color_discrete_sequence=px.colors.qualitative.Dark24, # High-contrast palette
+            template="plotly_white"
+        )
+        
+        fig_map.update_geos(
+            showcountries=True, 
+            countrycolor="Silver",
+            showland=True, landcolor="#f0f2f6",
+            showocean=True, oceancolor="#e3f2fd",
+            projection_type="natural earth"
+        )
+        
+        fig_map.update_layout(
+            showlegend=False, 
+            height=600, 
+            margin={"r":0,"t":30,"l":0,"b":0}
+        )
         st.plotly_chart(fig_map, use_container_width=True)
 
 else:
@@ -156,20 +181,20 @@ else:
     with s1:
         st.markdown("""<div class="feature-box"><h2>📋</h2><h3>Step 1</h3><p>Download the CSV template from the sidebar.</p></div>""", unsafe_allow_html=True)
     with s2:
-        st.markdown("""<div class="feature-box"><h2>📥</h2><h3>Step 2</h3><p>Upload your sales data for automated AI training.</p></div>""", unsafe_allow_html=True)
+        st.markdown("""<div class="feature-box"><h2>📥</h2><h3>Step 2</h3><p>Upload your sales data for ML training.</p></div>""", unsafe_allow_html=True)
     with s3:
-        st.markdown("""<div class="feature-box"><h2>💡</h2><h3>Step 3</h3><p>Explore Tab 3 for Deep Market Insights.</p></div>""", unsafe_allow_html=True)
+        st.markdown("""<div class="feature-box"><h2>💡</h2><h3>Step 3</h3><p>Explore Tabs for Deep Market Insights.</p></div>""", unsafe_allow_html=True)
 
     st.markdown("---")
     c_demo1, c_demo2 = st.columns([1, 1])
     with c_demo1:
         st.image("https://img.freepik.com/free-vector/business-analytics-concept-illustration_114360-3944.jpg", use_column_width=True)
     with c_demo2:
-        st.subheader("🤖 Advanced AI Capabilities")
-        with st.expander("🌍 Territory Benchmarking"):
-            st.write("Compare EMEA, APAC, and NA performance side-by-side to identify regional laggards.")
-        with st.expander("📦 Deal Structure Analysis"):
-            st.write("Understand if your revenue is coming from 'Small' high-frequency orders or 'Large' enterprise deals.")
-        with st.expander("🔮 Dynamic Forecasting"):
-            st.write("Retrain the model instantly as you filter data to get context-specific predictions.")
+        st.subheader("🤖 What can our AI do for you?")
+        with st.expander("📈 Predictive Forecasting"):
+            st.write("Analyze past sales, MSRP, and quantities to predict future deal outcomes.")
+        with st.expander("🌍 Global Market Heatmaps"):
+            st.write("Identify high-performing territories instantly with vibrant geographic visualization.")
+        with st.expander("💼 Executive Directives"):
+            st.write("Get dynamic business actions based on real-time inventory and regional performance.")
         st.warning("👈 Please upload your Sales Data CSV in the sidebar to activate.")
