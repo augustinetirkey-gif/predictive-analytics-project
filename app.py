@@ -78,7 +78,7 @@ if uploaded_file is not None:
 
     tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights"])
 
-    # TAB 1
+    # TAB 1 & 2
     with tabs[0]:
         st.subheader("Performance KPIs")
         k1, k2, k3, k4 = st.columns(4)
@@ -94,7 +94,6 @@ if uploaded_file is not None:
         with c2:
             st.plotly_chart(px.pie(df, values='SALES', names='PRODUCTLINE', hole=0.5, color_discrete_sequence=px.colors.qualitative.Prism), use_container_width=True)
 
-    # TAB 2
     with tabs[1]:
         st.header("🔮 Strategic Scenario Simulator")
         col1, col2, col3 = st.columns(3)
@@ -108,77 +107,77 @@ if uploaded_file is not None:
             pred = bi_pipe.predict(inp)[0]
             st.markdown(f"<div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;'><h3>Predicted Revenue</h3><h1>${pred:,.2f}</h1><p>AI Accuracy: {ai_score:.1f}%</p></div>", unsafe_allow_html=True)
 
-    # --- TAB 3: STRATEGIC MARKET INSIGHTS (ADVANCED ANALYSIS) ---
+    # --- TAB 3: EXPANDED STRATEGIC MARKET INSIGHTS ---
     with tabs[2]:
-        st.header("🔬 Enterprise Strategy & Analysis")
-        st.markdown("This section provides data-driven intelligence to guide global decision making.")
-
-        # SECTION 1: REGIONAL BENCHMARKING
-        st.subheader("🏁 Territory Benchmarking")
+        st.header("🔬 Enterprise Strategy & Advanced Analytics")
         
-        col_bench1, col_bench2 = st.columns([2, 1])
+        # 1. Advanced Territory Analysis
+        st.subheader("🏁 Global Performance Matrix")
+        [Image of a bubble chart showing territory sales vs deal volume]
+        col_m1, col_m2 = st.columns([2, 1])
         
-        with col_bench1:
+        with col_m1:
+            # Efficiency Map: Sales per Unit Ordered by Country
+            matrix_df = df.groupby('COUNTRY').agg({'SALES': 'sum', 'QUANTITYORDERED': 'sum'}).reset_index()
+            matrix_df['Efficiency (Sales/Qty)'] = (matrix_df['SALES'] / matrix_df['QUANTITYORDERED']).round(2)
+            fig_matrix = px.scatter(matrix_df, x='QUANTITYORDERED', y='SALES', size='Efficiency (Sales/Qty)', 
+                                    color='COUNTRY', text='COUNTRY', title="Market Efficiency: Sales Volume vs order Quantity",
+                                    template="plotly_white")
+            st.plotly_chart(fig_matrix, use_container_width=True)
+        
+        with col_m2:
+            st.markdown("##### 🌍 Territory Revenue Share")
             if 'TERRITORY' in df.columns:
-                bench_df = df.groupby(['TERRITORY', 'PRODUCTLINE'])['SALES'].sum().reset_index()
-                fig_bench = px.bar(bench_df, x='TERRITORY', y='SALES', color='PRODUCTLINE', barmode='group',
-                                   title="Product Performance by Global Territory", template="plotly_white")
-                st.plotly_chart(fig_bench, use_container_width=True)
-            else:
-                st.info("Upload data with 'TERRITORY' for benchmarking.")
-
-        with col_bench2:
-            st.markdown("##### 🏆 Leaderboard")
-            rank_df = df.groupby('COUNTRY')['SALES'].sum().sort_values(ascending=False).reset_index()
-            rank_df['Market Share %'] = (rank_df['SALES'] / rank_df['SALES'].sum() * 100).round(1)
-            st.dataframe(rank_df.head(10), hide_index=True)
+                ter_share = df.groupby('TERRITORY')['SALES'].sum().reset_index()
+                st.plotly_chart(px.pie(ter_share, values='SALES', names='TERRITORY', hole=0.3), use_container_width=True)
 
         st.markdown("---")
 
-        # SECTION 2: PROFITABILITY & CUSTOMER LOYALTY
-        st.subheader("💎 Customer & Price Dynamics")
-        col_cus1, col_cus2 = st.columns(2)
-
-        with col_cus1:
-            st.markdown("#### Top 10 High-Value Customers")
+        # 2. Revenue Concentration & Deal Dynamics
+        col_c1, col_c2 = st.columns(2)
+        
+        with col_c1:
+            st.markdown("#### 💎 Top 10 Revenue Generating Customers")
             if 'CUSTOMERNAME' in df.columns:
-                cus_df = df.groupby('CUSTOMERNAME')['SALES'].sum().sort_values(ascending=False).head(10).reset_index()
-                fig_cus = px.bar(cus_df, x='SALES', y='CUSTOMERNAME', orientation='h', 
-                                 color='SALES', color_continuous_scale='Greens', template="plotly_white")
+                cus_data = df.groupby('CUSTOMERNAME')['SALES'].sum().sort_values(ascending=False).head(10).reset_index()
+                fig_cus = px.bar(cus_data, x='SALES', y='CUSTOMERNAME', orientation='h', color='SALES', 
+                                 color_continuous_scale='Blues', template="plotly_white")
                 st.plotly_chart(fig_cus, use_container_width=True)
 
-        with col_cus2:
-            st.markdown("#### Price Realization (Sales vs MSRP)")
-            # Analyze if products are selling above or below MSRP
-            df['Price_Diff'] = df['SALES'] - (df['MSRP'] * df['QUANTITYORDERED'])
-            fig_price = px.histogram(df, x='Price_Diff', nbins=50, title="Revenue Variance from MSRP",
-                                     color_discrete_sequence=['#1f4e79'], template="plotly_white")
-            st.plotly_chart(fig_price, use_container_width=True)
-            st.caption("Negative values indicate high discounting; Positive values indicate premium pricing.")
+        with col_c2:
+            st.markdown("#### 📦 Deal Size Segmentation")
+            if 'DEALSIZE' in df.columns:
+                deal_dist = df.groupby('DEALSIZE')['SALES'].count().reset_index().rename(columns={'SALES':'Order Count'})
+                fig_deal = px.bar(deal_dist, x='DEALSIZE', y='Order Count', color='DEALSIZE', 
+                                  title="Transaction Volume by Deal Class", template="plotly_white")
+                st.plotly_chart(fig_deal, use_container_width=True)
 
         st.markdown("---")
 
-        # SECTION 3: AUTOMATED AI BUSINESS DIRECTIVES
-        st.subheader("🤖 AI Executive Directives")
+        # 3. AI Executive Directives (Logic-Based)
+        st.subheader("🤖 AI Strategic Directives")
         
-        # Calculate Logic-Based Insights
+        # Calculate complex insights
+        top_country = df.groupby('COUNTRY')['SALES'].sum().idxmax()
         top_prod = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
-        worst_prod = df.groupby('PRODUCTLINE')['SALES'].sum().idxmin()
-        top_ter = df.groupby('TERRITORY')['SALES'].sum().idxmax() if 'TERRITORY' in df.columns else "Global"
+        
+        # Detect discounting (Sales vs MSRP*Qty)
+        df['Discount_Impact'] = (df['MSRP'] * df['QUANTITYORDERED']) - df['SALES']
+        avg_discount = df['Discount_Impact'].mean()
         
         d1, d2, d3 = st.columns(3)
         with d1:
-            st.markdown(f"""<div class='card'><h5>📦 Portfolio Pivot</h5>
-            <p><b>{top_prod}</b> is dominating your revenue stream. <br><br>
-            <b>AI Suggestion:</b> Evaluate if <b>{worst_prod}</b> should be phased out or bundled with high-performers to clear inventory.</p></div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div class='card'><h5>🌍 Geographical Focus</h5>
+            <p><b>{top_country}</b> is your highest-yielding market. <br><br>
+            <b>AI Suggestion:</b> Establish a regional hub in this location to reduce "Time-to-Customer" and capture more Medium-sized deals.</p></div>""", unsafe_allow_html=True)
         with d2:
-            st.markdown(f"""<div class='card'><h5>🌍 Territory Focus</h5>
-            <p>Your primary revenue engine is <b>{top_ter}</b>. <br><br>
-            <b>AI Suggestion:</b> Invest in localized distribution centers in <b>{top_ter}</b> to reduce shipping lead times and increase customer satisfaction.</p></div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div class='card'><h5>📦 Inventory Strategy</h5>
+            <p>Portfolio relies heavily on <b>{top_prod}</b>. <br><br>
+            <b>AI Suggestion:</b> Diversify product offerings in lower-performing territories to mitigate risk from single-category shifts.</p></div>""", unsafe_allow_html=True)
         with d3:
-            st.markdown(f"""<div class='card'><h5>📉 Efficiency Alert</h5>
-            <p>Mean Price Variance: <b>${df['Price_Diff'].mean():,.2f}</b> <br><br>
-            <b>AI Suggestion:</b> Current discounting is impacting margins. AI suggests a 3% price floor for low-volume regions.</p></div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div class='card'><h5>📉 Margin Intelligence</h5>
+            <p>Average Revenue Variance: <b>${avg_discount:,.2f}</b> <br><br>
+            <b>AI Suggestion:</b> Heavy price variance detected in Q4. Re-evaluate discounting permissions for sales representatives.</p></div>""", unsafe_allow_html=True)
 
 else:
     # --- INTERACTIVE WELCOME PAGE ---
