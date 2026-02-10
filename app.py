@@ -46,23 +46,19 @@ st_country = st.sidebar.multiselect("Active Markets", options=sorted(df_master['
 # Filtered dataset for charts
 df = df_master[(df_master['YEAR'].isin(st_year)) & (df_master['COUNTRY'].isin(st_country))]
 
-# --- MACHINE LEARNING PIPELINE ---
-# We define features and target
-ml_features = ['MONTH_ID', 'QTR_ID', 'MSRP', 'QUANTITYORDERED', 'PRODUCTLINE', 'COUNTRY']
-X = df_master[ml_features].copy()
+# --- MACHINE LEARNING PIPELINE (The "Background" Work) ---
+features = ['MONTH_ID', 'QTR_ID', 'MSRP', 'QUANTITYORDERED', 'PRODUCTLINE', 'COUNTRY']
+X = df_master[features].copy()
 y = df_master['SALES']
-
-# We use 'encoders' consistently throughout the app
-encoders = {}
+le_dict = {}
 for col in ['PRODUCTLINE', 'COUNTRY']:
     le = LabelEncoder()
     X[col] = le.fit_transform(X[col])
-    encoders[col] = le
+    le_dict[col] = le
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-# We use 'ai_model' consistently throughout the app
-ai_model = RandomForestRegressor(n_estimators=100, random_state=42).fit(X_train, y_train)
-y_pred = ai_model.predict(X_test)
+model = RandomForestRegressor(n_estimators=100, random_state=42).fit(X_train, y_train)
+y_pred = model.predict(X_test)
 
 # --- APP LAYOUT ---
 st.title("🚀 PredictiCorp Executive Intelligence Suite")
@@ -70,7 +66,7 @@ st.caption("Data-Driven Insights for Global Market Strategy")
 
 tabs = st.tabs([
     "📈 Executive Dashboard", 
-    "🔮 Global Revenue Forecast", 
+    "🔮 Revenue Simulator", 
     "🌍 Market Insights", 
     "🧪 Scientific Lab (Week 1-6)"
 ])
@@ -96,83 +92,33 @@ with tabs[0]:
         st.markdown("### Portfolio Composition")
         fig_pie = px.pie(df, values='SALES', names='PRODUCTLINE', hole=0.5, color_discrete_sequence=px.colors.qualitative.Prism)
         st.plotly_chart(fig_pie, use_container_width=True)
-        
-# --- TAB 2: GLOBAL STRATEGIC FORECASTER ---
+
+# --- TAB 2: REVENUE SIMULATOR (Decision Making Tool) ---
 with tabs[1]:
-    st.header("🎯 Global Market Comparison & Forecast Hub")
-    st.markdown("This system generates a full-year revenue projection across **all countries** simultaneously to support resource allocation decisions.")
-
-    # 1. Input Controls for Global Simulation
-    st.subheader("Simulation Control Panel")
-    col_c1, col_c2 = st.columns(2)
-    with col_c1:
-        # Select product to see how it performs globally
-        sim_prod = st.selectbox("Product Line to Analyze", df_master['PRODUCTLINE'].unique(), key="sim_prod_select")
-    with col_c2:
-        # Adjust quantity to see the impact on global revenue
-        sim_qty = st.slider("Target Order Quantity (Average)", 10, 100, 30, key="sim_qty_slider")
-
-    # 2. Execution Button
-    if st.button("⚡ EXECUTE GLOBAL ANNUAL PREDICTION", use_container_width=True, type="primary"):
-        # Create simulation grid for 19 countries x 12 months (Total 228 scenarios)
-        all_countries = df_master['COUNTRY'].unique()
-        all_months = range(1, 13)
-        avg_msrp = df_master['MSRP'].mean() # Use average MSRP as baseline
+    st.header("🔮 Strategic Scenario Simulator")
+    st.markdown("Adjust parameters to predict the revenue outcome of prospective deals.")
+    
+    with st.container():
+        col_s1, col_s2, col_s3 = st.columns(3)
+        in_prod = col_s1.selectbox("Product Line", df_master['PRODUCTLINE'].unique())
+        in_qty = col_s1.slider("Target Quantity", 10, 100, 30)
+        in_country = col_s2.selectbox("Destination Market", sorted(df_master['COUNTRY'].unique()))
+        in_msrp = col_s2.number_input("Unit MSRP ($)", value=100)
+        in_month = col_s3.slider("Order Month", 1, 12, 6)
         
-        forecast_rows = []
-        for country in all_countries:
-            for month in all_months:
-                qtr = (month - 1) // 3 + 1
-                forecast_rows.append({
-                    'COUNTRY': country,
-                    'MONTH_ID': month,
-                    'QTR_ID': qtr,
-                    'MSRP': avg_msrp,
-                    'QUANTITYORDERED': sim_qty,
-                    'PRODUCTLINE': sim_prod
-                })
-        
-        forecast_df = pd.DataFrame(forecast_rows)
-
-        # 3. Data Transformation (Mapping words to numbers for the AI Model)
-        predict_df = forecast_df.copy()
-        predict_df['PRODUCTLINE'] = encoders['PRODUCTLINE'].transform(predict_df['PRODUCTLINE'])
-        predict_df['COUNTRY'] = encoders['COUNTRY'].transform(predict_df['COUNTRY'])
-
-        # 4. Global Prediction Logic
-        # Passing all 228 scenarios through the Random Forest model at once
-        forecast_df['PREDICTED_REVENUE'] = ai_model.predict(
-            predict_df[['MONTH_ID', 'QTR_ID', 'MSRP', 'QUANTITYORDERED', 'PRODUCTLINE', 'COUNTRY']]
-        )
-
-        # 5. Visual Analytics for Decision Making
-        st.divider()
-        st.write(f"### 🌏 Total Predicted Global Annual Revenue: ${forecast_df['PREDICTED_REVENUE'].sum()/1e6:.2f}M")
-        
-        c_left, c_right = st.columns(2)
-        
-        with c_left:
-            st.subheader("Market Potential Ranking")
-            # Compare every country's total predicted revenue
-            country_res = forecast_df.groupby('COUNTRY')['PREDICTED_REVENUE'].sum().sort_values(ascending=False).reset_index()
-            fig_rank = px.bar(country_res, x='COUNTRY', y='PREDICTED_REVENUE', 
-                             color='PREDICTED_REVENUE', color_continuous_scale="Blues",
-                             labels={'PREDICTED_REVENUE': 'Expected Sales ($)'})
-            st.plotly_chart(fig_rank, use_container_width=True)
+        if st.button("RUN PREDICTIVE SIMULATION", use_container_width=True, type="primary"):
+            p_prod = le_dict['PRODUCTLINE'].transform([in_prod])[0]
+            p_country = le_dict['COUNTRY'].transform([in_country])[0]
+            p_qtr = (in_month - 1) // 3 + 1
+            prediction = model.predict(np.array([[in_month, p_qtr, in_msrp, in_qty, p_prod, p_country]]))[0]
             
-        with c_right:
-            st.subheader("Global Seasonal Forecast")
-            # Compare revenue month-by-month for the whole year
-            monthly_res = forecast_df.groupby('MONTH_ID')['PREDICTED_REVENUE'].sum().reset_index()
-            fig_trend = px.line(monthly_res, x='MONTH_ID', y='PREDICTED_REVENUE', markers=True,
-                               labels={'PREDICTED_REVENUE': 'Global Sales Forecast ($)', 'MONTH_ID': 'Month'})
-            fig_trend.update_layout(xaxis=dict(tickmode='linear', tick0=1, dtick=1))
-            st.plotly_chart(fig_trend, use_container_width=True)
-
-        # 6. Deep Dive Data View
-        with st.expander("🔍 View Raw Prediction Matrix (All Nations x All Months)"):
-            st.dataframe(forecast_df.sort_values(by=['COUNTRY', 'MONTH_ID']), use_container_width=True)
-
+            st.markdown(f"""
+                <div style="background-color: #e1f5fe; padding: 30px; border-radius: 15px; border-left: 10px solid #0288d1; text-align: center;">
+                    <h3 style="color: #01579b; margin: 0;">Predicted Deal Revenue</h3>
+                    <h1 style="color: #01579b; font-size: 50px; margin: 10px 0;">${prediction:,.2f}</h1>
+                    <p style="color: #0277bd; font-weight: bold;">AI Confidence Score: {r2_score(y_test, y_pred)*100:.1f}%</p>
+                </div>
+            """, unsafe_allow_html=True)
 
 # --- TAB 3: MARKET INSIGHTS ---
 with tabs[2]:
@@ -192,7 +138,7 @@ with tabs[2]:
         st.markdown("""
         <div class="card">
             <h4>🌍 Regional Strategy</h4>
-            <p><b>Insight:</b> USA and France contribute significantly to total revenue.<br>
+            <p><b>Insight:</b> USA and France contribute to 55% of total revenue.<br>
             <b>Action:</b> Pilot a localized loyalty program in the EMEA territory to defend market share.</p>
         </div>
         """, unsafe_allow_html=True)
@@ -202,7 +148,7 @@ with tabs[2]:
     fig_map = px.choropleth(geo_df, locations="COUNTRY", locationmode='country names', color="SALES", color_continuous_scale="Blues")
     st.plotly_chart(fig_map, use_container_width=True)
 
-# --- TAB 4: SCIENTIFIC LAB ---
+# --- TAB 4: SCIENTIFIC LAB (The "Journey") ---
 with tabs[3]:
     st.header("🧪 Data Science Methodology & Audit Trail")
     st.markdown("This section documents the technical rigor behind the predictions.")
@@ -215,7 +161,7 @@ with tabs[3]:
     exp2 = st.expander("🛠️ Week 3-4: Feature Engineering & Model Training")
     with exp2:
         st.write("Variables impacting the Random Forest Regressor:")
-        importances = pd.DataFrame({'Feature': ml_features, 'Importance': ai_model.feature_importances_}).sort_values('Importance')
+        importances = pd.DataFrame({'Feature': features, 'Importance': model.feature_importances_}).sort_values('Importance')
         st.plotly_chart(px.bar(importances, x='Importance', y='Feature', orientation='h'))
 
     exp3 = st.expander("🛠️ Week 5-6: Quality Metrics & Validation")
