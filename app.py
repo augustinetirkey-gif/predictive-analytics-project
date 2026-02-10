@@ -100,61 +100,68 @@ if uploaded_file is not None:
                 pred = bi_pipe.predict(inp)[0]
                 st.markdown(f"<div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;'><h3>Predicted Revenue</h3><h1>${pred:,.2f}</h1><p>AI Accuracy: {ai_score:.1f}%</p></div>", unsafe_allow_html=True)
 
-    # --- TAB 3: MARKET INSIGHTS (DUAL LAYER MAP) ---
+    # --- TAB 3: MARKET INSIGHTS (ENHANCED INTERACTIVE MAP) ---
     with tabs[2]:
         st.header("💡 Business Directives")
+        
+        # Prepare Map Data
+        geo_df = df.groupby('COUNTRY')['SALES'].sum().reset_index().sort_values('SALES', ascending=False)
+        geo_df['Market Share (%)'] = (geo_df['SALES'] / geo_df['SALES'].sum() * 100).round(2)
+        geo_df['Rank'] = range(1, len(geo_df) + 1)
+        
         top_prod = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
-        top_country = df.groupby('COUNTRY')['SALES'].sum().idxmax()
-        country_share = (df.groupby('COUNTRY')['SALES'].sum().max() / df['SALES'].sum()) * 100
+        top_country = geo_df.iloc[0]['COUNTRY']
 
         col_i1, col_i2 = st.columns(2)
         with col_i1:
             st.markdown(f"<div class='card'><h4>📦 Inventory Optimization</h4><p><b>Insight:</b> <b>{top_prod}</b> is the revenue leader. AI suggests maintaining 15% safety stock for this line.</p></div>", unsafe_allow_html=True)
         with col_i2:
-            st.markdown(f"<div class='card'><h4>🌍 Regional Strategy</h4><p><b>Insight:</b> <b>{top_country}</b> contributes {country_share:.1f}% of revenue. Focus on high-value customer retention.</p></div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='card'><h4>🌍 Regional Strategy</h4><p><b>Insight:</b> <b>{top_country}</b> is your #1 market. Focus on high-value customer retention in this territory.</p></div>", unsafe_allow_html=True)
 
-        st.markdown("### Geographic Performance & Boundaries")
-        st.caption("Colored boundaries show market territory. Blue 'Pins' highlight exact country locations.")
+        st.markdown("### Interactive Global Market Explorer")
+        st.caption("🖱️ **Zoom**: Mouse Wheel | **Pan**: Click & Drag | **Identify**: Hover over a country")
         
-        geo_df = df.groupby('COUNTRY')['SALES'].sum().reset_index()
-
-        # 1. BASE LAYER: Heatmap (Choropleth) for Boundaries
+        # Create High-Performance Choropleth
         fig_map = px.choropleth(
             geo_df,
             locations="COUNTRY",
             locationmode='country names',
             color="SALES",
-            color_continuous_scale="Blues",
-            template="plotly_white"
-        )
-
-        # 2. OVERLAY LAYER: Scatter Geo for Pins
-        # This creates a blue dot in every country so you can identify small ones easily
-        fig_pins = px.scatter_geo(
-            geo_df,
-            locations="COUNTRY",
-            locationmode='country names',
             hover_name="COUNTRY",
-            size_max=10,
-            template="plotly_white"
+            # We add custom hover data for "Easy Understanding"
+            hover_data={
+                'COUNTRY': False,
+                'SALES': ':$,.2f',
+                'Market Share (%)': ':.2f',
+                'Rank': True
+            },
+            color_continuous_scale="Viridis", 
+            template="plotly_white",
+            labels={'SALES':'Revenue', 'Market Share (%)': 'Share'}
         )
-        
-        # Update pin style to be a solid blue marker
-        fig_pins.update_traces(marker=dict(size=10, color='#1f4e79', symbol='circle'))
-
-        # Add Pins to the Heatmap
-        for trace in fig_pins.data:
-            fig_map.add_trace(trace)
 
         fig_map.update_geos(
             showcountries=True, 
-            countrycolor="Silver", # Boundary lines
+            countrycolor="Silver",     # Sharp silver borders help identify small countries like Belgium
             showland=True, 
-            landcolor="white"
+            landcolor="#f8f9fa",       # Clean off-white for countries without data
+            showocean=True, 
+            oceancolor="#e3f2fd",      # Light blue professional ocean
+            projection_type="mercator", # Standard for fast web zooming
+            visible=True
         )
         
-        fig_map.update_layout(height=600, margin={"r":0,"t":0,"l":0,"b":0})
-        st.plotly_chart(fig_map, use_container_width=True)
+        fig_map.update_layout(
+            height=700, 
+            margin={"r":0,"t":20,"l":0,"b":0},
+            dragmode="pan",
+            # Persistent view: Map won't reset when you change filters
+            uirevision='constant',
+            coloraxis_colorbar=dict(title="Revenue ($)", thickness=20)
+        )
+        
+        # Enable scroll zoom for fast interaction
+        st.plotly_chart(fig_map, use_container_width=True, config={'scrollZoom': True, 'displayModeBar': True})
 
 else:
     st.title("🚀 PredictiCorp Executive Intelligence Suite")
