@@ -8,12 +8,11 @@ from sklearn.metrics import r2_score
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
-import io
 
 # --- SYSTEM CONFIGURATION ---
 st.set_page_config(page_title="PredictiCorp BI Suite", layout="wide", initial_sidebar_state="expanded")
 
-# --- EXECUTIVE THEMING (Custom CSS) ---
+# --- EXECUTIVE THEMING ---
 st.markdown("""
     <style>
     .main { background-color: #f4f7f9; }
@@ -53,6 +52,10 @@ if uploaded_file is not None:
     df_master = load_and_process_data(uploaded_file)
     st_year = st.sidebar.multiselect("Fiscal Year", options=sorted(df_master['YEAR'].unique()), default=df_master['YEAR'].unique())
     st_country = st.sidebar.multiselect("Active Markets", options=sorted(df_master['COUNTRY'].unique()), default=df_master['COUNTRY'].unique())
+    
+    # NEW: Market Focus for Interactivity
+    focus_country = st.sidebar.selectbox("🎯 Focus View (Auto-Zoom)", ["Global"] + sorted(df_master['COUNTRY'].unique()))
+
     df = df_master[(df_master['YEAR'].isin(st_year)) & (df_master['COUNTRY'].isin(st_country))]
 
     @st.cache_resource
@@ -92,7 +95,7 @@ if uploaded_file is not None:
             col1, col2, col3 = st.columns(3)
             in_prod = col1.selectbox("Product Line", df_master['PRODUCTLINE'].unique())
             in_qty = col1.slider("Quantity", 10, 500, 50)
-            in_country = col2.selectbox("Country", sorted(df_master['COUNTRY'].unique()))
+            in_country = col2.selectbox("Country", sorted(df_master['COUNTRY'].unique()), index=sorted(df_master['COUNTRY'].unique()).index(focus_country) if focus_country != "Global" else 0)
             in_msrp = col2.number_input("Unit Price ($)", value=100)
             in_month = col3.slider("Order Month", 1, 12, 6)
             if st.button("RUN AI SIMULATION", use_container_width=True, type="primary"):
@@ -100,7 +103,7 @@ if uploaded_file is not None:
                 pred = bi_pipe.predict(inp)[0]
                 st.markdown(f"<div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;'><h3>Predicted Revenue</h3><h1>${pred:,.2f}</h1><p>AI Accuracy: {ai_score:.1f}%</p></div>", unsafe_allow_html=True)
 
-    # --- TAB 3: MARKET INSIGHTS (FLUID INTERACTIVE MAP) ---
+    # --- TAB 3: MARKET INSIGHTS (HIGH-SPEED MAP) ---
     with tabs[2]:
         st.header("💡 Business Directives")
         top_prod = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
@@ -109,12 +112,12 @@ if uploaded_file is not None:
 
         col_i1, col_i2 = st.columns(2)
         with col_i1:
-            st.markdown(f"<div class='card'><h4>📦 Inventory Optimization</h4><p><b>Insight:</b> <b>{top_prod}</b> is the revenue leader. AI suggests maintaining 15% safety stock for this line.</p></div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='card'><h4>📦 Inventory Optimization</h4><p><b>Insight:</b> Leader: <b>{top_prod}</b>. AI suggests 15% safety stock buffer.</p></div>", unsafe_allow_html=True)
         with col_i2:
-            st.markdown(f"<div class='card'><h4>🌍 Regional Strategy</h4><p><b>Insight:</b> <b>{top_country}</b> contributes {country_share:.1f}% of revenue. Focus on high-value customer retention.</p></div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='card'><h4>🌍 Regional Strategy</h4><p><b>Insight:</b> <b>{top_country}</b> holds {country_share:.1f}% share. focus on retention.</p></div>", unsafe_allow_html=True)
 
-        st.markdown("### Interactive Market Analysis")
-        st.caption("🖱️ Use the mouse wheel to Zoom. Click and Drag to Pan across the map.")
+        st.markdown("### High-Speed Market Heatmap")
+        st.caption("🚀 Zooming is now optimized. Use the 'Focus View' in the sidebar to teleport to a country.")
         
         geo_df = df.groupby('COUNTRY')['SALES'].sum().reset_index()
 
@@ -124,29 +127,38 @@ if uploaded_file is not None:
             locationmode='country names',
             color="SALES",
             hover_name="COUNTRY",
-            color_continuous_scale="Viridis", 
+            color_continuous_scale="Plasma", 
             template="plotly_white",
-            labels={'SALES':'Total Revenue ($)'}
+            labels={'SALES':'Revenue ($)'}
         )
 
+        # INTERACTIVE OPTIMIZATION:
         fig_map.update_geos(
             showcountries=True, 
-            countrycolor="Silver",     # Sharp boundaries for identification
-            showland=True, 
-            landcolor="#f0f2f6",       
-            showocean=True, 
-            oceancolor="#e3f2fd",      
-            projection_type="mercator" # Best projection for fluid zooming
+            countrycolor="#d1d1d1",
+            showland=True, landcolor="white",
+            projection_type="mercator",
+            visible=True,
+            # Auto-zoom logic
+            lataxis_range=[None, None], lonaxis_range=[None, None] if focus_country == "Global" else None
         )
-        
+
+        if focus_country != "Global":
+            # If a country is selected, the map will "Interactive" zoom to that location
+            fig_map.update_layout(geo_scope=None) 
+
         fig_map.update_layout(
-            height=650, 
-            margin={"r":0,"t":20,"l":0,"b":0},
-            dragmode="pan" # Allows clicking and moving while zoomed in
+            height=700, 
+            margin={"r":0,"t":0,"l":0,"b":0},
+            dragmode="zoom", # Allows drawing a box to zoom fast
+            uirevision='constant' # PERSISTENT ZOOM: Map won't reset when data changes!
         )
         
-        # 'scrollZoom' configuration enables the mouse wheel for zoom
-        st.plotly_chart(fig_map, use_container_width=True, config={'scrollZoom': True})
+        st.plotly_chart(fig_map, use_container_width=True, config={
+            'scrollZoom': True, 
+            'displayModeBar': True,
+            'modeBarButtonsToAdd': ['dragmode-pan', 'select2d']
+        })
 
 else:
     st.title("🚀 PredictiCorp Executive Intelligence Suite")
