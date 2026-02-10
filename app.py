@@ -94,18 +94,20 @@ with tabs[0]:
         st.plotly_chart(fig_pie, use_container_width=True)
 
 # --- TAB 2: REVENUE SIMULATOR (Decision Making Tool) ---
-# --- STEP 1: Create a Simulation Grid for all Countries and Months ---
-# We get every unique country in your data
-all_countries = df_base['COUNTRY'].unique()
-all_months = range(1, 13) # Months 1 to 12
+# Make sure base dataframe exists
+df_base = df.copy()
 
-# We define standard inputs for the forecast (Averages)
+# --- STEP 1: Create a Simulation Grid for all Countries and Months ---
+all_countries = df_base['COUNTRY'].unique()
+all_months = range(1, 13)  # Months 1 to 12
+
+# Standard inputs (averages)
 avg_qty = df_base['QUANTITYORDERED'].mean()
 avg_msrp = df_base['MSRP'].mean()
 top_product = df_base['PRODUCTLINE'].mode()[0]
 
-# Build the list of scenarios
 forecast_scenarios = []
+
 for country in all_countries:
     for month in all_months:
         qtr = (month - 1) // 3 + 1
@@ -118,42 +120,29 @@ for country in all_countries:
             'PRODUCTLINE': top_product
         })
 
-# Convert to DataFrame
 forecast_df = pd.DataFrame(forecast_scenarios)
 
-# --- STEP 2: Transform the Data for the AI Model ---
-# We must encode the 'Words' into 'Numbers' so the AI can read them
+# --- STEP 2: Encode categorical columns ---
 predict_df = forecast_df.copy()
 predict_df['PRODUCTLINE'] = encoders['PRODUCTLINE'].transform(predict_df['PRODUCTLINE'])
 predict_df['COUNTRY'] = encoders['COUNTRY'].transform(predict_df['COUNTRY'])
 
-# --- STEP 3: Generate Predictions for Every Row ---
-# The model predicts revenue for every country/month combination at once
-forecast_df['PREDICTED_REVENUE'] = ai_model.predict(predict_df[['MONTH_ID', 'QTR_ID', 'MSRP', 'QUANTITYORDERED', 'PRODUCTLINE', 'COUNTRY']])
+# --- STEP 3: Predict Revenue ---
+forecast_df['PREDICTED_REVENUE'] = ai_model.predict(
+    predict_df[['MONTH_ID', 'QTR_ID', 'MSRP', 'QUANTITYORDERED', 'PRODUCTLINE', 'COUNTRY']]
+)
 
-# --- STEP 4: Aggregate Results for Decision Making ---
-# Now you can tell the business exactly what to expect:
-
-# 1. Total Annual Global Prediction
+# --- STEP 4: Aggregations ---
 total_annual_revenue = forecast_df['PREDICTED_REVENUE'].sum()
-
-# 2. Month-wise Prediction (All countries combined)
 monthly_forecast = forecast_df.groupby('MONTH_ID')['PREDICTED_REVENUE'].sum()
-
-# 3. Country-wise Prediction (Full year total per country)
 country_forecast = forecast_df.groupby('COUNTRY')['PREDICTED_REVENUE'].sum().sort_values(ascending=False)
 
-# --- STEP 5: Visualizing in Streamlit ---
+# --- STEP 5: Streamlit Visualization ---
 st.write(f"### 🌏 Total Global Forecasted Revenue: ${total_annual_revenue/1e6:.2f}M")
-
-# Show Country Ranking
 st.bar_chart(country_forecast)
-
-# Show Monthly Seasonal Trend
 st.line_chart(monthly_forecast)
-
-# Show the full table for deep analysis
 st.dataframe(forecast_df)
+
 # --- TAB 3: MARKET INSIGHTS ---
 with tabs[2]:
     st.header("💡 Business Directives")
