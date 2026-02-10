@@ -78,7 +78,7 @@ if uploaded_file is not None:
 
     tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights"])
 
-    # TAB 1 & 2
+    # TAB 1: Dashboard
     with tabs[0]:
         st.subheader("Performance KPIs")
         k1, k2, k3, k4 = st.columns(4)
@@ -90,10 +90,13 @@ if uploaded_file is not None:
         c1, c2 = st.columns([2, 1])
         with c1:
             trend = df.groupby(['YEAR', 'MONTH_ID', 'MONTH_NAME'])['SALES'].sum().reset_index().sort_values(['YEAR', 'MONTH_ID'])
-            st.plotly_chart(px.line(trend, x='MONTH_NAME', y='SALES', color='YEAR', markers=True, template="plotly_white"), use_container_width=True)
+            fig_trend = px.line(trend, x='MONTH_NAME', y='SALES', color='YEAR', markers=True, template="plotly_white")
+            st.plotly_chart(fig_trend, use_container_width=True)
         with c2:
-            st.plotly_chart(px.pie(df, values='SALES', names='PRODUCTLINE', hole=0.5, color_discrete_sequence=px.colors.qualitative.Prism), use_container_width=True)
+            fig_pie = px.pie(df, values='SALES', names='PRODUCTLINE', hole=0.5, color_discrete_sequence=px.colors.qualitative.Prism)
+            st.plotly_chart(fig_pie, use_container_width=True)
 
+    # TAB 2: Simulator
     with tabs[1]:
         st.header("🔮 Strategic Scenario Simulator")
         col1, col2, col3 = st.columns(3)
@@ -107,32 +110,37 @@ if uploaded_file is not None:
             pred = bi_pipe.predict(inp)[0]
             st.markdown(f"<div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;'><h3>Predicted Revenue</h3><h1>${pred:,.2f}</h1><p>AI Accuracy: {ai_score:.1f}%</p></div>", unsafe_allow_html=True)
 
-  # --- TAB 3: MARKET INSIGHTS ---
-with tabs[2]:
-    st.header("💡 Business Directives")
-    col_i1, col_i2 = st.columns(2)
-    with col_i1:
-        st.markdown("""
-        <div class="card">
-            <h4>📦 Inventory Optimization</h4>
-            <p><b>Insight:</b> Peak demand occurs consistently in Q4. <br>
-            <b>Action:</b> Increase Classic Car and Motorcycle inventory by 20% starting September.</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col_i2:
-        st.markdown("""
-        <div class="card">
-            <h4>🌍 Regional Strategy</h4>
-            <p><b>Insight:</b> USA and France contribute to 55% of total revenue.<br>
-            <b>Action:</b> Pilot a localized loyalty program in the EMEA territory to defend market share.</p>
-        </div>
-        """, unsafe_allow_html=True)
+    # TAB 3: Market Insights
+    with tabs[2]:
+        st.header("💡 Business Directives")
+        
+        # Dynamic Insight Logic
+        top_country = df.groupby('COUNTRY')['SALES'].sum().idxmax()
+        top_prod = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
+        
+        col_i1, col_i2 = st.columns(2)
+        with col_i1:
+            st.markdown(f"""
+            <div class="card">
+                <h4>📦 Inventory Optimization</h4>
+                <p><b>Insight:</b> <b>{top_prod}</b> is currently your highest-performing line.<br>
+                <b>Action:</b> Prioritize supply chain stability for this category to meet predicted Q4 demand.</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col_i2:
+            st.markdown(f"""
+            <div class="card">
+                <h4>🌍 Regional Strategy</h4>
+                <p><b>Insight:</b> <b>{top_country}</b> contributes the most to your global revenue.<br>
+                <b>Action:</b> Pilot a localized loyalty program in <b>{top_country}</b> to defend market share.</p>
+            </div>
+            """, unsafe_allow_html=True)
 
-    st.markdown("### Geographic Performance Heatmap")
-    geo_df = df.groupby('COUNTRY')['SALES'].sum().reset_index()
-    fig_map = px.choropleth(geo_df, locations="COUNTRY", locationmode='country names', color="SALES", color_continuous_scale="Blues")
-    st.plotly_chart(fig_map, use_container_width=True))
+        st.markdown("### Geographic Performance Heatmap")
+        geo_df = df.groupby('COUNTRY')['SALES'].sum().reset_index()
+        fig_map = px.choropleth(geo_df, locations="COUNTRY", locationmode='country names', color="SALES", color_continuous_scale="Blues")
+        st.plotly_chart(fig_map, use_container_width=True)
 
 else:
     # --- INTERACTIVE WELCOME PAGE ---
