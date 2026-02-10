@@ -94,32 +94,66 @@ with tabs[0]:
         st.plotly_chart(fig_pie, use_container_width=True)
 
 # --- TAB 2: REVENUE SIMULATOR (Decision Making Tool) ---
-with tabs[1]:
-    st.header("🔮 Strategic Scenario Simulator")
-    st.markdown("Adjust parameters to predict the revenue outcome of prospective deals.")
-    
-    with st.container():
-        col_s1, col_s2, col_s3 = st.columns(3)
-        in_prod = col_s1.selectbox("Product Line", df_master['PRODUCTLINE'].unique())
-        in_qty = col_s1.slider("Target Quantity", 10, 100, 30)
-        in_country = col_s2.selectbox("Destination Market", sorted(df_master['COUNTRY'].unique()))
-        in_msrp = col_s2.number_input("Unit MSRP ($)", value=100)
-        in_month = col_s3.slider("Order Month", 1, 12, 6)
-        
-        if st.button("RUN PREDICTIVE SIMULATION", use_container_width=True, type="primary"):
-            p_prod = le_dict['PRODUCTLINE'].transform([in_prod])[0]
-            p_country = le_dict['COUNTRY'].transform([in_country])[0]
-            p_qtr = (in_month - 1) // 3 + 1
-            prediction = model.predict(np.array([[in_month, p_qtr, in_msrp, in_qty, p_prod, p_country]]))[0]
-            
-            st.markdown(f"""
-                <div style="background-color: #e1f5fe; padding: 30px; border-radius: 15px; border-left: 10px solid #0288d1; text-align: center;">
-                    <h3 style="color: #01579b; margin: 0;">Predicted Deal Revenue</h3>
-                    <h1 style="color: #01579b; font-size: 50px; margin: 10px 0;">${prediction:,.2f}</h1>
-                    <p style="color: #0277bd; font-weight: bold;">AI Confidence Score: {r2_score(y_test, y_pred)*100:.1f}%</p>
-                </div>
-            """, unsafe_allow_html=True)
+# --- STEP 1: Create a Simulation Grid for all Countries and Months ---
+# We get every unique country in your data
+all_countries = df_base['COUNTRY'].unique()
+all_months = range(1, 13) # Months 1 to 12
 
+# We define standard inputs for the forecast (Averages)
+avg_qty = df_base['QUANTITYORDERED'].mean()
+avg_msrp = df_base['MSRP'].mean()
+top_product = df_base['PRODUCTLINE'].mode()[0]
+
+# Build the list of scenarios
+forecast_scenarios = []
+for country in all_countries:
+    for month in all_months:
+        qtr = (month - 1) // 3 + 1
+        forecast_scenarios.append({
+            'COUNTRY': country,
+            'MONTH_ID': month,
+            'QTR_ID': qtr,
+            'MSRP': avg_msrp,
+            'QUANTITYORDERED': avg_qty,
+            'PRODUCTLINE': top_product
+        })
+
+# Convert to DataFrame
+forecast_df = pd.DataFrame(forecast_scenarios)
+
+# --- STEP 2: Transform the Data for the AI Model ---
+# We must encode the 'Words' into 'Numbers' so the AI can read them
+predict_df = forecast_df.copy()
+predict_df['PRODUCTLINE'] = encoders['PRODUCTLINE'].transform(predict_df['PRODUCTLINE'])
+predict_df['COUNTRY'] = encoders['COUNTRY'].transform(predict_df['COUNTRY'])
+
+# --- STEP 3: Generate Predictions for Every Row ---
+# The model predicts revenue for every country/month combination at once
+forecast_df['PREDICTED_REVENUE'] = ai_model.predict(predict_df[['MONTH_ID', 'QTR_ID', 'MSRP', 'QUANTITYORDERED', 'PRODUCTLINE', 'COUNTRY']])
+
+# --- STEP 4: Aggregate Results for Decision Making ---
+# Now you can tell the business exactly what to expect:
+
+# 1. Total Annual Global Prediction
+total_annual_revenue = forecast_df['PREDICTED_REVENUE'].sum()
+
+# 2. Month-wise Prediction (All countries combined)
+monthly_forecast = forecast_df.groupby('MONTH_ID')['PREDICTED_REVENUE'].sum()
+
+# 3. Country-wise Prediction (Full year total per country)
+country_forecast = forecast_df.groupby('COUNTRY')['PREDICTED_REVENUE'].sum().sort_values(ascending=False)
+
+# --- STEP 5: Visualizing in Streamlit ---
+st.write(f"### 🌏 Total Global Forecasted Revenue: ${total_annual_revenue/1e6:.2f}M")
+
+# Show Country Ranking
+st.bar_chart(country_forecast)
+
+# Show Monthly Seasonal Trend
+st.line_chart(monthly_forecast)
+
+# Show the full table for deep analysis
+st.dataframe(forecast_df)
 # --- TAB 3: MARKET INSIGHTS ---
 with tabs[2]:
     st.header("💡 Business Directives")
