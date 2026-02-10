@@ -113,7 +113,7 @@ if uploaded_file is not None:
         
         # 1. Advanced Territory Analysis
         st.subheader("🏁 Global Performance Matrix")
-        [Image of a bubble chart showing territory sales vs deal volume]
+        st.caption("[Bubble chart analysis: territory sales vs deal volume]")
         col_m1, col_m2 = st.columns([2, 1])
         
         with col_m1:
