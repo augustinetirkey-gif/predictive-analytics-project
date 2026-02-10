@@ -68,7 +68,7 @@ tabs = st.tabs([
     "📈 Executive Dashboard", 
     "🔮 Revenue Simulator", 
     "🌍 Market Insights", 
-    "🧪 Scientific Lab (Week 1-6)"
+   
 ])
 
 # --- TAB 1: EXECUTIVE DASHBOARD ---
