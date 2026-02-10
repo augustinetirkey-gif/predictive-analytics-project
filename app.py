@@ -2,80 +2,37 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
-import plotly.graph_objects as go
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import r2_score
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 
 # --- SYSTEM CONFIGURATION ---
-st.set_page_config(page_title="PredictiCorp BI Suite", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Universal BI Intelligence", layout="wide")
 
-# --- EXECUTIVE THEMING (Custom CSS) ---
+# --- EXECUTIVE THEMING ---
 st.markdown("""
     <style>
     .main { background-color: #f4f7f9; }
     .stMetric { background-color: #ffffff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-top: 5px solid #1f4e79; }
-    .stTabs [data-baseweb="tab-list"] { gap: 10px; background-color: #f4f7f9; }
-    .stTabs [data-baseweb="tab"] { background-color: #ffffff; border-radius: 10px 10px 0 0; border: 1px solid #e1e4e8; padding: 10px 20px; font-weight: bold; color: #5c6c7b; }
-    .stTabs [aria-selected="true"] { background-color: #1f4e79 !important; color: white !important; }
     .card { background-color: #ffffff; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; border-left: 8px solid #1f4e79; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- DATA ANALYTICS ENGINE ---
-@st.cache_data
-def get_processed_data():
-    # Attempting to load data; creating mock data if file not found for demo purposes
-    try:
-        df = pd.read_csv('cleaned_sales_data.csv')
-    except FileNotFoundError:
-        # Fallback dummy data for structure verification
-        data = {
-            'ORDERDATE': pd.date_range(start='2023-01-01', periods=200, freq='D'),
-            'SALES': np.random.randint(2000, 10000, 200),
-            'QUANTITYORDERED': np.random.randint(10, 100, 200),
-            'MSRP': np.random.randint(80, 200, 200),
-            'PRODUCTLINE': np.random.choice(['Classic Cars', 'Motorcycles', 'Planes', 'Ships'], 200),
-            'COUNTRY': np.random.choice(['USA', 'France', 'Norway', 'Australia', 'UK'], 200),
-            'MONTH_ID': np.random.randint(1, 13, 200),
-            'QTR_ID': np.random.randint(1, 5, 200),
-            'DISCOUNT': np.random.randint(0, 30, 200)
-        }
-        df = pd.DataFrame(data)
-
-    df['ORDERDATE'] = pd.to_datetime(df['ORDERDATE'])
-    df['YEAR'] = df['ORDERDATE'].dt.year
-    df['MONTH_NAME'] = df['ORDERDATE'].dt.month_name()
-    return df
-
-df_master = get_processed_data()
-
-# --- SIDEBAR: STRATEGIC FILTERS ---
-st.sidebar.title("🏢 BI Command Center")
-st.sidebar.markdown("**Global Filtering Engine**")
-st_year = st.sidebar.multiselect("Fiscal Year", options=sorted(df_master['YEAR'].unique()), default=df_master['YEAR'].unique())
-st_country = st.sidebar.multiselect("Active Markets", options=sorted(df_master['COUNTRY'].unique()), default=df_master['COUNTRY'].unique())
-
-df = df_master[(df_master['YEAR'].isin(st_year)) & (df_master['COUNTRY'].isin(st_country))]
-
-# --- MACHINE LEARNING PIPELINE ---
-@st.cache_resource
-def train_bi_model(data):
-    # Features used for prediction (ensure Discount is included if used in UI)
-    features = ['MONTH_ID', 'QTR_ID', 'MSRP', 'QUANTITYORDERED', 'PRODUCTLINE', 'COUNTRY']
+# --- ML PIPELINE FUNCTION ---
+def train_dynamic_model(data, features, target):
     X = data[features]
-    y = data['SALES']
+    y = data[target]
     
-    # Preprocessing: One-Hot Encode categories, pass through numbers
+    # Identify categorical vs numerical features
+    cat_features = X.select_dtypes(include=['object']).columns.tolist()
+    
     preprocessor = ColumnTransformer(
         transformers=[
-            ('cat', OneHotEncoder(handle_unknown='ignore'), ['PRODUCTLINE', 'COUNTRY'])
+            ('cat', OneHotEncoder(handle_unknown='ignore'), cat_features)
         ], remainder='passthrough')
 
-    # Create a pipeline that pre-processes THEN fits the model
     model_pipeline = Pipeline(steps=[
         ('preprocessor', preprocessor),
         ('regressor', RandomForestRegressor(n_estimators=100, random_state=42))
@@ -85,102 +42,111 @@ def train_bi_model(data):
     score = r2_score(y, model_pipeline.predict(X)) * 100
     return model_pipeline, score
 
-# Initialize the model and get the confidence score (R-squared)
-bi_pipe, ai_score = train_bi_model(df_master)
+# --- WELCOME & UPLOAD ---
+st.title("🚀 Universal Executive Intelligence Suite")
+st.markdown("Upload your business transaction data (CSV) to generate instant AI insights.")
 
-# --- APP LAYOUT ---
-st.title("🚀 PredictiCorp Executive Intelligence Suite")
-st.caption("Data-Driven Insights for Global Market Strategy")
+uploaded_file = st.sidebar.file_uploader("Step 1: Upload Business Data", type="csv")
 
-tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Market Insights"])
-
-# --- TAB 1: EXECUTIVE DASHBOARD ---
-with tabs[0]:
-    st.subheader("Performance KPIs")
-    k1, k2, k3, k4 = st.columns(4)
-    k1.metric("Total Revenue", f"${df['SALES'].sum()/1e6:.2f}M", "+5.2%")
-    k2.metric("Avg Order Value", f"${df['SALES'].mean():,.2f}")
-    k3.metric("Transaction Volume", f"{len(df):,}")
-    k4.metric("Active Regions", f"{df['COUNTRY'].nunique()}")
-
-    st.markdown("---")
-    c1, c2 = st.columns([2, 1])
-    with c1:
-        st.markdown("### Revenue Momentum (Monthly Trend)")
-        trend = df.groupby(['YEAR', 'MONTH_ID', 'MONTH_NAME'])['SALES'].sum().reset_index().sort_values(['YEAR', 'MONTH_ID'])
-        fig_trend = px.line(trend, x='MONTH_NAME', y='SALES', color='YEAR', markers=True, template="plotly_white")
-        st.plotly_chart(fig_trend, use_container_width=True)
+if uploaded_file is not None:
+    # Load Data
+    df_master = pd.read_csv(uploaded_file)
     
-    with c2:
-        st.markdown("### Portfolio Composition")
-        fig_pie = px.pie(df, values='SALES', names='PRODUCTLINE', hole=0.5, color_discrete_sequence=px.colors.qualitative.Prism)
-        st.plotly_chart(fig_pie, use_container_width=True)
+    # Clean Dates if present
+    date_col = next((col for col in df_master.columns if 'date' in col.lower()), None)
+    if date_col:
+        df_master[date_col] = pd.to_datetime(df_master[date_col])
+        df_master['YEAR'] = df_master[date_col].dt.year
+        df_master['MONTH_NAME'] = df_master[date_col].dt.month_name()
+    
+    # Identify Core Columns
+    target_col = next((col for col in df_master.columns if 'sales' in col.lower() or 'revenue' in col.lower()), None)
+    cat_col = next((col for col in df_master.columns if 'product' in col.lower() or 'category' in col.lower()), None)
+    geo_col = next((col for col in df_master.columns if 'country' in col.lower() or 'region' in col.lower()), None)
 
-# --- TAB 2: REVENUE SIMULATOR ---
-with tabs[1]:
-    st.header("🔮 Strategic Scenario Simulator")
-    st.markdown("Adjust parameters to predict the revenue outcome of prospective deals.")
+    if not target_col:
+        st.error("Could not find a 'Sales' or 'Revenue' column. Please check your CSV.")
+    else:
+        # --- SIDEBAR FILTERS ---
+        st.sidebar.divider()
+        st.sidebar.subheader("Strategic Filters")
+        
+        # Filter by Year if possible
+        if 'YEAR' in df_master.columns:
+            st_year = st.sidebar.multiselect("Fiscal Year", options=sorted(df_master['YEAR'].unique()), default=df_master['YEAR'].unique())
+            df = df_master[df_master['YEAR'].isin(st_year)]
+        else:
+            df = df_master
 
-    with st.container():
-        col1, col2, col3 = st.columns(3)
+        # Filter by Country/Region if possible
+        if geo_col:
+            st_country = st.sidebar.multiselect("Active Markets", options=sorted(df[geo_col].unique()), default=df[geo_col].unique())
+            df = df[df[geo_col].isin(st_country)]
 
-        in_prod = col1.selectbox("Product Line", df_master['PRODUCTLINE'].unique())
-        in_qty = col1.slider("Quantity", 10, 500, 50)
+        # --- MODEL TRAINING ---
+        # Select features for the AI
+        potential_features = ['MONTH_ID', 'QTR_ID', 'MSRP', 'QUANTITYORDERED', cat_col, geo_col]
+        available_features = [f for f in potential_features if f in df_master.columns]
+        
+        bi_pipe, ai_score = train_dynamic_model(df_master, available_features, target_col)
 
-        in_country = col2.selectbox("Country", sorted(df_master['COUNTRY'].unique()))
-        in_msrp = col2.number_input("Unit Price ($)", value=100)
+        # --- APP LAYOUT ---
+        tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Market Insights"])
 
-        in_month = col3.slider("Order Month", 1, 12, 6)
-        # Note: Added for UI parity, but removed from model input if not in training data features
-        in_discount = col3.slider("Discount (%)", 0, 50, 10) 
+        with tabs[0]:
+            st.subheader("Performance KPIs")
+            k1, k2, k3, k4 = st.columns(4)
+            k1.metric("Total Revenue", f"${df[target_col].sum():,.2f}")
+            k2.metric("Avg Transaction", f"${df[target_col].mean():,.2f}")
+            k3.metric("Volume", f"{len(df):,}")
+            if geo_col:
+                k4.metric("Active Regions", f"{df[geo_col].nunique()}")
 
-        if st.button("RUN AI SIMULATION", use_container_width=True, type="primary"):
-            qtr = (in_month - 1) // 3 + 1
+            st.markdown("---")
+            c1, c2 = st.columns([2, 1])
+            with c1:
+                if 'MONTH_NAME' in df.columns:
+                    trend = df.groupby(['MONTH_NAME'])[target_col].sum().reset_index()
+                    fig_trend = px.line(trend, x='MONTH_NAME', y=target_col, title="Revenue Momentum", template="plotly_white")
+                    st.plotly_chart(fig_trend, use_container_width=True)
+            with c2:
+                if cat_col:
+                    fig_pie = px.pie(df, values=target_col, names=cat_col, hole=0.5, title="Portfolio Composition")
+                    st.plotly_chart(fig_pie, use_container_width=True)
+
+        with tabs[1]:
+            st.header("🔮 AI Strategic Simulator")
+            col1, col2 = st.columns(2)
             
-            # Create input DF matching training features
-            input_df = pd.DataFrame([{
-                'MONTH_ID': in_month,
-                'QTR_ID': qtr,
-                'MSRP': in_msrp,
-                'QUANTITYORDERED': in_qty,
-                'PRODUCTLINE': in_prod,
-                'COUNTRY': in_country
-            }])
+            with col1:
+                inputs = {}
+                for feat in available_features:
+                    if df_master[feat].dtype == 'object':
+                        inputs[feat] = st.selectbox(f"Select {feat}", df_master[feat].unique())
+                    else:
+                        inputs[feat] = st.number_input(f"Enter {feat}", value=int(df_master[feat].median()))
+            
+            with col2:
+                if st.button("RUN AI SIMULATION", use_container_width=True, type="primary"):
+                    input_df = pd.DataFrame([inputs])
+                    prediction = bi_pipe.predict(input_df)[0]
+                    st.markdown(f"""
+                        <div style="background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;">
+                            <h3>Predicted Outcome</h3>
+                            <h1>${prediction:,.2f}</h1>
+                            <p><b>Model Accuracy:</b> {ai_score:.1f}%</p>
+                        </div>
+                    """, unsafe_allow_html=True)
 
-            # Prediction
-            prediction = bi_pipe.predict(input_df)[0]
+        with tabs[2]:
+            st.header("🌍 Geographic Performance")
+            if geo_col:
+                geo_df = df.groupby(geo_col)[target_col].sum().reset_index()
+                fig_map = px.choropleth(geo_df, locations=geo_col, locationmode='country names', color=target_col, color_continuous_scale="Blues")
+                st.plotly_chart(fig_map, use_container_width=True)
+            else:
+                st.write("No geographic data found in the file.")
 
-            st.markdown(f"""
-            <div style="background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;">
-                <h3 style="color:#1f4e79;">Predicted Revenue</h3>
-                <h1 style="color:#1f4e79; font-size: 48px;">${prediction:,.2f}</h1>
-                <p style="color:#5c6c7b;"><b>AI System Accuracy:</b> {ai_score:.1f}%</p>
-            </div>
-            """, unsafe_allow_html=True)
-
-# --- TAB 3: MARKET INSIGHTS ---
-with tabs[2]:
-    st.header("💡 Business Directives")
-    col_i1, col_i2 = st.columns(2)
-    with col_i1:
-        st.markdown("""
-        <div class="card">
-            <h4>📦 Inventory Optimization</h4>
-            <p><b>Insight:</b> Peak demand occurs consistently in Q4. <br>
-            <b>Action:</b> Increase Classic Car and Motorcycle inventory by 20% starting September.</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col_i2:
-        st.markdown("""
-        <div class="card">
-            <h4>🌍 Regional Strategy</h4>
-            <p><b>Insight:</b> USA and France contribute to 55% of total revenue.<br>
-            <b>Action:</b> Pilot a localized loyalty program in the EMEA territory to defend market share.</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-    st.markdown("### Geographic Performance Heatmap")
-    geo_df = df.groupby('COUNTRY')['SALES'].sum().reset_index()
-    fig_map = px.choropleth(geo_df, locations="COUNTRY", locationmode='country names', color="SALES", color_continuous_scale="Blues")
-    st.plotly_chart(fig_map, use_container_width=True)
+else:
+    st.info("👋 Welcome! Please upload a CSV file in the sidebar to begin the analysis.")
+    # You could add a 'Download Sample CSV' button here too.
