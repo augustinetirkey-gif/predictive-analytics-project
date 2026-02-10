@@ -64,7 +64,6 @@ if uploaded_file is not None:
     st_year = st.sidebar.multiselect("Fiscal Year", options=sorted(df_master['YEAR'].unique()), default=df_master['YEAR'].unique())
     st_country = st.sidebar.multiselect("Active Markets", options=sorted(df_master['COUNTRY'].unique()), default=df_master['COUNTRY'].unique())
     
-    # Filtering Logic
     df = df_master[(df_master['YEAR'].isin(st_year)) & (df_master['COUNTRY'].isin(st_country))]
 
     @st.cache_resource
@@ -81,9 +80,8 @@ if uploaded_file is not None:
 
     tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights"])
 
-    # CHECK IF DATAFRAME IS EMPTY
     if df.empty:
-        st.warning("⚠️ No data available for the current selection. Please adjust your filters in the sidebar (Select at least one Year and Country).")
+        st.warning("⚠️ No data available for the current selection. Please adjust your filters.")
     else:
         # TAB 1: Dashboard
         with tabs[0]:
@@ -120,39 +118,28 @@ if uploaded_file is not None:
         # TAB 3: Market Insights
         with tabs[2]:
             st.header("💡 Business Directives")
-            
-            # The Error fix: Ensure data exists before using idxmax()
             top_country = df.groupby('COUNTRY')['SALES'].sum().idxmax()
             top_prod = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
             
             col_i1, col_i2 = st.columns(2)
             with col_i1:
-                st.markdown(f"""
-                <div class="card">
-                    <h4>📦 Inventory Optimization</h4>
-                    <p><b>Insight:</b> <b>{top_prod}</b> is currently your highest-performing line.<br>
-                    <b>Action:</b> Prioritize supply chain stability for this category to meet predicted demand.</p>
-                </div>
-                """, unsafe_allow_html=True)
-            
+                st.markdown(f"<div class='card'><h4>📦 Inventory Optimization</h4><p><b>Insight:</b> <b>{top_prod}</b> is the top performer.<br><b>Action:</b> Prioritize supply for this line.</p></div>", unsafe_allow_html=True)
             with col_i2:
-                st.markdown(f"""
-                <div class="card">
-                    <h4>🌍 Regional Strategy</h4>
-                    <p><b>Insight:</b> <b>{top_country}</b> contributes the most to your global revenue.<br>
-                    <b>Action:</b> Pilot a localized loyalty program in <b>{top_country}</b> to defend market share.</p>
-                </div>
-                """, unsafe_allow_html=True)
+                st.markdown(f"<div class='card'><h4>🌍 Regional Strategy</h4><p><b>Insight:</b> <b>{top_country}</b> drives peak revenue.<br><b>Action:</b> Test localized loyalty programs here.</p></div>", unsafe_allow_html=True)
 
             st.markdown("### Vibrant Geographic Performance Map")
+            st.caption("🖱️ **Interact**: Hover to see country names and sales. Use mouse to zoom.")
+            
             geo_df = df.groupby('COUNTRY')['SALES'].sum().reset_index()
             
+            # --- INTERACTIVE COLORFUL MAP ---
             fig_map = px.choropleth(
                 geo_df, 
                 locations="COUNTRY", 
                 locationmode='country names', 
-                color="COUNTRY",
-                hover_data={'SALES': ':$,.2f', 'COUNTRY': False},
+                color="COUNTRY",           # Unique color per country
+                hover_name="COUNTRY",      # Shows country name at top of tooltip
+                hover_data={'SALES': ':$,.2f', 'COUNTRY': False}, # Formats sales as $
                 color_discrete_sequence=px.colors.qualitative.Dark24,
                 template="plotly_white"
             )
@@ -162,43 +149,26 @@ if uploaded_file is not None:
                 countrycolor="Silver",
                 showland=True, landcolor="#f0f2f6",
                 showocean=True, oceancolor="#e3f2fd",
-                projection_type="natural earth"
+                projection_type="mercator" # Smoother for web interaction
             )
             
-            fig_map.update_layout(showlegend=False, height=600, margin={"r":0,"t":30,"l":0,"b":0})
+            fig_map.update_layout(
+                showlegend=False, 
+                height=600, 
+                margin={"r":0,"t":30,"l":0,"b":0}
+            )
             st.plotly_chart(fig_map, use_container_width=True)
 
 else:
-    # --- INTERACTIVE WELCOME PAGE ---
-    st.markdown("""
-        <div class="welcome-header">
-            <h1>🚀 Welcome to PredictiCorp Intelligence</h1>
-            <p style="font-size: 1.2em; opacity: 0.9;">The Global Executive Suite for Data-Driven Market Strategy</p>
-        </div>
-    """, unsafe_allow_html=True)
+    # --- WELCOME PAGE ---
+    st.markdown("""<div class="welcome-header"><h1>🚀 Welcome to PredictiCorp Intelligence</h1><p>The Global Executive Suite for Data-Driven Market Strategy</p></div>""", unsafe_allow_html=True)
     
-    # Educational Image Tag
     
     
     st.markdown("### 🛠️ Get Started in 3 Simple Steps")
     s1, s2, s3 = st.columns(3)
-    with s1:
-        st.markdown("""<div class="feature-box"><h2>📋</h2><h3>Step 1</h3><p>Download the CSV template from the sidebar.</p></div>""", unsafe_allow_html=True)
-    with s2:
-        st.markdown("""<div class="feature-box"><h2>📥</h2><h3>Step 2</h3><p>Upload your sales data for ML training.</p></div>""", unsafe_allow_html=True)
-    with s3:
-        st.markdown("""<div class="feature-box"><h2>💡</h2><h3>Step 3</h3><p>Explore Tabs for Deep Market Insights.</p></div>""", unsafe_allow_html=True)
-
+    with s1: st.markdown("""<div class="feature-box"><h2>📋</h2><h3>Step 1</h3><p>Download the CSV template.</p></div>""", unsafe_allow_html=True)
+    with s2: st.markdown("""<div class="feature-box"><h2>📥</h2><h3>Step 2</h3><p>Upload your sales data.</p></div>""", unsafe_allow_html=True)
+    with s3: st.markdown("""<div class="feature-box"><h2>💡</h2><h3>Step 3</h3><p>Explore analytical tabs.</p></div>""", unsafe_allow_html=True)
     st.markdown("---")
-    c_demo1, c_demo2 = st.columns([1, 1])
-    with c_demo1:
-        st.image("https://img.freepik.com/free-vector/business-analytics-concept-illustration_114360-3944.jpg", use_column_width=True)
-    with c_demo2:
-        st.subheader("🤖 What can our AI do for you?")
-        with st.expander("📈 Predictive Forecasting"):
-            st.write("Analyze past sales, MSRP, and quantities to predict future deal outcomes.")
-        with st.expander("🌍 Global Market Heatmaps"):
-            st.write("Identify high-performing territories instantly with vibrant geographic visualization.")
-        with st.expander("💼 Executive Directives"):
-            st.write("Get dynamic business actions based on real-time inventory and regional performance.")
-        st.warning("👈 Please upload your Sales Data CSV in the sidebar to activate.")
+    st.info("👈 Please upload your Sales Data CSV in the sidebar to activate insights.")
