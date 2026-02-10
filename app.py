@@ -97,28 +97,45 @@ with tabs[0]:
 with tabs[1]:
     st.header("🔮 Strategic Scenario Simulator")
     st.markdown("Adjust parameters to predict the revenue outcome of prospective deals.")
-    
+
     with st.container():
-        col_s1, col_s2, col_s3 = st.columns(3)
-        in_prod = col_s1.selectbox("Product Line", df_master['PRODUCTLINE'].unique())
-        in_qty = col_s1.slider("Target Quantity", 10, 100, 30)
-        in_country = col_s2.selectbox("Destination Market", sorted(df_master['COUNTRY'].unique()))
-        in_msrp = col_s2.number_input("Unit MSRP ($)", value=100)
-        in_month = col_s3.slider("Order Month", 1, 12, 6)
-        
-        if st.button("RUN PREDICTIVE SIMULATION", use_container_width=True, type="primary"):
-            p_prod = le_dict['PRODUCTLINE'].transform([in_prod])[0]
-            p_country = le_dict['COUNTRY'].transform([in_country])[0]
-            p_qtr = (in_month - 1) // 3 + 1
-            prediction = model.predict(np.array([[in_month, p_qtr, in_msrp, in_qty, p_prod, p_country]]))[0]
-            
+        col1, col2, col3 = st.columns(3)
+
+        in_prod = col1.selectbox("Product Line", df_master['PRODUCTLINE'].unique())
+        in_qty = col1.slider("Quantity", 10, 100, 30)
+
+        in_country = col2.selectbox("Country", sorted(df_master['COUNTRY'].unique()))
+        in_msrp = col2.number_input("Unit Price ($)", value=100)
+
+        in_month = col3.slider("Order Month", 1, 12, 6)
+        in_discount = col3.slider("Discount (%)", 0, 50, 10)
+
+        if st.button("RUN AI SIMULATION", use_container_width=True, type="primary"):
+
+            qtr = (in_month - 1) // 3 + 1
+
+            input_df = pd.DataFrame([{
+                'MONTH_ID': in_month,
+                'QTR_ID': qtr,
+                'MSRP': in_msrp,
+                'QUANTITYORDERED': in_qty,
+                'DISCOUNT': in_discount,
+                'PRODUCTLINE': in_prod,
+                'COUNTRY': in_country
+            }])
+
+            # AI Prediction
+            log_pred = pipe.predict(input_df)[0]
+            prediction = np.expm1(log_pred)
+
             st.markdown(f"""
-                <div style="background-color: #e1f5fe; padding: 30px; border-radius: 15px; border-left: 10px solid #0288d1; text-align: center;">
-                    <h3 style="color: #01579b; margin: 0;">Predicted Deal Revenue</h3>
-                    <h1 style="color: #01579b; font-size: 50px; margin: 10px 0;">${prediction:,.2f}</h1>
-                    <p style="color: #0277bd; font-weight: bold;">AI Confidence Score: {r2_score(y_test, y_pred)*100:.1f}%</p>
-                </div>
+            <div style="background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;">
+                <h3>Predicted Revenue</h3>
+                <h1>${prediction:,.2f}</h1>
+                <p><b>AI Confidence Score:</b> {ai_score:.1f}%</p>
+            </div>
             """, unsafe_allow_html=True)
+
 
 # --- TAB 3: MARKET INSIGHTS ---
 with tabs[2]:
