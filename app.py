@@ -118,7 +118,7 @@ if uploaded_file is not None:
         with col_i2:
             st.markdown(f"<div class='card'><h4>🌍 Regional Strategy</h4><p><b>Insight:</b> <b>{top_country}</b> is your #1 market. Focus on high-value customer retention in this territory.</p></div>", unsafe_allow_html=True)
 
-        st.markdown("### Interactive Global Market Explorer")
+        st.markdown("### Geographic Performance Heatmap")
         st.caption("🖱️ **Zoom**: Mouse Wheel | **Pan**: Click & Drag | **Identify**: Hover over a country")
         
         # Create High-Performance Choropleth
