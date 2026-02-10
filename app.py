@@ -96,67 +96,83 @@ with tabs[0]:
         st.markdown("### Portfolio Composition")
         fig_pie = px.pie(df, values='SALES', names='PRODUCTLINE', hole=0.5, color_discrete_sequence=px.colors.qualitative.Prism)
         st.plotly_chart(fig_pie, use_container_width=True)
-
-# --- TAB 2: GLOBAL REVENUE FORECAST (The Simulator) ---
+        
+# --- TAB 2: GLOBAL STRATEGIC FORECASTER ---
 with tabs[1]:
-    st.header("🔮 Global Revenue Forecast Simulator")
-    st.markdown("This tool predicts revenue for **every country** across the next 12 months based on current filtered data.")
-    
-    # --- STEP 1: Create a Simulation Grid ---
-    all_countries = df['COUNTRY'].unique()
-    all_months = range(1, 13) 
-    
-    # Standard inputs for prediction (averages from the dataset)
-    avg_qty = df['QUANTITYORDERED'].mean()
-    avg_msrp = df['MSRP'].mean()
-    top_product = df['PRODUCTLINE'].mode()[0]
+    st.header("🎯 Global Market Comparison & Forecast Hub")
+    st.markdown("This system generates a full-year revenue projection across **all countries** simultaneously to support resource allocation decisions.")
 
-    forecast_scenarios = []
-    for country in all_countries:
-        for month in all_months:
-            qtr = (month - 1) // 3 + 1
-            forecast_scenarios.append({
-                'COUNTRY': country,
-                'MONTH_ID': month,
-                'QTR_ID': qtr,
-                'MSRP': avg_msrp,
-                'QUANTITYORDERED': avg_qty,
-                'PRODUCTLINE': top_product
-            })
+    # 1. Input Controls for Global Simulation
+    st.subheader("Simulation Control Panel")
+    col_c1, col_c2 = st.columns(2)
+    with col_c1:
+        # Select product to see how it performs globally
+        sim_prod = st.selectbox("Product Line to Analyze", df_master['PRODUCTLINE'].unique(), key="sim_prod_select")
+    with col_c2:
+        # Adjust quantity to see the impact on global revenue
+        sim_qty = st.slider("Target Order Quantity (Average)", 10, 100, 30, key="sim_qty_slider")
 
-    forecast_df = pd.DataFrame(forecast_scenarios)
+    # 2. Execution Button
+    if st.button("⚡ EXECUTE GLOBAL ANNUAL PREDICTION", use_container_width=True, type="primary"):
+        # Create simulation grid for 19 countries x 12 months (Total 228 scenarios)
+        all_countries = df_master['COUNTRY'].unique()
+        all_months = range(1, 13)
+        avg_msrp = df_master['MSRP'].mean() # Use average MSRP as baseline
+        
+        forecast_rows = []
+        for country in all_countries:
+            for month in all_months:
+                qtr = (month - 1) // 3 + 1
+                forecast_rows.append({
+                    'COUNTRY': country,
+                    'MONTH_ID': month,
+                    'QTR_ID': qtr,
+                    'MSRP': avg_msrp,
+                    'QUANTITYORDERED': sim_qty,
+                    'PRODUCTLINE': sim_prod
+                })
+        
+        forecast_df = pd.DataFrame(forecast_rows)
 
-    # --- STEP 2: Encode categorical columns using the 'encoders' dictionary ---
-    predict_df = forecast_df.copy()
-    predict_df['PRODUCTLINE'] = encoders['PRODUCTLINE'].transform(predict_df['PRODUCTLINE'])
-    predict_df['COUNTRY'] = encoders['COUNTRY'].transform(predict_df['COUNTRY'])
+        # 3. Data Transformation (Mapping words to numbers for the AI Model)
+        predict_df = forecast_df.copy()
+        predict_df['PRODUCTLINE'] = encoders['PRODUCTLINE'].transform(predict_df['PRODUCTLINE'])
+        predict_df['COUNTRY'] = encoders['COUNTRY'].transform(predict_df['COUNTRY'])
 
-    # --- STEP 3: Predict Revenue using 'ai_model' ---
-    forecast_df['PREDICTED_REVENUE'] = ai_model.predict(
-        predict_df[['MONTH_ID', 'QTR_ID', 'MSRP', 'QUANTITYORDERED', 'PRODUCTLINE', 'COUNTRY']]
-    )
+        # 4. Global Prediction Logic
+        # Passing all 228 scenarios through the Random Forest model at once
+        forecast_df['PREDICTED_REVENUE'] = ai_model.predict(
+            predict_df[['MONTH_ID', 'QTR_ID', 'MSRP', 'QUANTITYORDERED', 'PRODUCTLINE', 'COUNTRY']]
+        )
 
-    # --- STEP 4: Aggregations ---
-    total_annual_revenue = forecast_df['PREDICTED_REVENUE'].sum()
-    monthly_forecast = forecast_df.groupby('MONTH_ID')['PREDICTED_REVENUE'].sum().reset_index()
-    country_forecast = forecast_df.groupby('COUNTRY')['PREDICTED_REVENUE'].sum().sort_values(ascending=False).reset_index()
+        # 5. Visual Analytics for Decision Making
+        st.divider()
+        st.write(f"### 🌏 Total Predicted Global Annual Revenue: ${forecast_df['PREDICTED_REVENUE'].sum()/1e6:.2f}M")
+        
+        c_left, c_right = st.columns(2)
+        
+        with c_left:
+            st.subheader("Market Potential Ranking")
+            # Compare every country's total predicted revenue
+            country_res = forecast_df.groupby('COUNTRY')['PREDICTED_REVENUE'].sum().sort_values(ascending=False).reset_index()
+            fig_rank = px.bar(country_res, x='COUNTRY', y='PREDICTED_REVENUE', 
+                             color='PREDICTED_REVENUE', color_continuous_scale="Blues",
+                             labels={'PREDICTED_REVENUE': 'Expected Sales ($)'})
+            st.plotly_chart(fig_rank, use_container_width=True)
+            
+        with c_right:
+            st.subheader("Global Seasonal Forecast")
+            # Compare revenue month-by-month for the whole year
+            monthly_res = forecast_df.groupby('MONTH_ID')['PREDICTED_REVENUE'].sum().reset_index()
+            fig_trend = px.line(monthly_res, x='MONTH_ID', y='PREDICTED_REVENUE', markers=True,
+                               labels={'PREDICTED_REVENUE': 'Global Sales Forecast ($)', 'MONTH_ID': 'Month'})
+            fig_trend.update_layout(xaxis=dict(tickmode='linear', tick0=1, dtick=1))
+            st.plotly_chart(fig_trend, use_container_width=True)
 
-    # --- STEP 5: Visualizations ---
-    st.write(f"### 🌏 Total Predicted Annual Revenue: ${total_annual_revenue/1e6:.2f}M")
-    
-    col_chart1, col_chart2 = st.columns(2)
-    with col_chart1:
-        st.subheader("Predicted Revenue by Country")
-        fig_country = px.bar(country_forecast, x='COUNTRY', y='PREDICTED_REVENUE', color='PREDICTED_REVENUE', color_continuous_scale="Blues")
-        st.plotly_chart(fig_country, use_container_width=True)
-    
-    with col_chart2:
-        st.subheader("Global Monthly Forecast Trend")
-        fig_month = px.line(monthly_forecast, x='MONTH_ID', y='PREDICTED_REVENUE', markers=True)
-        st.plotly_chart(fig_month, use_container_width=True)
+        # 6. Deep Dive Data View
+        with st.expander("🔍 View Raw Prediction Matrix (All Nations x All Months)"):
+            st.dataframe(forecast_df.sort_values(by=['COUNTRY', 'MONTH_ID']), use_container_width=True)
 
-    st.subheader("Detailed Forecast Data")
-    st.dataframe(forecast_df, use_container_width=True)
 
 # --- TAB 3: MARKET INSIGHTS ---
 with tabs[2]:
