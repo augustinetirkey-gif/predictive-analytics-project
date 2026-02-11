@@ -115,56 +115,73 @@ if uploaded_file is not None:
             st.markdown("#### 🔍 Sales Outlier Detection")
             fig_box = px.box(df, x='PRODUCTLINE', y='SALES', color='PRODUCTLINE', template="plotly_white")
             st.plotly_chart(fig_box, use_container_width=True)
-
-      
-      # TAB 2: Simulator (Grounded in Historical Data)
+# TAB 2: Simulator (Grounded in Historical Data with Accuracy Check)
         with tabs[1]:
             st.header("🔮 Strategic Scenario Simulator")
             
             # Layout for inputs
             col1, col2, col3 = st.columns(3)
             
-            # 1. Select Country First
+            # 1. Selection Inputs
             in_country = col1.selectbox("Target Market (Country)", sorted(df_master['COUNTRY'].unique()))
             
-            # 2. Filter Product Line based on Country Selection
+            # Filter Product Line based on Country
             valid_products = df_master[df_master['COUNTRY'] == in_country]['PRODUCTLINE'].unique()
             in_prod = col2.selectbox(f"Available Products in {in_country}", valid_products)
             
-            # 3. Reference Pricing (Helps the user pick a realistic Unit Price)
+            # 2. Historical Price Context
             ref_data = df_master[df_master['PRODUCTLINE'] == in_prod]
             avg_msrp = float(ref_data['MSRP'].mean())
             min_msrp = float(ref_data['MSRP'].min())
             max_msrp = float(ref_data['MSRP'].max())
-            
             st.info(f"💡 **Historical Price Context for {in_prod}:** Avg: ${avg_msrp:.2f} | Range: ${min_msrp:.2f} - ${max_msrp:.2f}")
             
-            # 4. Input Parameters
-            in_qty = col1.slider("Quantity to Sell", 1, 200, 50)
+            # 3. Parameter Inputs
+            in_qty = col1.slider("Quantity to Sell", 1, 500, 50)
             in_msrp = col2.number_input("Unit Price ($)", value=int(avg_msrp))
-            in_month = col3.slider("Order Month", 1, 12, 6)
+            in_month = col3.slider("Order Month", 1, 12, 12)
             
-            if st.button("RUN DATA-GROUNDED SIMULATION", use_container_width=True, type="primary"):
-                # Prepare input for the model
-                inp = pd.DataFrame([{
-                    'MONTH_ID': in_month, 
-                    'QTR_ID': (in_month-1)//3+1, 
-                    'MSRP': in_msrp, 
-                    'QUANTITYORDERED': in_qty, 
-                    'PRODUCTLINE': in_prod, 
-                    'COUNTRY': in_country
-                }])
-                
+            # --- RUN SIMULATION ---
+            if st.button("RUN AI SIMULATION & REALITY CHECK", use_container_width=True, type="primary"):
+                # Simulation Prediction
+                inp = pd.DataFrame([{'MONTH_ID': in_month, 'QTR_ID': (in_month-1)//3+1, 'MSRP': in_msrp, 'QUANTITYORDERED': in_qty, 'PRODUCTLINE': in_prod, 'COUNTRY': in_country}])
                 pred = bi_pipe.predict(inp)[0]
                 
-                # Visual Output
                 st.markdown(f"""
-                    <div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;border: 2px solid #1f4e79;'>
-                        <p style='color:#1f4e79; font-weight:bold; margin-bottom:0;'>PREDICTED REVENUE FOR {in_prod.upper()}</p>
-                        <h1 style='color:#1f4e79; font-size:45px; margin-top:0;'>${pred:,.2f}</h1>
-                        <p style='color:#555;'>Based on Historical AI Accuracy: {ai_score:.1f}%</p>
+                    <div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;border: 2px solid #1f4e79;margin-bottom:25px;'>
+                        <p style='color:#1f4e79; font-weight:bold; margin-bottom:0;'>PROJECTED REVENUE</p>
+                        <h1 style='color:#1f4e79; font-size:48px; margin-top:0;'>${pred:,.2f}</h1>
                     </div>
                 """, unsafe_allow_html=True)
+
+                # --- ACTUAL VS PREDICTION GRAPH (The Reality Check) ---
+                st.divider()
+                st.subheader(f"📊 Historical Performance Review: {in_prod} in {in_country}")
+                
+                # Filter historical data for this specific product/country combo
+                history = df_master[(df_master['COUNTRY'] == in_country) & (df_master['PRODUCTLINE'] == in_prod)].copy()
+                
+                if not history.empty:
+                    # Let the AI predict what it *thinks* happened in the past
+                    hist_features = history[['MONTH_ID', 'QTR_ID', 'MSRP', 'QUANTITYORDERED', 'PRODUCTLINE', 'COUNTRY']]
+                    history['AI_PREDICTION'] = bi_pipe.predict(hist_features)
+                    history = history.sort_values('ORDERDATE')
+
+                    # Create the comparison graph
+                    fig_compare = go.Figure()
+                    fig_compare.add_trace(go.Scatter(x=history['ORDERDATE'], y=history['SALES'], name='Actual Revenue', line=dict(color='#1f4e79', width=3)))
+                    fig_compare.add_trace(go.Scatter(x=history['ORDERDATE'], y=history['AI_PREDICTION'], name='AI Model Fit', line=dict(color='#ff7f0e', dash='dot')))
+                    
+                    fig_compare.update_layout(title="How closely does the AI match historical reality?", template="plotly_white", xaxis_title="Timeline", yaxis_title="Revenue ($)")
+                    st.plotly_chart(fig_compare, use_container_width=True)
+                    
+                    # Scorecard
+                    err = np.mean(abs(history['SALES'] - history['AI_PREDICTION']) / history['SALES']) * 100
+                    st.success(f"✅ The AI matches historical data with an average error of only {err:.2f}% for this selection.")
+                else:
+                    st.warning("No historical data found for this specific combination to show a comparison.")
+      
+     
         # TAB 3: Market Insights
         with tabs[2]:
             st.header("💡 Business Directives")
