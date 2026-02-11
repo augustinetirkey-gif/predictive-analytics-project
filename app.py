@@ -93,6 +93,19 @@ if uploaded_file is not None:
     else:
         # --- TAB 1: EXECUTIVE DASHBOARD ---
         with tabs[0]:
+            # --- DYNAMIC INSIGHT BLOCK ---
+            top_country = df.groupby('COUNTRY')['SALES'].sum().idxmax()
+            country_df = df[df['COUNTRY'] == top_country]
+            top_item = country_df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
+            
+            st.markdown(f"""
+                <div class='card'>
+                    <h3 style='margin-top:0;'>🏆 Performance Leaderboard</h3>
+                    <p>The <b>{top_country}</b> market has achieved the largest revenue in your current selection.</p>
+                    <p>Within this market, <b>{top_item}</b> is the leading item with the highest sales volume.</p>
+                </div>
+            """, unsafe_allow_html=True)
+
             st.subheader("Performance KPIs")
             k1, k2, k3, k4 = st.columns(4)
             k1.metric("Total Revenue", f"${df['SALES'].sum()/1e6:.2f}M")
@@ -124,8 +137,9 @@ if uploaded_file is not None:
                 fig_bar_item = px.bar(item_rev, x='SALES', y='PRODUCTLINE', orientation='h', title="Revenue by Item", color='SALES', template="plotly_white")
                 st.plotly_chart(fig_bar_item, use_container_width=True)
 
-            st.markdown("#### 🔍 Variance & Outlier Detection")
-            fig_box = px.box(df, x='COUNTRY', y='SALES', color='PRODUCTLINE', template="plotly_white")
+            # OUTLIER BY MONTH (Requested for Australia/Market selection)
+            st.markdown("#### 🔍 Outlier Detection by Month")
+            fig_box = px.box(df, x='MONTH_NAME', y='SALES', color='PRODUCTLINE', title="Transaction Variance by Month", template="plotly_white")
             st.plotly_chart(fig_box, use_container_width=True)
 
         # --- TAB 2: SIMULATOR ---
