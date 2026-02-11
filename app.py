@@ -8,7 +8,6 @@ from sklearn.metrics import r2_score
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
-import io
 
 # --- SYSTEM CONFIGURATION ---
 st.set_page_config(page_title="PredictiCorp BI Suite", layout="wide", initial_sidebar_state="expanded")
@@ -61,10 +60,19 @@ if uploaded_file is not None:
         return df
 
     df_master = load_and_process_data(uploaded_file)
-    st_year = st.sidebar.multiselect("Fiscal Year", options=sorted(df_master['YEAR'].unique()), default=df_master['YEAR'].unique())
-    st_country = st.sidebar.multiselect("Active Markets", options=sorted(df_master['COUNTRY'].unique()), default=df_master['COUNTRY'].unique())
     
-    df = df_master[(df_master['YEAR'].isin(st_year)) & (df_master['COUNTRY'].isin(st_country))]
+    # --- DYNAMIC FILTERS ---
+    st.sidebar.subheader("Filter Dashboard View")
+    st_year = st.sidebar.multiselect("Fiscal Year", options=sorted(df_master['YEAR'].unique()), default=df_master['YEAR'].unique())
+    st_country = st.sidebar.multiselect("Active Markets (Venues)", options=sorted(df_master['COUNTRY'].unique()), default=df_master['COUNTRY'].unique())
+    st_items = st.sidebar.multiselect("Specific Items (Product Lines)", options=sorted(df_master['PRODUCTLINE'].unique()), default=df_master['PRODUCTLINE'].unique())
+    
+    # Global Filtered Dataframe
+    df = df_master[
+        (df_master['YEAR'].isin(st_year)) & 
+        (df_master['COUNTRY'].isin(st_country)) & 
+        (df_master['PRODUCTLINE'].isin(st_items))
+    ]
 
     @st.cache_resource
     def train_bi_model(data):
@@ -81,7 +89,7 @@ if uploaded_file is not None:
     tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights", "📅 Demand Forecast", "👥 Customer Analytics"])
 
     if df.empty:
-        st.warning("⚠️ No data available for the current selection. Please adjust your filters.")
+        st.warning("⚠️ No data available for the current selection. Please adjust your filters in the sidebar.")
     else:
         # --- TAB 1: EXECUTIVE DASHBOARD ---
         with tabs[0]:
@@ -104,69 +112,57 @@ if uploaded_file is not None:
                 fig_pie = px.pie(df, values='SALES', names='PRODUCTLINE', hole=0.5, color_discrete_sequence=px.colors.qualitative.Prism)
                 st.plotly_chart(fig_pie, use_container_width=True)
             
-            # MULTI-COUNTRY REVENUE COMPARISON
-            st.markdown("#### 📊 Comparative Revenue by Country")
-            country_revenue = df.groupby(['COUNTRY', 'PRODUCTLINE'])['SALES'].sum().reset_index().sort_values('SALES', ascending=False)
-            fig_bar = px.bar(country_revenue, x='COUNTRY', y='SALES', color='PRODUCTLINE', barmode='group', text_auto='.2s', template="plotly_white")
-            st.plotly_chart(fig_bar, use_container_width=True)
+            # SPECIFIC VENUE BY SPECIFIC ITEM CHART
+            st.markdown("#### 📍 Venue & Item Analysis")
+            col_bar1, col_bar2 = st.columns(2)
+            with col_bar1:
+                country_rev = df.groupby('COUNTRY')['SALES'].sum().reset_index().sort_values('SALES', ascending=False)
+                fig_bar_country = px.bar(country_rev, x='COUNTRY', y='SALES', text_auto='.2s', title="Revenue by Venue", color='SALES', template="plotly_white")
+                st.plotly_chart(fig_bar_country, use_container_width=True)
+            with col_bar2:
+                item_rev = df.groupby('PRODUCTLINE')['SALES'].sum().reset_index().sort_values('SALES', ascending=False)
+                fig_bar_item = px.bar(item_rev, x='SALES', y='PRODUCTLINE', orientation='h', title="Revenue by Item", color='SALES', template="plotly_white")
+                st.plotly_chart(fig_bar_item, use_container_width=True)
 
-            # MULTI-COUNTRY OUTLIER DETECTION
-            st.markdown("#### 🔍 Regional Sales Outliers")
-            fig_box = px.box(df, x='PRODUCTLINE', y='SALES', color='COUNTRY', facet_col='COUNTRY', template="plotly_white")
+            st.markdown("#### 🔍 Variance & Outlier Detection")
+            fig_box = px.box(df, x='COUNTRY', y='SALES', color='PRODUCTLINE', template="plotly_white")
             st.plotly_chart(fig_box, use_container_width=True)
 
-        # --- TAB 2: REVENUE SIMULATOR ---
+        # --- TAB 2: SIMULATOR ---
         with tabs[1]:
             st.header("🔮 Strategic Scenario Simulator")
             col1, col2, col3 = st.columns(3)
-            
             in_country = col1.selectbox("Target Market (Country)", sorted(df_master['COUNTRY'].unique()))
             valid_products = df_master[df_master['COUNTRY'] == in_country]['PRODUCTLINE'].unique()
             in_prod = col2.selectbox(f"Available Products in {in_country}", valid_products)
             
             ref_data = df_master[df_master['PRODUCTLINE'] == in_prod]
             avg_msrp = float(ref_data['MSRP'].mean())
-            st.info(f"💡 **Historical Context for {in_prod}:** Avg MSRP: ${avg_msrp:.2f}")
+            st.info(f"💡 Historical Avg Price for {in_prod}: ${avg_msrp:.2f}")
             
             in_qty = col1.slider("Quantity to Sell", 1, 500, 50)
             in_msrp = col2.number_input("Unit Price ($)", value=int(avg_msrp))
             in_month = col3.slider("Order Month", 1, 12, 12)
             
-            if st.button("RUN AI SIMULATION & REALITY CHECK", use_container_width=True, type="primary"):
+            if st.button("RUN AI SIMULATION", use_container_width=True, type="primary"):
                 inp = pd.DataFrame([{'MONTH_ID': in_month, 'QTR_ID': (in_month-1)//3+1, 'MSRP': in_msrp, 'QUANTITYORDERED': in_qty, 'PRODUCTLINE': in_prod, 'COUNTRY': in_country}])
                 pred = bi_pipe.predict(inp)[0]
-                
                 st.markdown(f"<div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;border: 2px solid #1f4e79;'><h1>${pred:,.2f}</h1><p>Projected Revenue</p></div>", unsafe_allow_html=True)
-
-                st.divider()
-                st.subheader(f"📊 Historical Fit: {in_prod} in {in_country}")
-                history = df_master[(df_master['COUNTRY'] == in_country) & (df_master['PRODUCTLINE'] == in_prod)].copy()
-                
-                if not history.empty:
-                    history['AI_PREDICTION'] = bi_pipe.predict(history[['MONTH_ID', 'QTR_ID', 'MSRP', 'QUANTITYORDERED', 'PRODUCTLINE', 'COUNTRY']])
-                    history = history.sort_values('ORDERDATE')
-                    fig_compare = go.Figure()
-                    fig_compare.add_trace(go.Scatter(x=history['ORDERDATE'], y=history['SALES'], name='Actual', line=dict(color='#1f4e79')))
-                    fig_compare.add_trace(go.Scatter(x=history['ORDERDATE'], y=history['AI_PREDICTION'], name='AI Fit', line=dict(dash='dot')))
-                    st.plotly_chart(fig_compare, use_container_width=True)
 
         # --- TAB 3: MARKET INSIGHTS ---
         with tabs[2]:
             st.header("💡 Business Directives")
-            top_country = df.groupby('COUNTRY')['SALES'].sum().idxmax()
-            top_prod = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
-            col_i1, col_i2 = st.columns(2)
-            with col_i1: st.markdown(f"<div class='card'><h4>📦 Top Line</h4><p>{top_prod}</p></div>", unsafe_allow_html=True)
-            with col_i2: st.markdown(f"<div class='card'><h4>🌍 Top Market</h4><p>{top_country}</p></div>", unsafe_allow_html=True)
             geo_df = df.groupby('COUNTRY')['SALES'].sum().reset_index()
-            st.plotly_chart(px.choropleth(geo_df, locations="COUNTRY", locationmode='country names', color="SALES", template="plotly_white"), use_container_width=True)
+            fig_map = px.choropleth(geo_df, locations="COUNTRY", locationmode='country names', color="SALES", hover_name="COUNTRY", color_continuous_scale='Blues', template="plotly_white")
+            st.plotly_chart(fig_map, use_container_width=True)
 
-        # --- TAB 4: FORECASTING ---
+        # --- TAB 4: DEMAND FORECAST ---
         with tabs[3]:
             st.header("📅 Demand Forecasting")
             forecast_df = df.groupby(['YEAR', 'MONTH_ID'])['SALES'].sum().reset_index()
             forecast_df['Target_Forecast'] = forecast_df['SALES'].rolling(window=3).mean().shift(-1)
-            st.plotly_chart(px.line(forecast_df, x='MONTH_ID', y=['SALES', 'Target_Forecast'], markers=True, template="plotly_white"), use_container_width=True)
+            fig_forecast = px.line(forecast_df, x='MONTH_ID', y=['SALES', 'Target_Forecast'], markers=True, template="plotly_white", title="3-Month Momentum")
+            st.plotly_chart(fig_forecast, use_container_width=True)
 
         # --- TAB 5: CUSTOMER ANALYTICS ---
         with tabs[4]:
@@ -175,5 +171,5 @@ if uploaded_file is not None:
             st.plotly_chart(px.bar(cust_val, x='SALES', y='CUSTOMERNAME', orientation='h', template="plotly_white"), use_container_width=True)
 
 else:
-    st.markdown("""<div class="welcome-header"><h1>🚀 Welcome to PredictiCorp Intelligence</h1><p>Upload your CSV to begin.</p></div>""", unsafe_allow_html=True)
-    st.info("👈 Please upload your Sales Data CSV in the sidebar.")
+    st.markdown("""<div class="welcome-header"><h1>🚀 Welcome to PredictiCorp Intelligence</h1><p>The Global Executive Suite for Data-Driven Market Strategy</p></div>""", unsafe_allow_html=True)
+    st.info("👈 Please upload your Sales Data CSV in the sidebar to activate insights.")
