@@ -78,12 +78,13 @@ if uploaded_file is not None:
 
     bi_pipe, ai_score = train_bi_model(df_master)
 
-    tabs = st.tabs(["📈 Dashboard", "🔮 Simulator", "🌍 Market Insights", "🚀 AI Demand Plan", "🥇 VIP Customer List"])
+    # UPDATED TABS TO INCLUDE FORECASTING AND CUSTOMER ANALYTICS
+    tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights", "📅 Demand Forecast", "👥 Customer Analytics"])
 
     if df.empty:
-        st.warning("⚠️ No data available for the current selection.")
+        st.warning("⚠️ No data available for the current selection. Please adjust your filters.")
     else:
-        # TABS 1, 2, 3 REMAIN EXACTLY THE SAME AS PER YOUR REQUEST
+        # TAB 1: Dashboard
         with tabs[0]:
             st.subheader("Performance KPIs")
             k1, k2, k3, k4 = st.columns(4)
@@ -92,17 +93,30 @@ if uploaded_file is not None:
             k3.metric("Transaction Volume", f"{len(df):,}")
             k4.metric("Active Regions", f"{df['COUNTRY'].nunique()}")
             st.markdown("---")
+            
             c1, c2 = st.columns([2, 1])
             with c1:
+                st.markdown("#### Monthly Sales Trend")
                 trend = df.groupby(['YEAR', 'MONTH_ID', 'MONTH_NAME'])['SALES'].sum().reset_index().sort_values(['YEAR', 'MONTH_ID'])
-                st.plotly_chart(px.line(trend, x='MONTH_NAME', y='SALES', color='YEAR', markers=True, template="plotly_white"), use_container_width=True)
+                fig_trend = px.line(trend, x='MONTH_NAME', y='SALES', color='YEAR', markers=True, template="plotly_white")
+                st.plotly_chart(fig_trend, use_container_width=True)
             with c2:
-                st.plotly_chart(px.pie(df, values='SALES', names='PRODUCTLINE', hole=0.5), use_container_width=True)
+                st.markdown("#### Product Line Distribution")
+                fig_pie = px.pie(df, values='SALES', names='PRODUCTLINE', hole=0.5, color_discrete_sequence=px.colors.qualitative.Prism)
+                st.plotly_chart(fig_pie, use_container_width=True)
             
+            # HIGHEST REVENUE BY COUNTRY BAR CHART
             st.markdown("#### Top Revenue Generating Countries")
             country_revenue = df.groupby('COUNTRY')['SALES'].sum().reset_index().sort_values('SALES', ascending=False)
-            st.plotly_chart(px.bar(country_revenue, x='COUNTRY', y='SALES', color='SALES', template="plotly_white"), use_container_width=True)
+            fig_bar = px.bar(country_revenue, x='COUNTRY', y='SALES', text_auto='.2s', color='SALES', color_continuous_scale='Blues', template="plotly_white")
+            st.plotly_chart(fig_bar, use_container_width=True)
 
+            # OUTLIER DETECTION
+            st.markdown("#### 🔍 Sales Outlier Detection")
+            fig_box = px.box(df, x='PRODUCTLINE', y='SALES', color='PRODUCTLINE', template="plotly_white")
+            st.plotly_chart(fig_box, use_container_width=True)
+
+        # TAB 2: Simulator
         with tabs[1]:
             st.header("🔮 Strategic Scenario Simulator")
             col1, col2, col3 = st.columns(3)
@@ -111,78 +125,57 @@ if uploaded_file is not None:
             in_country = col2.selectbox("Country", sorted(df_master['COUNTRY'].unique()))
             in_msrp = col2.number_input("Unit Price ($)", value=100)
             in_month = col3.slider("Order Month", 1, 12, 6)
-            if st.button("RUN AI SIMULATION"):
+            if st.button("RUN AI SIMULATION", use_container_width=True, type="primary"):
                 inp = pd.DataFrame([{'MONTH_ID': in_month, 'QTR_ID': (in_month-1)//3+1, 'MSRP': in_msrp, 'QUANTITYORDERED': in_qty, 'PRODUCTLINE': in_prod, 'COUNTRY': in_country}])
                 pred = bi_pipe.predict(inp)[0]
-                st.markdown(f"<div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;'><h1>Predicted: ${pred:,.2f}</h1></div>", unsafe_allow_html=True)
+                st.markdown(f"<div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;'><h3>Predicted Revenue</h3><h1>${pred:,.2f}</h1><p>AI Accuracy: {ai_score:.1f}%</p></div>", unsafe_allow_html=True)
 
+        # TAB 3: Market Insights
         with tabs[2]:
             st.header("💡 Business Directives")
             top_country = df.groupby('COUNTRY')['SALES'].sum().idxmax()
             top_prod = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
+            
             col_i1, col_i2 = st.columns(2)
-            with col_i1: st.markdown(f"<div class='card'><h4>📦 Inventory</h4><p>Focus on <b>{top_prod}</b>.</p></div>", unsafe_allow_html=True)
-            with col_i2: st.markdown(f"<div class='card'><h4>🌍 Markets</h4><p>Invest in <b>{top_country}</b>.</p></div>", unsafe_allow_html=True)
+            with col_i1:
+                st.markdown(f"<div class='card'><h4>📦 Inventory Optimization</h4><p><b>Insight:</b> <b>{top_prod}</b> is the top performer.<br><b>Action:</b> Prioritize supply for this line.</p></div>", unsafe_allow_html=True)
+            with col_i2:
+                st.markdown(f"<div class='card'><h4>🌍 Regional Strategy</h4><p><b>Insight:</b> <b>{top_country}</b> drives peak revenue.<br><b>Action:</b> Test localized loyalty programs here.</p></div>", unsafe_allow_html=True)
+
             geo_df = df.groupby('COUNTRY')['SALES'].sum().reset_index()
-            st.plotly_chart(px.choropleth(geo_df, locations="COUNTRY", locationmode='country names', color="SALES", template="plotly_white"), use_container_width=True)
+            fig_map = px.choropleth(geo_df, locations="COUNTRY", locationmode='country names', color="COUNTRY", hover_name="COUNTRY", template="plotly_white")
+            fig_map.update_geos(projection_type="mercator")
+            st.plotly_chart(fig_map, use_container_width=True)
 
-        # --- NEW SIMPLE TAB 4: AI DEMAND PLAN ---
+        # TAB 4: DEMAND FORECASTING
         with tabs[3]:
-            st.header("🚀 AI Demand Plan (Stock Management)")
-            st.markdown("This tab tells the manager how much stock to prepare for next month.")
-            
-            # 1. Calculation: What is the AI's prediction for next month?
-            next_month = (df['MONTH_ID'].max() % 12) + 1
-            sample_input = pd.DataFrame([{
-                'MONTH_ID': next_month, 'QTR_ID': (next_month-1)//3+1,
-                'MSRP': df['MSRP'].mean(), 'QUANTITYORDERED': df['QUANTITYORDERED'].mean(),
-                'PRODUCTLINE': df['PRODUCTLINE'].mode()[0], 'COUNTRY': df['COUNTRY'].mode()[0]
-            }])
-            prediction = bi_pipe.predict(sample_input)[0]
-            
-            # 2. Display as a simple Dashboard
-            d1, d2 = st.columns(2)
-            d1.metric("Next Month Revenue Prediction", f"${prediction:,.2f}", delta="Predicted by AI")
-            d2.metric("Suggested Stock Increase", "+15%", help="Based on historical seasonality")
+            st.header("📅 Demand Forecasting (Predictive Planning)")
+            st.write("Predicting revenue momentum to help with inventory and budgeting.")
+            forecast_df = df.groupby(['YEAR', 'MONTH_ID'])['SALES'].sum().reset_index()
+            forecast_df['Target_Forecast'] = forecast_df['SALES'].rolling(window=3).mean().shift(-1)
+            fig_forecast = px.line(forecast_df, x='MONTH_ID', y=['SALES', 'Target_Forecast'], markers=True, template="plotly_white", title="3-Month Sales Momentum Forecast")
+            st.plotly_chart(fig_forecast, use_container_width=True)
+            st.info("Strategy: Use the predicted trend line to adjust stock levels for the upcoming quarter.")
 
-            st.markdown("---")
-            st.subheader("Historical vs. AI Prediction")
-            
-            # Simple Chart: Past vs Next Month
-            hist_avg = df.groupby('MONTH_ID')['SALES'].mean().reset_index()
-            fig_simple_forecast = px.area(hist_avg, x='MONTH_ID', y='SALES', title="Yearly Sales Pattern", template="plotly_white")
-            fig_simple_forecast.add_scatter(x=[next_month], y=[prediction], mode='markers+text', text=["NEXT MONTH AI TARGET"], name="AI Projection")
-            st.plotly_chart(fig_simple_forecast, use_container_width=True)
-            
-            st.markdown("""<div class='card'><b>Business Goal:</b> To meet the AI target, the procurement team should ensure top-selling products are fully stocked 15 days before next month begins.</div>""", unsafe_allow_html=True)
-
-        # --- NEW SIMPLE TAB 5: AI CUSTOMER INTELLIGENCE ---
+        # TAB 5: CUSTOMER ANALYTICS
         with tabs[4]:
-            st.header("🥇 AI Customer Intelligence (Hall of Fame)")
-            st.markdown("This tab ranks your customers so you know who to give discounts to.")
-
-            # 1. Simple Ranking Logic
-            customer_data = df.groupby('CUSTOMERNAME').agg({'SALES': 'sum', 'ORDERNUMBER': 'nunique'}).reset_index()
-            customer_data.columns = ['Customer Name', 'Total Spend', 'Total Orders']
-            customer_data = customer_data.sort_values('Total Spend', ascending=False)
-
-            # 2. Simple Table and Chart
-            c_col1, c_col2 = st.columns([1, 1])
-            with c_col1:
-                st.subheader("Top 10 High-Spenders")
-                st.dataframe(customer_data.head(10), use_container_width=True)
-            
-            with c_col2:
-                st.subheader("How Customers Spend")
-                st.plotly_chart(px.scatter(customer_data, x='Total Orders', y='Total Spend', size='Total Spend', color='Total Spend', hover_name='Customer Name', template="plotly_white"), use_container_width=True)
-
-            st.markdown("---")
-            st.subheader("💡 Marketing Playbook")
-            m1, m2, m3 = st.columns(3)
-            m1.info("**VIP Reward:** Give top 5 customers a 10% discount on their next order.")
-            m2.warning("**Retention:** Call customers with only 1 order to see if they need help.")
-            m3.success("**Growth:** Target the middle-ranking customers with 'Buy 2 Get 1' offers.")
+            st.header("👥 Customer Lifetime Value & Loyalty")
+            cust_val = df.groupby('CUSTOMERNAME')['SALES'].sum().reset_index().sort_values('SALES', ascending=False).head(10)
+            col_c1, col_c2 = st.columns(2)
+            with col_c1:
+                st.subheader("Top 10 High-Value Customers")
+                st.plotly_chart(px.bar(cust_val, x='SALES', y='CUSTOMERNAME', orientation='h', template="plotly_white"), use_container_width=True)
+            with col_c2:
+                st.subheader("Deal Size Analysis")
+                st.plotly_chart(px.histogram(df, x='DEALSIZE', color='DEALSIZE', template="plotly_white"), use_container_width=True)
+            st.success("Marketing Action: Assign VIP account managers to the top 10 customers identified above.")
 
 else:
-    st.markdown("""<div class="welcome-header"><h1>🚀 PredictiCorp Intelligence</h1></div>""", unsafe_allow_html=True)
-    st.info("👈 Please upload your Sales Data CSV in the sidebar.")
+    # --- WELCOME PAGE ---
+    st.markdown("""<div class="welcome-header"><h1>🚀 Welcome to PredictiCorp Intelligence</h1><p>The Global Executive Suite for Data-Driven Market Strategy</p></div>""", unsafe_allow_html=True)
+    st.markdown("### 🛠️ Get Started in 3 Simple Steps")
+    s1, s2, s3 = st.columns(3)
+    with s1: st.markdown("""<div class="feature-box"><h2>📋</h2><h3>Step 1</h3><p>Download the CSV template.</p></div>""", unsafe_allow_html=True)
+    with s2: st.markdown("""<div class="feature-box"><h2>📥</h2><h3>Step 2</h3><p>Upload your sales data.</p></div>""", unsafe_allow_html=True)
+    with s3: st.markdown("""<div class="feature-box"><h2>💡</h2><h3>Step 3</h3><p>Explore analytical tabs.</p></div>""", unsafe_allow_html=True)
+    st.info("👈 Please upload your Sales Data CSV in the sidebar to activate insights.")
