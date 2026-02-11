@@ -78,7 +78,8 @@ if uploaded_file is not None:
 
     bi_pipe, ai_score = train_bi_model(df_master)
 
-    tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights"])
+    # UPDATED TABS TO INCLUDE FORECASTING AND CUSTOMER ANALYTICS
+    tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights", "📅 Demand Forecast", "👥 Customer Analytics"])
 
     if df.empty:
         st.warning("⚠️ No data available for the current selection. Please adjust your filters.")
@@ -104,18 +105,16 @@ if uploaded_file is not None:
                 fig_pie = px.pie(df, values='SALES', names='PRODUCTLINE', hole=0.5, color_discrete_sequence=px.colors.qualitative.Prism)
                 st.plotly_chart(fig_pie, use_container_width=True)
             
-            # --- NEW ADDITION: HIGHEST REVENUE BY COUNTRY BAR CHART ---
+            # HIGHEST REVENUE BY COUNTRY BAR CHART
             st.markdown("#### Top Revenue Generating Countries")
             country_revenue = df.groupby('COUNTRY')['SALES'].sum().reset_index().sort_values('SALES', ascending=False)
-            fig_bar = px.bar(country_revenue, 
-                             x='COUNTRY', 
-                             y='SALES', 
-                             text_auto='.2s',
-                             color='SALES',
-                             color_continuous_scale='Blues',
-                             template="plotly_white")
-            fig_bar.update_layout(xaxis_title="Country", yaxis_title="Total Sales ($)")
+            fig_bar = px.bar(country_revenue, x='COUNTRY', y='SALES', text_auto='.2s', color='SALES', color_continuous_scale='Blues', template="plotly_white")
             st.plotly_chart(fig_bar, use_container_width=True)
+
+            # OUTLIER DETECTION
+            st.markdown("#### 🔍 Sales Outlier Detection")
+            fig_box = px.box(df, x='PRODUCTLINE', y='SALES', color='PRODUCTLINE', template="plotly_white")
+            st.plotly_chart(fig_box, use_container_width=True)
 
         # TAB 2: Simulator
         with tabs[1]:
@@ -143,46 +142,40 @@ if uploaded_file is not None:
             with col_i2:
                 st.markdown(f"<div class='card'><h4>🌍 Regional Strategy</h4><p><b>Insight:</b> <b>{top_country}</b> drives peak revenue.<br><b>Action:</b> Test localized loyalty programs here.</p></div>", unsafe_allow_html=True)
 
-            st.markdown("### Vibrant Geographic Performance Map")
-            st.caption("🖱️ **Interact**: Hover to see country names and sales. Use mouse to zoom.")
-            
             geo_df = df.groupby('COUNTRY')['SALES'].sum().reset_index()
-            
-            # --- INTERACTIVE COLORFUL MAP ---
-            fig_map = px.choropleth(
-                geo_df, 
-                locations="COUNTRY", 
-                locationmode='country names', 
-                color="COUNTRY",           # Unique color per country
-                hover_name="COUNTRY",      # Shows country name at top of tooltip
-                hover_data={'SALES': ':$,.2f', 'COUNTRY': False}, # Formats sales as $
-                color_discrete_sequence=px.colors.qualitative.Dark24,
-                template="plotly_white"
-            )
-            
-            fig_map.update_geos(
-                showcountries=True, 
-                countrycolor="Silver",
-                showland=True, landcolor="#f0f2f6",
-                showocean=True, oceancolor="#e3f2fd",
-                projection_type="mercator" # Smoother for web interaction
-            )
-            
-            fig_map.update_layout(
-                showlegend=False, 
-                height=600, 
-                margin={"r":0,"t":30,"l":0,"b":0}
-            )
+            fig_map = px.choropleth(geo_df, locations="COUNTRY", locationmode='country names', color="COUNTRY", hover_name="COUNTRY", template="plotly_white")
+            fig_map.update_geos(projection_type="mercator")
             st.plotly_chart(fig_map, use_container_width=True)
+
+        # TAB 4: DEMAND FORECASTING
+        with tabs[3]:
+            st.header("📅 Demand Forecasting (Predictive Planning)")
+            st.write("Predicting revenue momentum to help with inventory and budgeting.")
+            forecast_df = df.groupby(['YEAR', 'MONTH_ID'])['SALES'].sum().reset_index()
+            forecast_df['Target_Forecast'] = forecast_df['SALES'].rolling(window=3).mean().shift(-1)
+            fig_forecast = px.line(forecast_df, x='MONTH_ID', y=['SALES', 'Target_Forecast'], markers=True, template="plotly_white", title="3-Month Sales Momentum Forecast")
+            st.plotly_chart(fig_forecast, use_container_width=True)
+            st.info("Strategy: Use the predicted trend line to adjust stock levels for the upcoming quarter.")
+
+        # TAB 5: CUSTOMER ANALYTICS
+        with tabs[4]:
+            st.header("👥 Customer Lifetime Value & Loyalty")
+            cust_val = df.groupby('CUSTOMERNAME')['SALES'].sum().reset_index().sort_values('SALES', ascending=False).head(10)
+            col_c1, col_c2 = st.columns(2)
+            with col_c1:
+                st.subheader("Top 10 High-Value Customers")
+                st.plotly_chart(px.bar(cust_val, x='SALES', y='CUSTOMERNAME', orientation='h', template="plotly_white"), use_container_width=True)
+            with col_c2:
+                st.subheader("Deal Size Analysis")
+                st.plotly_chart(px.histogram(df, x='DEALSIZE', color='DEALSIZE', template="plotly_white"), use_container_width=True)
+            st.success("Marketing Action: Assign VIP account managers to the top 10 customers identified above.")
 
 else:
     # --- WELCOME PAGE ---
     st.markdown("""<div class="welcome-header"><h1>🚀 Welcome to PredictiCorp Intelligence</h1><p>The Global Executive Suite for Data-Driven Market Strategy</p></div>""", unsafe_allow_html=True)
-    
     st.markdown("### 🛠️ Get Started in 3 Simple Steps")
     s1, s2, s3 = st.columns(3)
     with s1: st.markdown("""<div class="feature-box"><h2>📋</h2><h3>Step 1</h3><p>Download the CSV template.</p></div>""", unsafe_allow_html=True)
     with s2: st.markdown("""<div class="feature-box"><h2>📥</h2><h3>Step 2</h3><p>Upload your sales data.</p></div>""", unsafe_allow_html=True)
     with s3: st.markdown("""<div class="feature-box"><h2>💡</h2><h3>Step 3</h3><p>Explore analytical tabs.</p></div>""", unsafe_allow_html=True)
-    st.markdown("---")
     st.info("👈 Please upload your Sales Data CSV in the sidebar to activate insights.")
