@@ -92,14 +92,30 @@ if uploaded_file is not None:
             k3.metric("Transaction Volume", f"{len(df):,}")
             k4.metric("Active Regions", f"{df['COUNTRY'].nunique()}")
             st.markdown("---")
+            
             c1, c2 = st.columns([2, 1])
             with c1:
+                st.markdown("#### Monthly Sales Trend")
                 trend = df.groupby(['YEAR', 'MONTH_ID', 'MONTH_NAME'])['SALES'].sum().reset_index().sort_values(['YEAR', 'MONTH_ID'])
                 fig_trend = px.line(trend, x='MONTH_NAME', y='SALES', color='YEAR', markers=True, template="plotly_white")
                 st.plotly_chart(fig_trend, use_container_width=True)
             with c2:
+                st.markdown("#### Product Line Distribution")
                 fig_pie = px.pie(df, values='SALES', names='PRODUCTLINE', hole=0.5, color_discrete_sequence=px.colors.qualitative.Prism)
                 st.plotly_chart(fig_pie, use_container_width=True)
+            
+            # --- NEW ADDITION: HIGHEST REVENUE BY COUNTRY BAR CHART ---
+            st.markdown("#### Top Revenue Generating Countries")
+            country_revenue = df.groupby('COUNTRY')['SALES'].sum().reset_index().sort_values('SALES', ascending=False)
+            fig_bar = px.bar(country_revenue, 
+                             x='COUNTRY', 
+                             y='SALES', 
+                             text_auto='.2s',
+                             color='SALES',
+                             color_continuous_scale='Blues',
+                             template="plotly_white")
+            fig_bar.update_layout(xaxis_title="Country", yaxis_title="Total Sales ($)")
+            st.plotly_chart(fig_bar, use_container_width=True)
 
         # TAB 2: Simulator
         with tabs[1]:
@@ -162,8 +178,6 @@ if uploaded_file is not None:
 else:
     # --- WELCOME PAGE ---
     st.markdown("""<div class="welcome-header"><h1>🚀 Welcome to PredictiCorp Intelligence</h1><p>The Global Executive Suite for Data-Driven Market Strategy</p></div>""", unsafe_allow_html=True)
-    
-    
     
     st.markdown("### 🛠️ Get Started in 3 Simple Steps")
     s1, s2, s3 = st.columns(3)
