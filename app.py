@@ -116,20 +116,55 @@ if uploaded_file is not None:
             fig_box = px.box(df, x='PRODUCTLINE', y='SALES', color='PRODUCTLINE', template="plotly_white")
             st.plotly_chart(fig_box, use_container_width=True)
 
-        # TAB 2: Simulator
+      
+      # TAB 2: Simulator (Grounded in Historical Data)
         with tabs[1]:
             st.header("🔮 Strategic Scenario Simulator")
+            
+            # Layout for inputs
             col1, col2, col3 = st.columns(3)
-            in_prod = col1.selectbox("Product Line", df_master['PRODUCTLINE'].unique())
-            in_qty = col1.slider("Quantity", 10, 500, 50)
-            in_country = col2.selectbox("Country", sorted(df_master['COUNTRY'].unique()))
-            in_msrp = col2.number_input("Unit Price ($)", value=100)
+            
+            # 1. Select Country First
+            in_country = col1.selectbox("Target Market (Country)", sorted(df_master['COUNTRY'].unique()))
+            
+            # 2. Filter Product Line based on Country Selection
+            valid_products = df_master[df_master['COUNTRY'] == in_country]['PRODUCTLINE'].unique()
+            in_prod = col2.selectbox(f"Available Products in {in_country}", valid_products)
+            
+            # 3. Reference Pricing (Helps the user pick a realistic Unit Price)
+            ref_data = df_master[df_master['PRODUCTLINE'] == in_prod]
+            avg_msrp = float(ref_data['MSRP'].mean())
+            min_msrp = float(ref_data['MSRP'].min())
+            max_msrp = float(ref_data['MSRP'].max())
+            
+            st.info(f"💡 **Historical Price Context for {in_prod}:** Avg: ${avg_msrp:.2f} | Range: ${min_msrp:.2f} - ${max_msrp:.2f}")
+            
+            # 4. Input Parameters
+            in_qty = col1.slider("Quantity to Sell", 1, 200, 50)
+            in_msrp = col2.number_input("Unit Price ($)", value=int(avg_msrp))
             in_month = col3.slider("Order Month", 1, 12, 6)
-            if st.button("RUN AI SIMULATION", use_container_width=True, type="primary"):
-                inp = pd.DataFrame([{'MONTH_ID': in_month, 'QTR_ID': (in_month-1)//3+1, 'MSRP': in_msrp, 'QUANTITYORDERED': in_qty, 'PRODUCTLINE': in_prod, 'COUNTRY': in_country}])
+            
+            if st.button("RUN DATA-GROUNDED SIMULATION", use_container_width=True, type="primary"):
+                # Prepare input for the model
+                inp = pd.DataFrame([{
+                    'MONTH_ID': in_month, 
+                    'QTR_ID': (in_month-1)//3+1, 
+                    'MSRP': in_msrp, 
+                    'QUANTITYORDERED': in_qty, 
+                    'PRODUCTLINE': in_prod, 
+                    'COUNTRY': in_country
+                }])
+                
                 pred = bi_pipe.predict(inp)[0]
-                st.markdown(f"<div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;'><h3>Predicted Revenue</h3><h1>${pred:,.2f}</h1><p>AI Accuracy: {ai_score:.1f}%</p></div>", unsafe_allow_html=True)
-
+                
+                # Visual Output
+                st.markdown(f"""
+                    <div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;border: 2px solid #1f4e79;'>
+                        <p style='color:#1f4e79; font-weight:bold; margin-bottom:0;'>PREDICTED REVENUE FOR {in_prod.upper()}</p>
+                        <h1 style='color:#1f4e79; font-size:45px; margin-top:0;'>${pred:,.2f}</h1>
+                        <p style='color:#555;'>Based on Historical AI Accuracy: {ai_score:.1f}%</p>
+                    </div>
+                """, unsafe_allow_html=True)
         # TAB 3: Market Insights
         with tabs[2]:
             st.header("💡 Business Directives")
