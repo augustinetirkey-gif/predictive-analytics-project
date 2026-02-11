@@ -21,30 +21,18 @@ st.markdown("""
     .stTabs [data-baseweb="tab"] { background-color: #ffffff; border-radius: 10px 10px 0 0; border: 1px solid #e1e4e8; padding: 10px 20px; font-weight: bold; color: #5c6c7b; }
     .stTabs [aria-selected="true"] { background-color: #1f4e79 !important; color: white !important; }
     .card { background-color: #ffffff; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; border-left: 8px solid #1f4e79; }
+    .insight-card { background-color: #e3f2fd; padding: 20px; border-radius: 12px; border: 1px solid #1f4e79; margin-bottom: 20px; }
     
     .welcome-header {
         background: linear-gradient(90deg, #1f4e79 0%, #2c3e50 100%);
         color: white; padding: 60px; border-radius: 20px; text-align: center; margin-bottom: 40px;
         box-shadow: 0 10px 30px rgba(0,0,0,0.1);
     }
-    .feature-box {
-        background: white; padding: 30px; border-radius: 15px; border-bottom: 4px solid #1f4e79; text-align: center; transition: transform 0.3s ease;
-    }
-    .feature-box:hover { transform: translateY(-10px); }
     </style>
     """, unsafe_allow_html=True)
 
-# --- TEMPLATE GENERATOR ---
-def convert_df_to_csv(df):
-    return df.to_csv(index=False).encode('utf-8')
-
-template_df = pd.DataFrame(columns=['ORDERNUMBER', 'QUANTITYORDERED', 'PRICEEACH', 'SALES', 'ORDERDATE', 'STATUS', 'QTR_ID', 'MONTH_ID', 'YEAR_ID', 'PRODUCTLINE', 'MSRP', 'PRODUCTCODE', 'CUSTOMERNAME', 'COUNTRY', 'TERRITORY', 'DEALSIZE'])
-csv_template = convert_df_to_csv(template_df)
-
 # --- SIDEBAR ---
 st.sidebar.title("🏢 BI Command Center")
-st.sidebar.download_button(label="📥 Download CSV Template", data=csv_template, file_name="sales_data_template.csv", mime="text/csv")
-st.sidebar.divider()
 uploaded_file = st.sidebar.file_uploader("Upload Sales Data (CSV)", type=["csv"])
 
 if uploaded_file is not None:
@@ -55,8 +43,7 @@ if uploaded_file is not None:
             df['ORDERDATE'] = pd.to_datetime(df['ORDERDATE'])
             df['YEAR'] = df['ORDERDATE'].dt.year
             df['MONTH_NAME'] = df['ORDERDATE'].dt.month_name()
-        elif 'YEAR_ID' in df.columns:
-            df['YEAR'] = df['YEAR_ID']
+            df['MONTH_ID'] = df['ORDERDATE'].dt.month
         return df
 
     df_master = load_and_process_data(uploaded_file)
@@ -66,12 +53,14 @@ if uploaded_file is not None:
     st_year = st.sidebar.multiselect("Fiscal Year", options=sorted(df_master['YEAR'].unique()), default=df_master['YEAR'].unique())
     st_country = st.sidebar.multiselect("Active Markets (Venues)", options=sorted(df_master['COUNTRY'].unique()), default=df_master['COUNTRY'].unique())
     st_items = st.sidebar.multiselect("Specific Items (Product Lines)", options=sorted(df_master['PRODUCTLINE'].unique()), default=df_master['PRODUCTLINE'].unique())
+    st_months = st.sidebar.multiselect("Select Months", options=sorted(df_master['MONTH_NAME'].unique()), default=df_master['MONTH_NAME'].unique())
     
     # Global Filtered Dataframe
     df = df_master[
         (df_master['YEAR'].isin(st_year)) & 
         (df_master['COUNTRY'].isin(st_country)) & 
-        (df_master['PRODUCTLINE'].isin(st_items))
+        (df_master['PRODUCTLINE'].isin(st_items)) &
+        (df_master['MONTH_NAME'].isin(st_months))
     ]
 
     @st.cache_resource
@@ -82,95 +71,87 @@ if uploaded_file is not None:
             ('pre', ColumnTransformer([('cat', OneHotEncoder(handle_unknown='ignore'), ['PRODUCTLINE', 'COUNTRY'])], remainder='passthrough')),
             ('reg', RandomForestRegressor(n_estimators=100, random_state=42))
         ]).fit(X, y)
-        return pipe, r2_score(y, pipe.predict(X)) * 100
+        return pipe
 
-    bi_pipe, ai_score = train_bi_model(df_master)
-
+    bi_pipe = train_bi_model(df_master)
     tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights", "📅 Demand Forecast", "👥 Customer Analytics"])
 
     if df.empty:
-        st.warning("⚠️ No data available for the current selection. Please adjust your filters in the sidebar.")
+        st.warning("⚠️ No data available for the current selection. Please adjust your filters.")
     else:
         # --- TAB 1: EXECUTIVE DASHBOARD ---
         with tabs[0]:
-            # --- DYNAMIC INSIGHT BLOCK ---
-            top_country = df.groupby('COUNTRY')['SALES'].sum().idxmax()
-            country_df = df[df['COUNTRY'] == top_country]
-            top_item = country_df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
-            
-            st.markdown(f"""
-                <div class='card'>
-                    <h3 style='margin-top:0;'>🏆 Performance Leaderboard</h3>
-                    <p>The <b>{top_country}</b> market has achieved the largest revenue in your current selection.</p>
-                    <p>Within this market, <b>{top_item}</b> is the leading item with the highest sales volume.</p>
-                </div>
-            """, unsafe_allow_html=True)
+            # --- COMPARISON INSIGHTS ---
+            st.markdown("### 🏆 Selection Performance Leader")
+            if len(st_country) > 0:
+                country_comparison = df.groupby('COUNTRY').agg({'SALES': 'sum', 'QUANTITYORDERED': 'sum'}).reset_index()
+                top_rev_country = country_comparison.loc[country_comparison['SALES'].idxmax()]
+                top_qty_country = country_comparison.loc[country_comparison['QUANTITYORDERED'].idxmax()]
+                
+                i1, i2 = st.columns(2)
+                with i1:
+                    st.markdown(f"""<div class='insight-card'><h4>💰 Highest Revenue Venue</h4><h2>{top_rev_country['COUNTRY']}</h2><p>Total: ${top_rev_country['SALES']:,.2f}</p></div>""", unsafe_allow_html=True)
+                with i2:
+                    st.markdown(f"""<div class='insight-card'><h4>📦 Highest Sales Volume</h4><h2>{top_qty_country['COUNTRY']}</h2><p>Items Sold: {top_qty_country['QUANTITYORDERED']:,}</p></div>""", unsafe_allow_html=True)
 
             st.subheader("Performance KPIs")
             k1, k2, k3, k4 = st.columns(4)
             k1.metric("Total Revenue", f"${df['SALES'].sum()/1e6:.2f}M")
             k2.metric("Avg Order Value", f"${df['SALES'].mean():,.2f}")
-            k3.metric("Transaction Volume", f"{len(df):,}")
-            k4.metric("Active Regions", f"{df['COUNTRY'].nunique()}")
+            k3.metric("Transaction Count", f"{len(df):,}")
+            k4.metric("Regions Selected", f"{df['COUNTRY'].nunique()}")
+            
             st.markdown("---")
             
-            c1, c2 = st.columns([2, 1])
+            # --- COMPARISON GRAPHS ---
+            c1, c2 = st.columns(2)
             with c1:
-                st.markdown("#### Monthly Sales Trend")
-                trend = df.groupby(['YEAR', 'MONTH_ID', 'MONTH_NAME'])['SALES'].sum().reset_index().sort_values(['YEAR', 'MONTH_ID'])
-                fig_trend = px.line(trend, x='MONTH_NAME', y='SALES', color='YEAR', markers=True, template="plotly_white")
-                st.plotly_chart(fig_trend, use_container_width=True)
+                st.markdown("#### Revenue Comparison (by Venue)")
+                fig_bar = px.bar(df.groupby('COUNTRY')['SALES'].sum().reset_index(), x='COUNTRY', y='SALES', color='COUNTRY', text_auto='.2s', template="plotly_white")
+                st.plotly_chart(fig_bar, use_container_width=True)
             with c2:
-                st.markdown("#### Product Line Distribution")
-                fig_pie = px.pie(df, values='SALES', names='PRODUCTLINE', hole=0.5, color_discrete_sequence=px.colors.qualitative.Prism)
-                st.plotly_chart(fig_pie, use_container_width=True)
-            
-            # SPECIFIC VENUE BY SPECIFIC ITEM CHART
-            st.markdown("#### 📍 Venue & Item Analysis")
-            col_bar1, col_bar2 = st.columns(2)
-            with col_bar1:
-                country_rev = df.groupby('COUNTRY')['SALES'].sum().reset_index().sort_values('SALES', ascending=False)
-                fig_bar_country = px.bar(country_rev, x='COUNTRY', y='SALES', text_auto='.2s', title="Revenue by Venue", color='SALES', template="plotly_white")
-                st.plotly_chart(fig_bar_country, use_container_width=True)
-            with col_bar2:
-                item_rev = df.groupby('PRODUCTLINE')['SALES'].sum().reset_index().sort_values('SALES', ascending=False)
-                fig_bar_item = px.bar(item_rev, x='SALES', y='PRODUCTLINE', orientation='h', title="Revenue by Item", color='SALES', template="plotly_white")
-                st.plotly_chart(fig_bar_item, use_container_width=True)
+                st.markdown("#### Item Distribution (by Selection)")
+                fig_item = px.bar(df.groupby('PRODUCTLINE')['SALES'].sum().reset_index(), x='SALES', y='PRODUCTLINE', orientation='h', color='PRODUCTLINE', template="plotly_white")
+                st.plotly_chart(fig_item, use_container_width=True)
 
-            # OUTLIER BY MONTH (Requested for Australia/Market selection)
-            st.markdown("#### 🔍 Outlier Detection by Month")
-            fig_box = px.box(df, x='MONTH_NAME', y='SALES', color='PRODUCTLINE', title="Transaction Variance by Month", template="plotly_white")
-            st.plotly_chart(fig_box, use_container_width=True)
+            # --- TREND AND OUTLIERS ---
+            st.markdown("#### 🔍 Variance & Monthly Analysis")
+            c3, c4 = st.columns([2,1])
+            with c3:
+                # Box Plot for Outliers based on Country and Month
+                fig_box = px.box(df, x='MONTH_NAME', y='SALES', color='COUNTRY', title="Outlier Detection by Month & Country", template="plotly_white")
+                st.plotly_chart(fig_box, use_container_width=True)
+            with c4:
+                # Monthly Trend Line
+                trend = df.groupby(['MONTH_ID', 'MONTH_NAME'])['SALES'].sum().reset_index().sort_values('MONTH_ID')
+                fig_line = px.line(trend, x='MONTH_NAME', y='SALES', markers=True, title="Monthly Momentum", template="plotly_white")
+                st.plotly_chart(fig_line, use_container_width=True)
 
-        # --- TAB 2: SIMULATOR ---
+        # --- TAB 2, 3, 4, 5 (KEEPING YOUR ORIGINAL CODE LOGIC) ---
         with tabs[1]:
             st.header("🔮 Strategic Scenario Simulator")
+            # [Original Simulator Code]
             col1, col2, col3 = st.columns(3)
             in_country = col1.selectbox("Target Market (Country)", sorted(df_master['COUNTRY'].unique()))
             valid_products = df_master[df_master['COUNTRY'] == in_country]['PRODUCTLINE'].unique()
             in_prod = col2.selectbox(f"Available Products in {in_country}", valid_products)
-            
             ref_data = df_master[df_master['PRODUCTLINE'] == in_prod]
             avg_msrp = float(ref_data['MSRP'].mean())
             st.info(f"💡 Historical Avg Price for {in_prod}: ${avg_msrp:.2f}")
-            
             in_qty = col1.slider("Quantity to Sell", 1, 500, 50)
             in_msrp = col2.number_input("Unit Price ($)", value=int(avg_msrp))
             in_month = col3.slider("Order Month", 1, 12, 12)
-            
             if st.button("RUN AI SIMULATION", use_container_width=True, type="primary"):
                 inp = pd.DataFrame([{'MONTH_ID': in_month, 'QTR_ID': (in_month-1)//3+1, 'MSRP': in_msrp, 'QUANTITYORDERED': in_qty, 'PRODUCTLINE': in_prod, 'COUNTRY': in_country}])
                 pred = bi_pipe.predict(inp)[0]
                 st.markdown(f"<div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;border: 2px solid #1f4e79;'><h1>${pred:,.2f}</h1><p>Projected Revenue</p></div>", unsafe_allow_html=True)
 
-        # --- TAB 3: MARKET INSIGHTS ---
         with tabs[2]:
             st.header("💡 Business Directives")
             geo_df = df.groupby('COUNTRY')['SALES'].sum().reset_index()
             fig_map = px.choropleth(geo_df, locations="COUNTRY", locationmode='country names', color="SALES", hover_name="COUNTRY", color_continuous_scale='Blues', template="plotly_white")
             st.plotly_chart(fig_map, use_container_width=True)
 
-        # --- TAB 4: DEMAND FORECAST ---
         with tabs[3]:
             st.header("📅 Demand Forecasting")
             forecast_df = df.groupby(['YEAR', 'MONTH_ID'])['SALES'].sum().reset_index()
@@ -178,7 +159,6 @@ if uploaded_file is not None:
             fig_forecast = px.line(forecast_df, x='MONTH_ID', y=['SALES', 'Target_Forecast'], markers=True, template="plotly_white", title="3-Month Momentum")
             st.plotly_chart(fig_forecast, use_container_width=True)
 
-        # --- TAB 5: CUSTOMER ANALYTICS ---
         with tabs[4]:
             st.header("👥 Customer Loyalty")
             cust_val = df.groupby('CUSTOMERNAME')['SALES'].sum().reset_index().sort_values('SALES', ascending=False).head(10)
