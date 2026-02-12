@@ -124,48 +124,105 @@ if uploaded_file is not None:
             st.markdown("#### 🔍 Sales Outlier Detection")
             fig_box = px.box(df, x='PRODUCTLINE', y='SALES', color='PRODUCTLINE', template="plotly_white")
             st.plotly_chart(fig_box, use_container_width=True)
-
-        # TAB 2: Simulator (Grounded in Historical Data)
+# TAB 2: Simulator (Grounded in Historical Data)
         with tabs[1]:
             st.header("🔮 Strategic Scenario Simulator")
-            col1, col2, col3 = st.columns(3)
-            in_country = col1.selectbox("Target Market (Country)", sorted(df_master['COUNTRY'].unique()))
-            valid_products = df_master[df_master['COUNTRY'] == in_country]['PRODUCTLINE'].unique()
-            in_prod = col2.selectbox(f"Available Products in {in_country}", valid_products)
-            ref_data = df_master[df_master['PRODUCTLINE'] == in_prod]
             
-            # Use float conversion to ensure decimal support
+            # --- 1. SELECTION CONTROLS ---
+            col1, col2, col3, col4 = st.columns(4)
+            in_country = col1.selectbox("Target Market (Country)", sorted(df_master['COUNTRY'].unique()))
+            
+            # Filter Products based on Country
+            valid_products = df_master[df_master['COUNTRY'] == in_country]['PRODUCTLINE'].unique()
+            in_prod = col2.selectbox(f"Product Line", valid_products)
+            
+            # Filter Years based on specific Country/Product combo
+            valid_years = sorted(df_master[(df_master['COUNTRY'] == in_country) & 
+                                          (df_master['PRODUCTLINE'] == in_prod)]['YEAR'].unique())
+            in_year = col3.selectbox("Simulation Year Context", ["All Years"] + list(valid_years))
+            
+            in_month = col4.slider("Order Month", 1, 12, 12)
+
+            # --- 2. HISTORICAL CONTEXT LOGIC ---
+            # Filter data for context
+            ref_filter = (df_master['PRODUCTLINE'] == in_prod) & (df_master['COUNTRY'] == in_country)
+            if in_year != "All Years":
+                ref_filter &= (df_master['YEAR'] == in_year)
+            
+            ref_data = df_master[ref_filter]
+            
+            # Calculations for Info Box
             avg_msrp = float(ref_data['MSRP'].mean()) if not ref_data.empty else 0.0
             min_msrp = float(ref_data['MSRP'].min()) if not ref_data.empty else 0.0
             max_msrp = float(ref_data['MSRP'].max()) if not ref_data.empty else 0.0
             
-            st.info(f"💡 **Historical Price Context for {in_prod}:** Avg: ${avg_msrp:.2f} | Range: ${min_msrp:.2f} - ${max_msrp:.2f}")
-            
-            in_qty = col1.slider("Quantity to Sell", 1, 1000, 50)
-            # Corrected indentation and decimal support for Price Input
-            in_msrp = col2.number_input("Unit Price ($)", value=float(avg_msrp), step=0.01, format="%.2f")
-            in_month = col3.slider("Order Month", 1, 12, 12)
-            
+            context_label = f"Year {in_year}" if in_year != "All Years" else "All Historical Years"
+            st.info(f"💡 **Price Context ({context_label}):** Avg: ${avg_msrp:.2f} | Range: ${min_msrp:.2f} - ${max_msrp:.2f}")
+
+            # --- 3. INPUT PARAMETERS ---
+            p_col1, p_col2 = st.columns(2)
+            in_qty = p_col1.slider("Quantity to Sell", 1, 1000, 50)
+            in_msrp = p_col2.number_input("Unit Price ($)", value=float(avg_msrp), step=0.01, format="%.2f")
+
+            # --- 4. RUN SIMULATION ---
             if st.button("RUN AI SIMULATION & REALITY CHECK", use_container_width=True, type="primary"):
-                inp = pd.DataFrame([{'MONTH_ID': in_month, 'QTR_ID': (in_month-1)//3+1, 'MSRP': in_msrp, 'QUANTITYORDERED': in_qty, 'PRODUCTLINE': in_prod, 'COUNTRY': in_country}])
+                # Simulation Prediction
+                # Note: We use the actual inputs for the prediction
+                inp = pd.DataFrame([{
+                    'MONTH_ID': in_month, 
+                    'QTR_ID': (in_month-1)//3+1, 
+                    'MSRP': in_msrp, 
+                    'QUANTITYORDERED': in_qty, 
+                    'PRODUCTLINE': in_prod, 
+                    'COUNTRY': in_country
+                }])
+                
                 pred = bi_pipe.predict(inp)[0]
-                st.markdown(f"""<div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;border: 2px solid #1f4e79;margin-bottom:25px;'><p style='color:#1f4e79; font-weight:bold; margin-bottom:0;'>PROJECTED REVENUE</p><h1 style='color:#1f4e79; font-size:48px; margin-top:0;'>${pred:,.2f}</h1></div>""", unsafe_allow_html=True)
+                
+                st.markdown(f"""
+                    <div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;border: 2px solid #1f4e79;margin-bottom:25px;'>
+                        <p style='color:#1f4e79; font-weight:bold; margin-bottom:0;'>PROJECTED REVENUE</p>
+                        <h1 style='color:#1f4e79; font-size:48px; margin-top:0;'>${pred:,.2f}</h1>
+                        <p style='color:#555;'>Scenario based on {in_prod} in {in_country} ({context_label})</p>
+                    </div>
+                """, unsafe_allow_html=True)
+                
                 st.divider()
-                st.subheader(f"📊 Historical Performance Review: {in_prod} in {in_country}")
-                history = df_master[(df_master['COUNTRY'] == in_country) & (df_master['PRODUCTLINE'] == in_prod)].copy()
+                
+                # --- 5. PERFORMANCE REVIEW & ERROR ANALYSIS ---
+                st.subheader(f"📊 Historical Accuracy Review ({context_label})")
+                
+                # Use the filtered history based on year selection
+                history = ref_data.copy()
+                
                 if not history.empty:
+                    # AI Prediction on historical data for Error Calculation
                     hist_features = history[['MONTH_ID', 'QTR_ID', 'MSRP', 'QUANTITYORDERED', 'PRODUCTLINE', 'COUNTRY']]
                     history['AI_PREDICTION'] = bi_pipe.predict(hist_features)
                     history = history.sort_values('ORDERDATE')
+                    
+                    # Graph
                     fig_compare = go.Figure()
                     fig_compare.add_trace(go.Scatter(x=history['ORDERDATE'], y=history['SALES'], name='Actual Revenue', line=dict(color='#1f4e79', width=3)))
                     fig_compare.add_trace(go.Scatter(x=history['ORDERDATE'], y=history['AI_PREDICTION'], name='AI Model Fit', line=dict(color='#ff7f0e', dash='dot')))
-                    fig_compare.update_layout(title="How closely does the AI match historical reality?", template="plotly_white", xaxis_title="Timeline", yaxis_title="Revenue ($)")
+                    fig_compare.update_layout(title=f"AI Model vs Reality: {in_prod}", template="plotly_white", xaxis_title="Order Timeline", yaxis_title="Revenue ($)")
                     st.plotly_chart(fig_compare, use_container_width=True)
+                    
+                    # Error Metrics
                     err = np.mean(abs(history['SALES'] - history['AI_PREDICTION']) / history['SALES']) * 100
-                    st.success(f"✅ The AI matches historical data with an average error of only {err:.2f}% for this selection.")
+                    
+                    m1, m2, m3 = st.columns(3)
+                    m1.metric("Historical Avg Sales", f"${history['SALES'].mean():,.2f}")
+                    m2.metric("AI Mean Absolute Error", f"{err:.2f}%")
+                    m3.metric("Record Count", f"{len(history)} orders")
+                    
+                    if err < 10:
+                        st.success(f"🎯 **High Confidence:** The AI model shows excellent alignment with {context_label} data.")
+                    else:
+                        st.warning(f"⚠️ **Moderate Variance:** AI error is {err:.2f}%. Predictions may vary due to historical market volatility.")
                 else:
-                    st.warning("No historical data found for this specific combination to show a comparison.")
+                    st.warning(f"No historical data found for {in_prod} in {in_country} for the year {in_year}.")
+        
 
         # TAB 3: Market Insights
         with tabs[2]:
