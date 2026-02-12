@@ -211,11 +211,7 @@ if uploaded_file is not None:
                                     barmode='group', template="plotly_white")
                 st.plotly_chart(fig_growth, use_container_width=True)
             
-            with c6:
-                st.markdown("#### Product Revenue Contribution (%)")
-                fig_don = px.pie(df, values='SALES', names='PRODUCTLINE', hole=0.5, 
-                                 template="plotly_white", color_discrete_sequence=px.colors.qualitative.Pastel)
-                st.plotly_chart(fig_don, use_container_width=True)
+            
 
         # TAB 4: Demand Forecast
         with tabs[3]:
