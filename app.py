@@ -137,8 +137,9 @@ if uploaded_file is not None:
             min_msrp = float(ref_data['MSRP'].min())
             max_msrp = float(ref_data['MSRP'].max())
             st.info(f"💡 **Historical Price Context for {in_prod}:** Avg: ${avg_msrp:.2f} | Range: ${min_msrp:.2f} - ${max_msrp:.2f}")
-            in_qty = col1.slider("Quantity to Sell", 1, 500, 50)
-            in_msrp = col2.number_input("Unit Price ($)", value=int(avg_msrp))
+            in_qty = col1.slider("Quantity to Sell", 1, 1000, 50)
+           in_msrp = col2.number_input("Unit Price ($)", value=float(avg_msrp), step=0.01, format="%.2f")
+
             in_month = col3.slider("Order Month", 1, 12, 12)
             if st.button("RUN AI SIMULATION & REALITY CHECK", use_container_width=True, type="primary"):
                 inp = pd.DataFrame([{'MONTH_ID': in_month, 'QTR_ID': (in_month-1)//3+1, 'MSRP': in_msrp, 'QUANTITYORDERED': in_qty, 'PRODUCTLINE': in_prod, 'COUNTRY': in_country}])
