@@ -165,6 +165,20 @@ if uploaded_file is not None:
         # TAB 3: Strategic Market Insights (UPGRADED VERSION)
         with tabs[2]:
             st.header("🌍 Strategic Market Insights")
+                    # TAB 3: Market Insights
+        with tabs[2]:
+            st.header("💡 Business Directives")
+            top_country = df.groupby('COUNTRY')['SALES'].sum().idxmax()
+            top_prod = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
+            col_i1, col_i2 = st.columns(2)
+            with col_i1:
+                st.markdown(f"<div class='card'><h4>📦 Inventory Optimization</h4><p><b>Insight:</b> <b>{top_prod}</b> is the top performer.<br><b>Action:</b> Prioritize supply for this line.</p></div>", unsafe_allow_html=True)
+            with col_i2:
+                st.markdown(f"<div class='card'><h4>🌍 Regional Strategy</h4><p><b>Insight:</b> <b>{top_country}</b> drives peak revenue.<br><b>Action:</b> Test localized loyalty programs here.</p></div>", unsafe_allow_html=True)
+            geo_df = df.groupby('COUNTRY')['SALES'].sum().reset_index()
+            fig_map = px.choropleth(geo_df, locations="COUNTRY", locationmode='country names', color="COUNTRY", hover_name="COUNTRY", template="plotly_white")
+            fig_map.update_geos(projection_type="mercator")
+            st.plotly_chart(fig_map, use_container_width=True)
             
             # --- 1. KPI Cards Row ---
             k1, k2, k3 = st.columns(3)
