@@ -138,7 +138,7 @@ if uploaded_file is not None:
             max_msrp = float(ref_data['MSRP'].max())
             st.info(f"💡 **Historical Price Context for {in_prod}:** Avg: ${avg_msrp:.2f} | Range: ${min_msrp:.2f} - ${max_msrp:.2f}")
             in_qty = col1.slider("Quantity to Sell", 1, 1000, 50)
-           in_msrp = col2.number_input("Unit Price ($)", value=float(avg_msrp), step=0.01, format="%.2f")
+          in_msrp = col2.number_input("Unit Price ($)", value=float(avg_msrp), step=0.01, format="%.2f")
 
             in_month = col3.slider("Order Month", 1, 12, 12)
             if st.button("RUN AI SIMULATION & REALITY CHECK", use_container_width=True, type="primary"):
