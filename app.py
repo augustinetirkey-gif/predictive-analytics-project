@@ -221,10 +221,7 @@ if uploaded_file is not None:
             fig_forecast = px.line(forecast_df, x='MONTH_ID', y=['SALES', 'Target_Forecast'], markers=True, template="plotly_white", title="3-Month Sales Momentum Forecast")
             st.plotly_chart(fig_forecast, use_container_width=True)
             
-            # TAB 4: Demand Forecast (Advanced Strategic Planning)
-        with tabs[3]:
-            st.header("📅 Demand Forecasting & Supply Logic")
-            
+          
             # --- 1. DATA PREPARATION ---
             # Total Sales Timeline
             timeline_df = df.groupby(['YEAR', 'MONTH_ID'])['SALES'].sum().reset_index()
