@@ -62,7 +62,55 @@ if uploaded_file is not None:
 
     df_master = load_and_process_data(uploaded_file)
     
+    # --- INDEPENDENT CHATGPT SIDEBAR WITH DELETE FEATURE ---
+    st.sidebar.divider()
+    st.sidebar.subheader("🤖 PredictiCorp AI Chat")
+    
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+
+    if st.sidebar.button("🗑️ Clear Chat History"):
+        st.session_state.messages = []
+        st.rerun()
+
+    chat_container = st.sidebar.container(height=300)
+    with chat_container:
+        for message in st.session_state.messages:
+            with st.chat_message(message["role"]):
+                st.markdown(message["content"])
+
+    if prompt := st.sidebar.chat_input("Ask about your data..."):
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with chat_container:
+            with st.chat_message("user"):
+                st.markdown(prompt)
+
+        with chat_container:
+            with st.chat_message("assistant"):
+                q = prompt.lower()
+                response = ""
+                try:
+                    if "total sales" in q or "revenue" in q:
+                        total = df_master['SALES'].sum()
+                        response = f"Global Revenue is **${total:,.2f}**."
+                    elif "top country" in q or "best country" in q:
+                        top_c = df_master.groupby('COUNTRY')['SALES'].sum().idxmax()
+                        response = f"The top country is **{top_c}**."
+                    elif "best product" in q or "top product" in q:
+                        top_p = df_master.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
+                        response = f"Top product: **{top_p}**."
+                    elif "how many" in q or "count" in q:
+                        response = f"Total transactions: **{len(df_master):,}**."
+                    else:
+                        response = "I've analyzed the CSV. I can help with totals, averages, and rankings. What would you like to know?"
+                except:
+                    response = "I encountered an error reading the file structure."
+                
+                st.markdown(response)
+                st.session_state.messages.append({"role": "assistant", "content": response})
+
     # --- SIDEBAR FILTERS ---
+    st.sidebar.divider()
     st.sidebar.subheader("🔍 Filter Strategy")
     st_year = st.sidebar.multiselect("Fiscal Year", options=sorted(df_master['YEAR'].unique()), default=df_master['YEAR'].unique())
     st_country = st.sidebar.multiselect("Active Markets", options=sorted(df_master['COUNTRY'].unique()), default=df_master['COUNTRY'].unique())
@@ -109,23 +157,20 @@ if uploaded_file is not None:
                 fig_trend = px.line(trend, x='MONTH_NAME', y='SALES', color='YEAR', markers=True, template="plotly_white")
                 st.plotly_chart(fig_trend, use_container_width=True)
             with c2:
-                # --- PIE CHART OF REVENUE ---
                 st.markdown("#### Revenue by Product Line")
                 fig_pie = px.pie(df, values='SALES', names='PRODUCTLINE', hole=0.5, color_discrete_sequence=px.colors.qualitative.Prism)
                 st.plotly_chart(fig_pie, use_container_width=True)
             
-            # --- RANKED REVENUE BY COUNTRY BAR CHART ---
             st.markdown("#### Revenue Performance by Country (Ranked)")
             country_revenue = df.groupby('COUNTRY')['SALES'].sum().reset_index().sort_values('SALES', ascending=False)
             fig_bar = px.bar(country_revenue, x='COUNTRY', y='SALES', text_auto='.2s', color='SALES', color_continuous_scale='Blues', template="plotly_white")
             st.plotly_chart(fig_bar, use_container_width=True)
 
-            # OUTLIER DETECTION
             st.markdown("#### 🔍 Sales Outlier Detection")
             fig_box = px.box(df, x='PRODUCTLINE', y='SALES', color='PRODUCTLINE', template="plotly_white")
             st.plotly_chart(fig_box, use_container_width=True)
 
-        # TAB 2: Simulator (Grounded in Historical Data)
+        # TAB 2: Simulator (360 Execution)
         with tabs[1]:
             st.header("🔮 Strategic Scenario Simulator")
             col1, col2, col3 = st.columns(3)
@@ -134,15 +179,8 @@ if uploaded_file is not None:
             in_prod = col2.selectbox(f"Available Products in {in_country}", valid_products)
             ref_data = df_master[df_master['PRODUCTLINE'] == in_prod]
             
-            # Use float conversion to ensure decimal support
             avg_msrp = float(ref_data['MSRP'].mean()) if not ref_data.empty else 0.0
-            min_msrp = float(ref_data['MSRP'].min()) if not ref_data.empty else 0.0
-            max_msrp = float(ref_data['MSRP'].max()) if not ref_data.empty else 0.0
-            
-            st.info(f"💡 **Historical Price Context for {in_prod}:** Avg: ${avg_msrp:.2f} | Range: ${min_msrp:.2f} - ${max_msrp:.2f}")
-            
             in_qty = col1.slider("Quantity to Sell", 1, 1000, 50)
-            # Corrected indentation and decimal support for Price Input
             in_msrp = col2.number_input("Unit Price ($)", value=float(avg_msrp), step=0.01, format="%.2f")
             in_month = col3.slider("Order Month", 1, 12, 12)
             
@@ -164,23 +202,70 @@ if uploaded_file is not None:
                     st.plotly_chart(fig_compare, use_container_width=True)
                     err = np.mean(abs(history['SALES'] - history['AI_PREDICTION']) / history['SALES']) * 100
                     st.success(f"✅ The AI matches historical data with an average error of only {err:.2f}% for this selection.")
-                else:
-                    st.warning("No historical data found for this specific combination to show a comparison.")
 
-        # TAB 3: Market Insights
+        # TAB 3: Strategic Market Insights (UPGRADED)
         with tabs[2]:
-            st.header("💡 Business Directives")
-            top_country = df.groupby('COUNTRY')['SALES'].sum().idxmax()
-            top_prod = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
-            col_i1, col_i2 = st.columns(2)
-            with col_i1:
-                st.markdown(f"<div class='card'><h4>📦 Inventory Optimization</h4><p><b>Insight:</b> <b>{top_prod}</b> is the top performer.<br><b>Action:</b> Prioritize supply for this line.</p></div>", unsafe_allow_html=True)
-            with col_i2:
-                st.markdown(f"<div class='card'><h4>🌍 Regional Strategy</h4><p><b>Insight:</b> <b>{top_country}</b> drives peak revenue.<br><b>Action:</b> Test localized loyalty programs here.</p></div>", unsafe_allow_html=True)
+            st.header("🌍 Strategic Market Insights")
+            
+            # --- KPI Row (Existing Cards + Optional Growth) ---
+            k1, k2, k3 = st.columns(3)
+            with k1:
+                top_country = df.groupby('COUNTRY')['SALES'].sum().idxmax()
+                st.metric("Top Market (Country)", top_country)
+            with k2:
+                top_p = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
+                st.metric("Hero Product", top_p)
+            with k3:
+                # Calculating Growth for context
+                total_rev = df['SALES'].sum()
+                st.metric("Total Analyzed Revenue", f"${total_rev/1e6:.2f}M")
+
+            st.markdown("---")
+
+            # --- Choropleth Map (Multi-color Scaling) ---
+            st.markdown("#### Geographic Revenue Choropleth Map")
             geo_df = df.groupby('COUNTRY')['SALES'].sum().reset_index()
-            fig_map = px.choropleth(geo_df, locations="COUNTRY", locationmode='country names', color="COUNTRY", hover_name="COUNTRY", template="plotly_white")
+            fig_map = px.choropleth(geo_df, 
+                                    locations="COUNTRY", 
+                                    locationmode='country names', 
+                                    color="SALES", 
+                                    hover_name="COUNTRY", 
+                                    template="plotly_white",
+                                    color_continuous_scale="Turbo") # High contrast multi-color scale
             fig_map.update_geos(projection_type="mercator")
             st.plotly_chart(fig_map, use_container_width=True)
+
+            # --- Heatmap and Top/Bottom Row ---
+            c3, c4 = st.columns([2, 1])
+            with c3:
+                st.markdown("#### Revenue Heatmap: Country × Product Line")
+                heat_df = df.pivot_table(index='COUNTRY', columns='PRODUCTLINE', values='SALES', aggfunc='sum').fillna(0)
+                # Multi-color scale using Spectral_r string
+                fig_heat = px.imshow(heat_df, text_auto='.2s', aspect="auto", 
+                                     color_continuous_scale="Spectral_r", 
+                                     template="plotly_white")
+                st.plotly_chart(fig_heat, use_container_width=True)
+            
+            with c4:
+                st.markdown("#### Top 5 vs Bottom 5 Markets")
+                m_sorted = df.groupby('COUNTRY')['SALES'].sum().sort_values(ascending=False).reset_index()
+                st.write("**Top 5 Markets**")
+                st.dataframe(m_sorted.head(5), hide_index=True, use_container_width=True)
+                st.write("**Bottom 5 Markets**")
+                st.dataframe(m_sorted.tail(5), hide_index=True, use_container_width=True)
+
+            # --- Growth Trend and Donut Row ---
+            c5, c6 = st.columns(2)
+            with c5:
+                st.markdown("#### YoY Revenue Performance")
+                growth_trend = df.groupby(['YEAR', 'MONTH_ID'])['SALES'].sum().reset_index()
+                fig_growth = px.bar(growth_trend, x='MONTH_ID', y='SALES', color='YEAR', barmode='group', template="plotly_white")
+                st.plotly_chart(fig_growth, use_container_width=True)
+            
+            with c6:
+                st.markdown("#### Product Revenue Contribution (%)")
+                fig_don = px.pie(df, values='SALES', names='PRODUCTLINE', hole=0.5, template="plotly_white")
+                st.plotly_chart(fig_don, use_container_width=True)
 
         # TAB 4: Demand Forecast
         with tabs[3]:
@@ -192,7 +277,7 @@ if uploaded_file is not None:
 
         # TAB 5: Customer Analytics
         with tabs[4]:
-            st.header("👥 Customer Lifetime Value & Loyalty")
+            st.header("👥 Customer Analytics")
             cust_val = df.groupby('CUSTOMERNAME')['SALES'].sum().reset_index().sort_values('SALES', ascending=False).head(10)
             col_c1, col_c2 = st.columns(2)
             with col_c1:
