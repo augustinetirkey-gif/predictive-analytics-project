@@ -220,52 +220,71 @@ if uploaded_file is not None:
             forecast_df['Target_Forecast'] = forecast_df['SALES'].rolling(window=3).mean().shift(-1)
             fig_forecast = px.line(forecast_df, x='MONTH_ID', y=['SALES', 'Target_Forecast'], markers=True, template="plotly_white", title="3-Month Sales Momentum Forecast")
             st.plotly_chart(fig_forecast, use_container_width=True)
-           # TAB 4: Demand Forecast (Corrected)
-        with tabs[3]:
-            st.header("📅 Demand Forecasting & Supply Logic")
+       # TAB 3: Strategic Market Insights (UPGRADED)
+        with tabs[2]:
+            st.header("🌍 Strategic Market Insights")
             
-            # --- 1. DATA PREPARATION ---
-            timeline_df = df.groupby(['YEAR', 'MONTH_ID'])['SALES'].sum().reset_index()
-            timeline_df['Target_Forecast'] = timeline_df['SALES'].rolling(window=3).mean().shift(-1)
-            timeline_df['Std_Dev'] = timeline_df['SALES'].rolling(window=3).std()
-            timeline_df['Upper_Bound'] = timeline_df['Target_Forecast'] + (timeline_df['Std_Dev'] * 1.5)
-            timeline_df['Lower_Bound'] = (timeline_df['Target_Forecast'] - (timeline_df['Std_Dev'] * 1.5)).clip(lower=0)
+            # --- 1. KPI Cards Row ---
+            k1, k2, k3 = st.columns(3)
+            with k1:
+                top_country = df.groupby('COUNTRY')['SALES'].sum().idxmax()
+                st.metric("Top Market (Country)", top_country)
+            with k2:
+                top_p = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
+                st.metric("Hero Product", top_p)
+            with k3:
+                total_rev = df['SALES'].sum()
+                st.metric("Total Analyzed Revenue", f"${total_rev/1e6:.2f}M")
 
-            # --- 2. FORECAST CHART ---
-            fig_range = go.Figure()
-            fig_range.add_trace(go.Scatter(x=timeline_df.index, y=timeline_df['Upper_Bound'], line=dict(width=0), showlegend=False))
-            fig_range.add_trace(go.Scatter(x=timeline_df.index, y=timeline_df['Lower_Bound'], fill='tonexty', 
-                                          fillcolor='rgba(31, 78, 121, 0.1)', line=dict(width=0), name='95% Confidence Interval'))
-            fig_range.add_trace(go.Scatter(x=timeline_df.index, y=timeline_df['SALES'], name='Actual Sales', line=dict(color='#1f4e79', width=2.5)))
-            fig_range.add_trace(go.Scatter(x=timeline_df.index, y=timeline_df['Target_Forecast'], name='AI Forecast', line=dict(color='#ff7f0e', dash='dot')))
-            st.plotly_chart(fig_range, use_container_width=True)
+            st.markdown("---")
 
-            # --- 3. SEASONALITY & YoY (FIXED) ---
-            col1, col2 = st.columns(2)
-            with col1:
-                monthly_avg = df_master.groupby('MONTH_ID')['SALES'].mean().reset_index()
-                st.plotly_chart(px.bar(monthly_avg, x='MONTH_ID', y='SALES', color='SALES', 
-                                       color_continuous_scale='Blues', title="Monthly Seasonality Index"), use_container_width=True)
+            # --- 2. Choropleth Map (Multi-color Scaling) ---
+            st.markdown("#### Geographic Revenue Choropleth Map")
+            geo_df = df.groupby('COUNTRY')['SALES'].sum().reset_index()
+            # Turbo provides a high-contrast multi-color scale (Red-Yellow-Green-Blue)
+            fig_map = px.choropleth(geo_df, 
+                                    locations="COUNTRY", 
+                                    locationmode='country names', 
+                                    color="SALES", 
+                                    hover_name="COUNTRY", 
+                                    template="plotly_white",
+                                    color_continuous_scale="Turbo") 
+            fig_map.update_geos(projection_type="mercator")
+            st.plotly_chart(fig_map, use_container_width=True)
+
+            # --- 3. Heatmap and Top/Bottom Tables ---
+            c3, c4 = st.columns([2, 1])
+            with c3:
+                st.markdown("#### Revenue Heatmap: Country × Product Line")
+                heat_df = df.pivot_table(index='COUNTRY', columns='PRODUCTLINE', values='SALES', aggfunc='sum').fillna(0)
+                # Spectral_r uses a distinct multi-color spectrum for high visibility
+                fig_heat = px.imshow(heat_df, text_auto='.2s', aspect="auto", 
+                                     color_continuous_scale="Spectral_r", 
+                                     template="plotly_white")
+                st.plotly_chart(fig_heat, use_container_width=True)
             
-            with col2:
-                # FIX: Resetting index to avoid ValueError
-                timeline_df['Last_Year_Actual'] = timeline_df['SALES'].shift(12)
-                yoy_plot_data = timeline_df.dropna(subset=['Target_Forecast', 'Last_Year_Actual']).reset_index()
-                
-                fig_yoy = px.line(yoy_plot_data, 
-                                 x='index', 
-                                 y=['Target_Forecast', 'Last_Year_Actual'],
-                                 labels={'value': 'Revenue ($)', 'index': 'Timeline Step'},
-                                 title="YoY: Forecast vs Same Period Last Year", 
-                                 template="plotly_white")
-                st.plotly_chart(fig_yoy, use_container_width=True)
+            with c4:
+                st.markdown("#### Top 5 vs Bottom 5 Markets")
+                m_sorted = df.groupby('COUNTRY')['SALES'].sum().sort_values(ascending=False).reset_index()
+                st.write("**Top 5 Markets**")
+                st.dataframe(m_sorted.head(5), hide_index=True, use_container_width=True)
+                st.write("**Bottom 5 Markets**")
+                st.dataframe(m_sorted.tail(5), hide_index=True, use_container_width=True)
 
-            # --- 4. EXPORT ---
-            st.divider()
-            final_table = timeline_df[['YEAR', 'MONTH_ID', 'SALES', 'Target_Forecast', 'Upper_Bound', 'Lower_Bound']].tail(12)
-            st.download_button("📥 Export Demand Planning CSV", final_table.to_csv(index=False).encode('utf-8'), "forecast.csv", "text/csv") 
-          
-          
+            # --- 4. Growth Trend and Contribution Donut ---
+            c5, c6 = st.columns(2)
+            with c5:
+                st.markdown("#### YoY Revenue Performance")
+                growth_trend = df.groupby(['YEAR', 'MONTH_ID'])['SALES'].sum().reset_index()
+                fig_growth = px.bar(growth_trend, x='MONTH_ID', y='SALES', color='YEAR', 
+                                    barmode='group', template="plotly_white")
+                st.plotly_chart(fig_growth, use_container_width=True)
+            
+            with c6:
+                st.markdown("#### Product Revenue Contribution (%)")
+                fig_don = px.pie(df, values='SALES', names='PRODUCTLINE', hole=0.5, 
+                                 template="plotly_white", color_discrete_sequence=px.colors.qualitative.Pastel)
+                st.plotly_chart(fig_don, use_container_width=True)
         # TAB 5: Customer Analytics
         with tabs[4]:
             st.header("👥 Customer Lifetime Value & Loyalty")
