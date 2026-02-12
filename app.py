@@ -87,6 +87,48 @@ if uploaded_file is not None:
 
     bi_pipe, ai_score = train_bi_model(df_master)
 
+    # --- SMART SIDEBAR AI CALCULATOR (NEW) ---
+    st.sidebar.divider()
+    st.sidebar.subheader("🧮 Smart Sales Calculator")
+
+    # 1. Automated Defaults from Dataset
+    calc_country_default = df_master['COUNTRY'].mode()[0]
+    calc_country = st.sidebar.selectbox("Calc Region", sorted(df_master['COUNTRY'].unique()), 
+                                        index=list(sorted(df_master['COUNTRY'].unique())).index(calc_country_default))
+    
+    calc_prods = df_master[df_master['COUNTRY'] == calc_country]['PRODUCTLINE'].unique()
+    calc_prod = st.sidebar.selectbox("Calc Product", sorted(calc_prods))
+    
+    # Pull baseline stats for this combo
+    calc_defaults = df_master[(df_master['COUNTRY'] == calc_country) & (df_master['PRODUCTLINE'] == calc_prod)]
+    def_qty = int(calc_defaults['QUANTITYORDERED'].mean()) if not calc_defaults.empty else 30
+    def_price = float(calc_defaults['MSRP'].mean()) if not calc_defaults.empty else 100.0
+
+    # 2. Adjustments with +/- inputs
+    adj_qty = st.sidebar.number_input("Quantity", value=def_qty, step=1)
+    adj_price = st.sidebar.number_input("Unit Price ($)", value=def_price, step=0.01, format="%.2f")
+    manual_offset = st.sidebar.number_input("Manual Adj (+/- $)", value=0.0, step=100.0)
+
+    # 3. Real-Time Calculations
+    projected_rev = (adj_qty * adj_price) + manual_offset
+    
+    # AI Prediction for Calculator
+    calc_inp = pd.DataFrame([{
+        'MONTH_ID': 12, 'QTR_ID': 4, 
+        'MSRP': adj_price, 'QUANTITYORDERED': adj_qty, 
+        'PRODUCTLINE': calc_prod, 'COUNTRY': calc_country
+    }])
+    ai_calc_pred = bi_pipe.predict(calc_inp)[0]
+
+    # 4. Results Display
+    st.sidebar.markdown("---")
+    st.sidebar.metric("Projected Revenue (Math)", f"${projected_rev:,.0f}")
+    st.sidebar.metric("AI Scenario Prediction", f"${ai_calc_pred:,.0f}")
+
+    if abs(projected_rev - ai_calc_pred) > (projected_rev * 0.25):
+        st.sidebar.warning("⚠️ High Variance: Market history differs from your math.")
+
+    # --- MAIN TABS ---
     tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights", "📅 Demand Forecast", "👥 Customer Analytics"])
 
     if df.empty:
@@ -109,18 +151,15 @@ if uploaded_file is not None:
                 fig_trend = px.line(trend, x='MONTH_NAME', y='SALES', color='YEAR', markers=True, template="plotly_white")
                 st.plotly_chart(fig_trend, use_container_width=True)
             with c2:
-                # --- PIE CHART OF REVENUE ---
                 st.markdown("#### Revenue by Product Line")
                 fig_pie = px.pie(df, values='SALES', names='PRODUCTLINE', hole=0.5, color_discrete_sequence=px.colors.qualitative.Prism)
                 st.plotly_chart(fig_pie, use_container_width=True)
             
-            # --- RANKED REVENUE BY COUNTRY BAR CHART ---
             st.markdown("#### Revenue Performance by Country (Ranked)")
             country_revenue = df.groupby('COUNTRY')['SALES'].sum().reset_index().sort_values('SALES', ascending=False)
             fig_bar = px.bar(country_revenue, x='COUNTRY', y='SALES', text_auto='.2s', color='SALES', color_continuous_scale='Blues', template="plotly_white")
             st.plotly_chart(fig_bar, use_container_width=True)
 
-            # OUTLIER DETECTION
             st.markdown("#### 🔍 Sales Outlier Detection")
             fig_box = px.box(df, x='PRODUCTLINE', y='SALES', color='PRODUCTLINE', template="plotly_white")
             st.plotly_chart(fig_box, use_container_width=True)
@@ -129,22 +168,20 @@ if uploaded_file is not None:
         with tabs[1]:
             st.header("🔮 Strategic Scenario Simulator")
             col1, col2, col3 = st.columns(3)
-            in_country = col1.selectbox("Target Market (Country)", sorted(df_master['COUNTRY'].unique()))
+            in_country = col1.selectbox("Target Market (Country)", sorted(df_master['COUNTRY'].unique()), key="sim_country")
             valid_products = df_master[df_master['COUNTRY'] == in_country]['PRODUCTLINE'].unique()
-            in_prod = col2.selectbox(f"Available Products in {in_country}", valid_products)
+            in_prod = col2.selectbox(f"Available Products in {in_country}", valid_products, key="sim_prod")
             ref_data = df_master[df_master['PRODUCTLINE'] == in_prod]
             
-            # Use float conversion to ensure decimal support
             avg_msrp = float(ref_data['MSRP'].mean()) if not ref_data.empty else 0.0
             min_msrp = float(ref_data['MSRP'].min()) if not ref_data.empty else 0.0
             max_msrp = float(ref_data['MSRP'].max()) if not ref_data.empty else 0.0
             
             st.info(f"💡 **Historical Price Context for {in_prod}:** Avg: ${avg_msrp:.2f} | Range: ${min_msrp:.2f} - ${max_msrp:.2f}")
             
-            in_qty = col1.slider("Quantity to Sell", 1, 1000, 50)
-            # Corrected indentation and decimal support for Price Input
-            in_msrp = col2.number_input("Unit Price ($)", value=float(avg_msrp), step=0.01, format="%.2f")
-            in_month = col3.slider("Order Month", 1, 12, 12)
+            in_qty = col1.slider("Quantity to Sell", 1, 1000, 50, key="sim_qty")
+            in_msrp = col2.number_input("Unit Price ($)", value=float(avg_msrp), step=0.01, format="%.2f", key="sim_msrp")
+            in_month = col3.slider("Order Month", 1, 12, 12, key="sim_month")
             
             if st.button("RUN AI SIMULATION & REALITY CHECK", use_container_width=True, type="primary"):
                 inp = pd.DataFrame([{'MONTH_ID': in_month, 'QTR_ID': (in_month-1)//3+1, 'MSRP': in_msrp, 'QUANTITYORDERED': in_qty, 'PRODUCTLINE': in_prod, 'COUNTRY': in_country}])
@@ -164,8 +201,6 @@ if uploaded_file is not None:
                     st.plotly_chart(fig_compare, use_container_width=True)
                     err = np.mean(abs(history['SALES'] - history['AI_PREDICTION']) / history['SALES']) * 100
                     st.success(f"✅ The AI matches historical data with an average error of only {err:.2f}% for this selection.")
-                else:
-                    st.warning("No historical data found for this specific combination to show a comparison.")
 
         # TAB 3: Market Insights
         with tabs[2]:
