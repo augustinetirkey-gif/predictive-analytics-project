@@ -167,20 +167,80 @@ if uploaded_file is not None:
                 else:
                     st.warning("No historical data found for this specific combination to show a comparison.")
 
-        # TAB 3: Market Insights
+        # TAB 3: Strategic Market Insights (MODIFIED SECTION)
         with tabs[2]:
-            st.header("💡 Business Directives")
-            top_country = df.groupby('COUNTRY')['SALES'].sum().idxmax()
-            top_prod = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
-            col_i1, col_i2 = st.columns(2)
-            with col_i1:
-                st.markdown(f"<div class='card'><h4>📦 Inventory Optimization</h4><p><b>Insight:</b> <b>{top_prod}</b> is the top performer.<br><b>Action:</b> Prioritize supply for this line.</p></div>", unsafe_allow_html=True)
-            with col_i2:
-                st.markdown(f"<div class='card'><h4>🌍 Regional Strategy</h4><p><b>Insight:</b> <b>{top_country}</b> drives peak revenue.<br><b>Action:</b> Test localized loyalty programs here.</p></div>", unsafe_allow_html=True)
+            st.header("🌍 Strategic Market Insights")
+            
+            # --- 1. Top KPI Cards ---
+            k_col1, k_col2, k_col3 = st.columns(3)
+            top_country_val = df.groupby('COUNTRY')['SALES'].sum().idxmax()
+            top_prod_val = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
+            
+            with k_col1:
+                st.metric("Top Market (Country)", top_country_val)
+            with k_col2:
+                st.metric("Top Product Line", top_prod_val)
+            with k_col3:
+                # Calculating Fastest Growing Market (Filtered Context)
+                if df['YEAR'].nunique() > 1:
+                    yearly_growth = df.groupby(['COUNTRY', 'YEAR'])['SALES'].sum().unstack().pct_change(axis=1).iloc[:, -1]
+                    fastest_market = yearly_growth.idxmax()
+                    st.metric("Fastest Growing Market", fastest_market)
+                else:
+                    st.metric("Total Markets Analyzed", df['COUNTRY'].nunique())
+
+            st.markdown("---")
+
+            # --- 2. Choropleth Map (Multi-color Scaling) ---
+            st.markdown("#### Geographic Revenue Command Map")
             geo_df = df.groupby('COUNTRY')['SALES'].sum().reset_index()
-            fig_map = px.choropleth(geo_df, locations="COUNTRY", locationmode='country names', color="COUNTRY", hover_name="COUNTRY", template="plotly_white")
+            fig_map = px.choropleth(geo_df, 
+                                    locations="COUNTRY", 
+                                    locationmode='country names', 
+                                    color="SALES", 
+                                    hover_name="COUNTRY", 
+                                    template="plotly_white",
+                                    color_continuous_scale=px.colors.sequential.Turbo) # Multi-color scaling
             fig_map.update_geos(projection_type="mercator")
             st.plotly_chart(fig_map, use_container_width=True)
+
+            # --- 3. Heatmap & Revenue Contribution ---
+            col_h1, col_h2 = st.columns([2, 1])
+            with col_h1:
+                st.markdown("#### Revenue Heatmap: Country × Product Line")
+                heat_df = df.pivot_table(index='COUNTRY', columns='PRODUCTLINE', values='SALES', aggfunc='sum').fillna(0)
+                fig_heat = px.imshow(heat_df, 
+                                     text_auto='.2s', 
+                                     aspect="auto", 
+                                     color_continuous_scale=px.colors.sequential.Spectral_r, # High contrast scaling
+                                     template="plotly_white")
+                st.plotly_chart(fig_heat, use_container_width=True)
+            
+            with col_h2:
+                st.markdown("#### Market Contribution (%)")
+                fig_donut = px.pie(df, values='SALES', names='COUNTRY', hole=0.5, 
+                                   color_discrete_sequence=px.colors.qualitative.Pastel)
+                st.plotly_chart(fig_donut, use_container_width=True)
+
+            # --- 4. Growth Trends & Market Ranking ---
+            col_t1, col_t2 = st.columns([2, 1])
+            with col_t1:
+                st.markdown("#### MoM Revenue Growth Trend")
+                growth_trend = df.groupby(['YEAR', 'MONTH_ID'])['SALES'].sum().reset_index()
+                growth_trend['Growth Rate (%)'] = growth_trend['SALES'].pct_change() * 100
+                fig_growth = px.bar(growth_trend, x='MONTH_ID', y='Growth Rate (%)', 
+                                    color='Growth Rate (%)', 
+                                    color_continuous_scale='RdYlGn',
+                                    template="plotly_white")
+                st.plotly_chart(fig_growth, use_container_width=True)
+            
+            with col_t2:
+                st.markdown("#### Market Performance Tiers")
+                m_sorted = df.groupby('COUNTRY')['SALES'].sum().sort_values(ascending=False).reset_index()
+                st.write("**Top 5 Markets**")
+                st.dataframe(m_sorted.head(5), hide_index=True, use_container_width=True)
+                st.write("**Bottom 5 Markets**")
+                st.dataframe(m_sorted.tail(5), hide_index=True, use_container_width=True)
 
         # TAB 4: Demand Forecast
         with tabs[3]:
