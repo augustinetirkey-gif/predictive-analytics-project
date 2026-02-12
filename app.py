@@ -61,10 +61,20 @@ if uploaded_file is not None:
         return df
 
     df_master = load_and_process_data(uploaded_file)
+    
+    # --- UPDATED SIDEBAR FILTERS ---
+    st.sidebar.subheader("🔍 Strategic Filters")
     st_year = st.sidebar.multiselect("Fiscal Year", options=sorted(df_master['YEAR'].unique()), default=df_master['YEAR'].unique())
     st_country = st.sidebar.multiselect("Active Markets", options=sorted(df_master['COUNTRY'].unique()), default=df_master['COUNTRY'].unique())
+    # New Product Line Filter
+    st_products = st.sidebar.multiselect("Product Lines", options=sorted(df_master['PRODUCTLINE'].unique()), default=df_master['PRODUCTLINE'].unique())
     
-    df = df_master[(df_master['YEAR'].isin(st_year)) & (df_master['COUNTRY'].isin(st_country))]
+    # Apply Filters
+    df = df_master[
+        (df_master['YEAR'].isin(st_year)) & 
+        (df_master['COUNTRY'].isin(st_country)) &
+        (df_master['PRODUCTLINE'].isin(st_products))
+    ]
 
     @st.cache_resource
     def train_bi_model(data):
@@ -78,13 +88,13 @@ if uploaded_file is not None:
 
     bi_pipe, ai_score = train_bi_model(df_master)
 
-    # UPDATED TABS TO INCLUDE FORECASTING AND CUSTOMER ANALYTICS
+    # UPDATED TABS
     tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights", "📅 Demand Forecast", "👥 Customer Analytics"])
 
     if df.empty:
         st.warning("⚠️ No data available for the current selection. Please adjust your filters.")
     else:
-        # TAB 1: Dashboard
+        # --- TAB 1: EXECUTIVE DASHBOARD ---
         with tabs[0]:
             st.subheader("Performance KPIs")
             k1, k2, k3, k4 = st.columns(4)
@@ -94,6 +104,8 @@ if uploaded_file is not None:
             k4.metric("Active Regions", f"{df['COUNTRY'].nunique()}")
             st.markdown("---")
             
+            # --- SALES ANALYSIS SECTION ---
+            st.markdown("### 📊 Sales Volume Analysis")
             c1, c2 = st.columns([2, 1])
             with c1:
                 st.markdown("#### Monthly Sales Trend")
@@ -105,111 +117,92 @@ if uploaded_file is not None:
                 fig_pie = px.pie(df, values='SALES', names='PRODUCTLINE', hole=0.5, color_discrete_sequence=px.colors.qualitative.Prism)
                 st.plotly_chart(fig_pie, use_container_width=True)
             
-            # HIGHEST REVENUE BY COUNTRY BAR CHART
-            st.markdown("#### Top Revenue Generating Countries")
-            country_revenue = df.groupby('COUNTRY')['SALES'].sum().reset_index().sort_values('SALES', ascending=False)
-            fig_bar = px.bar(country_revenue, x='COUNTRY', y='SALES', text_auto='.2s', color='SALES', color_continuous_scale='Blues', template="plotly_white")
-            st.plotly_chart(fig_bar, use_container_width=True)
+            # --- REVENUE ANALYSIS SECTION (NEW) ---
+            st.markdown("---")
+            st.markdown("### 💰 Revenue Insight Matrix")
+            r_col1, r_col2 = st.columns(2)
+            
+            with r_col1:
+                st.markdown("#### Revenue by Country (Top Performing)")
+                country_rev = df.groupby('COUNTRY')['SALES'].sum().reset_index().sort_values('SALES', ascending=False)
+                fig_rev_bar = px.bar(country_rev, x='SALES', y='COUNTRY', orientation='h', 
+                                    text_auto='.2s', color='SALES', color_continuous_scale='Greens', 
+                                    template="plotly_white")
+                st.plotly_chart(fig_rev_bar, use_container_width=True)
+                
+            with r_col2:
+                st.markdown("#### Revenue Contribution by Deal Size")
+                deal_rev = df.groupby('DEALSIZE')['SALES'].sum().reset_index()
+                fig_deal_rev = px.funnel(deal_rev, x='SALES', y='DEALSIZE', color='DEALSIZE',
+                                        template="plotly_white")
+                st.plotly_chart(fig_deal_rev, use_container_width=True)
 
             # OUTLIER DETECTION
+            st.markdown("---")
             st.markdown("#### 🔍 Sales Outlier Detection")
             fig_box = px.box(df, x='PRODUCTLINE', y='SALES', color='PRODUCTLINE', template="plotly_white")
             st.plotly_chart(fig_box, use_container_width=True)
-# TAB 2: Simulator (Grounded in Historical Data with Accuracy Check)
+
+        # --- TAB 2: SIMULATOR ---
         with tabs[1]:
             st.header("🔮 Strategic Scenario Simulator")
-            
-            # Layout for inputs
             col1, col2, col3 = st.columns(3)
-            
-            # 1. Selection Inputs
             in_country = col1.selectbox("Target Market (Country)", sorted(df_master['COUNTRY'].unique()))
-            
-            # Filter Product Line based on Country
             valid_products = df_master[df_master['COUNTRY'] == in_country]['PRODUCTLINE'].unique()
             in_prod = col2.selectbox(f"Available Products in {in_country}", valid_products)
-            
-            # 2. Historical Price Context
             ref_data = df_master[df_master['PRODUCTLINE'] == in_prod]
             avg_msrp = float(ref_data['MSRP'].mean())
             min_msrp = float(ref_data['MSRP'].min())
             max_msrp = float(ref_data['MSRP'].max())
             st.info(f"💡 **Historical Price Context for {in_prod}:** Avg: ${avg_msrp:.2f} | Range: ${min_msrp:.2f} - ${max_msrp:.2f}")
-            
-            # 3. Parameter Inputs
             in_qty = col1.slider("Quantity to Sell", 1, 500, 50)
             in_msrp = col2.number_input("Unit Price ($)", value=int(avg_msrp))
             in_month = col3.slider("Order Month", 1, 12, 12)
             
-            # --- RUN SIMULATION ---
             if st.button("RUN AI SIMULATION & REALITY CHECK", use_container_width=True, type="primary"):
-                # Simulation Prediction
                 inp = pd.DataFrame([{'MONTH_ID': in_month, 'QTR_ID': (in_month-1)//3+1, 'MSRP': in_msrp, 'QUANTITYORDERED': in_qty, 'PRODUCTLINE': in_prod, 'COUNTRY': in_country}])
                 pred = bi_pipe.predict(inp)[0]
-                
-                st.markdown(f"""
-                    <div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;border: 2px solid #1f4e79;margin-bottom:25px;'>
-                        <p style='color:#1f4e79; font-weight:bold; margin-bottom:0;'>PROJECTED REVENUE</p>
-                        <h1 style='color:#1f4e79; font-size:48px; margin-top:0;'>${pred:,.2f}</h1>
-                    </div>
-                """, unsafe_allow_html=True)
-
-                # --- ACTUAL VS PREDICTION GRAPH (The Reality Check) ---
+                st.markdown(f"""<div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;border: 2px solid #1f4e79;margin-bottom:25px;'><p style='color:#1f4e79; font-weight:bold; margin-bottom:0;'>PROJECTED REVENUE</p><h1 style='color:#1f4e79; font-size:48px; margin-top:0;'>${pred:,.2f}</h1></div>""", unsafe_allow_html=True)
                 st.divider()
                 st.subheader(f"📊 Historical Performance Review: {in_prod} in {in_country}")
-                
-                # Filter historical data for this specific product/country combo
                 history = df_master[(df_master['COUNTRY'] == in_country) & (df_master['PRODUCTLINE'] == in_prod)].copy()
-                
                 if not history.empty:
-                    # Let the AI predict what it *thinks* happened in the past
                     hist_features = history[['MONTH_ID', 'QTR_ID', 'MSRP', 'QUANTITYORDERED', 'PRODUCTLINE', 'COUNTRY']]
                     history['AI_PREDICTION'] = bi_pipe.predict(hist_features)
                     history = history.sort_values('ORDERDATE')
-
-                    # Create the comparison graph
                     fig_compare = go.Figure()
                     fig_compare.add_trace(go.Scatter(x=history['ORDERDATE'], y=history['SALES'], name='Actual Revenue', line=dict(color='#1f4e79', width=3)))
                     fig_compare.add_trace(go.Scatter(x=history['ORDERDATE'], y=history['AI_PREDICTION'], name='AI Model Fit', line=dict(color='#ff7f0e', dash='dot')))
-                    
-                    fig_compare.update_layout(title="How closely does the AI match historical reality?", template="plotly_white", xaxis_title="Timeline", yaxis_title="Revenue ($)")
+                    fig_compare.update_layout(template="plotly_white", xaxis_title="Timeline", yaxis_title="Revenue ($)")
                     st.plotly_chart(fig_compare, use_container_width=True)
-                    
-                    # Scorecard
                     err = np.mean(abs(history['SALES'] - history['AI_PREDICTION']) / history['SALES']) * 100
                     st.success(f"✅ The AI matches historical data with an average error of only {err:.2f}% for this selection.")
-                else:
-                    st.warning("No historical data found for this specific combination to show a comparison.")
-      
-     
-        # TAB 3: Market Insights
+
+        # --- TAB 3: MARKET INSIGHTS ---
         with tabs[2]:
             st.header("💡 Business Directives")
             top_country = df.groupby('COUNTRY')['SALES'].sum().idxmax()
             top_prod = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
-            
             col_i1, col_i2 = st.columns(2)
             with col_i1:
                 st.markdown(f"<div class='card'><h4>📦 Inventory Optimization</h4><p><b>Insight:</b> <b>{top_prod}</b> is the top performer.<br><b>Action:</b> Prioritize supply for this line.</p></div>", unsafe_allow_html=True)
             with col_i2:
                 st.markdown(f"<div class='card'><h4>🌍 Regional Strategy</h4><p><b>Insight:</b> <b>{top_country}</b> drives peak revenue.<br><b>Action:</b> Test localized loyalty programs here.</p></div>", unsafe_allow_html=True)
-
             geo_df = df.groupby('COUNTRY')['SALES'].sum().reset_index()
             fig_map = px.choropleth(geo_df, locations="COUNTRY", locationmode='country names', color="COUNTRY", hover_name="COUNTRY", template="plotly_white")
             fig_map.update_geos(projection_type="mercator")
             st.plotly_chart(fig_map, use_container_width=True)
 
-        # TAB 4: DEMAND FORECASTING
+        # --- TAB 4: DEMAND FORECAST ---
         with tabs[3]:
             st.header("📅 Demand Forecasting (Predictive Planning)")
-            st.write("Predicting revenue momentum to help with inventory and budgeting.")
             forecast_df = df.groupby(['YEAR', 'MONTH_ID'])['SALES'].sum().reset_index()
             forecast_df['Target_Forecast'] = forecast_df['SALES'].rolling(window=3).mean().shift(-1)
             fig_forecast = px.line(forecast_df, x='MONTH_ID', y=['SALES', 'Target_Forecast'], markers=True, template="plotly_white", title="3-Month Sales Momentum Forecast")
             st.plotly_chart(fig_forecast, use_container_width=True)
             st.info("Strategy: Use the predicted trend line to adjust stock levels for the upcoming quarter.")
 
-        # TAB 5: CUSTOMER ANALYTICS
+        # --- TAB 5: CUSTOMER ANALYTICS ---
         with tabs[4]:
             st.header("👥 Customer Lifetime Value & Loyalty")
             cust_val = df.groupby('CUSTOMERNAME')['SALES'].sum().reset_index().sort_values('SALES', ascending=False).head(10)
