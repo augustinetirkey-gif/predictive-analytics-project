@@ -221,66 +221,79 @@ if uploaded_file is not None:
             fig_forecast = px.line(forecast_df, x='MONTH_ID', y=['SALES', 'Target_Forecast'], markers=True, template="plotly_white", title="3-Month Sales Momentum Forecast")
             st.plotly_chart(fig_forecast, use_container_width=True)
             
-            # 1. Prepare Continuous Timeline
-            forecast_df = df.groupby(['YEAR', 'MONTH_ID'])['SALES'].sum().reset_index()
+            # TAB 4: Demand Forecast (Advanced Strategic Planning)
+        with tabs[3]:
+            st.header("📅 Demand Forecasting & Supply Logic")
             
-            # Calculate rolling stats for uncertainty
-            window = 3
-            forecast_df['Target_Forecast'] = forecast_df['SALES'].rolling(window=window).mean().shift(-1)
-            forecast_df['Volatility'] = forecast_df['SALES'].rolling(window=window).std()
-            
-            # Confidence Intervals (Forecast +/- 1 Standard Deviation)
-            forecast_df['Upper_Bound'] = forecast_df['Target_Forecast'] + (forecast_df['Volatility'] * 1.5)
-            forecast_df['Lower_Bound'] = forecast_df['Target_Forecast'] - (forecast_df['Volatility'] * 1.5)
-            forecast_df['Lower_Bound'] = forecast_df['Lower_Bound'].clip(lower=0) # No negative sales
+            # --- 1. DATA PREPARATION ---
+            # Total Sales Timeline
+            timeline_df = df.groupby(['YEAR', 'MONTH_ID'])['SALES'].sum().reset_index()
+            # Calculate simple AI Forecast (Rolling Mean)
+            timeline_df['Target_Forecast'] = timeline_df['SALES'].rolling(window=3).mean().shift(-1)
+            # Add Uncertainty (Standard Deviation for Confidence Intervals)
+            timeline_df['Std_Dev'] = timeline_df['SALES'].rolling(window=3).std()
+            timeline_df['Upper_Bound'] = timeline_df['Target_Forecast'] + (timeline_df['Std_Dev'] * 1.5)
+            timeline_df['Lower_Bound'] = (timeline_df['Target_Forecast'] - (timeline_df['Std_Dev'] * 1.5)).clip(lower=0)
 
-            # 2. Main Forecast Chart with Confidence Area
-            fig_forecast = go.Figure()
-
-            # Confidence Area
-            fig_forecast.add_trace(go.Scatter(
-                x=forecast_df.index, y=forecast_df['Upper_Bound'],
-                line=dict(width=0), showlegend=False, name='Upper'
-            ))
-            fig_forecast.add_trace(go.Scatter(
-                x=forecast_df.index, y=forecast_df['Lower_Bound'],
-                fill='tonexty', fillcolor='rgba(31, 78, 121, 0.1)',
-                line=dict(width=0), name='95% Confidence Range'
-            ))
+            # --- 2. FORECAST WITH CONFIDENCE INTERVAL ---
+            st.subheader("🔮 Predictive Revenue Range")
+            fig_range = go.Figure()
+            # Predicted Range (Shaded Area)
+            fig_range.add_trace(go.Scatter(x=timeline_df.index, y=timeline_df['Upper_Bound'], line=dict(width=0), showlegend=False))
+            fig_range.add_trace(go.Scatter(x=timeline_df.index, y=timeline_df['Lower_Bound'], 
+                                          fill='tonexty', fillcolor='rgba(31, 78, 121, 0.1)', line=dict(width=0), 
+                                          name='95% Confidence Interval'))
             # Actual and Forecast Lines
-            fig_forecast.add_trace(go.Scatter(x=forecast_df.index, y=forecast_df['SALES'], name='Actual Sales', line=dict(color='#1f4e79', width=3)))
-            fig_forecast.add_trace(go.Scatter(x=forecast_df.index, y=forecast_df['Target_Forecast'], name='AI Momentum Forecast', line=dict(color='#ff7f0e', dash='dot')))
-
-            fig_forecast.update_layout(title="Predictive Sales Momentum (with Confidence Bands)", template="plotly_white", xaxis_title="Historical Period", yaxis_title="Revenue ($)")
-            st.plotly_chart(fig_forecast, use_container_width=True)
-
-            # 3. Supply Chain Insights
-            c1, c2 = st.columns(2)
+            fig_range.add_trace(go.Scatter(x=timeline_df.index, y=timeline_df['SALES'], name='Actual Sales', line=dict(color='#1f4e79', width=2.5)))
+            fig_range.add_trace(go.Scatter(x=timeline_df.index, y=timeline_df['Target_Forecast'], name='AI Forecast', line=dict(color='#ff7f0e', dash='dot', width=2)))
             
-            with c1:
-                st.subheader("🌙 Seasonality Heat Index")
-                # Average performance per month across all years
-                seasonality = df.groupby('MONTH_ID')['SALES'].mean().reset_index()
-                fig_season = px.bar(seasonality, x='MONTH_ID', y='SALES', color='SALES', color_continuous_scale='Blues')
-                fig_season.update_layout(title="Average Demand Intensity by Month", showlegend=False)
+            fig_range.update_layout(template="plotly_white", xaxis_title="Historical Periods", yaxis_title="Revenue ($)", hovermode="x unified")
+            st.plotly_chart(fig_range, use_container_width=True)
+
+            # --- 3. SEASONALITY & YoY ANALYSIS ---
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.subheader("🌙 Seasonality Index")
+                # Average performance per month across all historical years
+                monthly_avg = df_master.groupby('MONTH_ID')['SALES'].mean().reset_index()
+                fig_season = px.bar(monthly_avg, x='MONTH_ID', y='SALES', color='SALES', color_continuous_scale='Blues',
+                                    title="Average Demand Intensity by Month", template="plotly_white")
                 st.plotly_chart(fig_season, use_container_width=True)
+            
+            with col2:
+                st.subheader("📊 YoY Forecast Comparison")
+                # Shift actual sales by 12 periods to compare forecast vs same month last year
+                timeline_df['Last_Year_Actual'] = timeline_df['SALES'].shift(12)
+                yoy_df = timeline_df.dropna(subset=['Target_Forecast', 'Last_Year_Actual']).iloc[-12:]
+                fig_yoy = px.line(yoy_df, x=yoy_df.index, y=['Target_Forecast', 'Last_Year_Actual'],
+                                 labels={'value': 'Revenue ($)', 'index': 'Period Index'},
+                                 title="Forecast vs Same Period Last Year", template="plotly_white")
+                st.plotly_chart(fig_yoy, use_container_width=True)
 
-            with c2:
-                st.subheader("📦 Inventory Strategy")
-                next_pred = forecast_df['Target_Forecast'].iloc[-2] if len(forecast_df) > 2 else 0
-                safety_stock = forecast_df['Volatility'].mean() * 1.65 # Statistical Safety Factor
-                
-                st.write(f"**Predicted Demand (Next Month):** ${next_pred:,.2f}")
-                st.write(f"**Recommended Safety Buffer:** ${safety_stock:,.2f}")
-                
-                st.success(f"💡 **Action:** Maintain total inventory value of **${(next_pred + safety_stock):,.2f}** to prevent stockouts with 95% confidence.")
+            # --- 4. TOP PRODUCTS DEMAND MINI-CHARTS ---
+            st.divider()
+            st.subheader("📦 Top Products Demand Forecast")
+            # Get Top 3 Products by volume to avoid clutter
+            top_p_list = df.groupby('PRODUCTLINE')['SALES'].sum().nlargest(3).index.tolist()
+            prod_df = df[df['PRODUCTLINE'].isin(top_p_list)].groupby(['YEAR', 'MONTH_ID', 'PRODUCTLINE'])['SALES'].sum().reset_index()
+            prod_df['Forecast'] = prod_df.groupby('PRODUCTLINE')['SALES'].transform(lambda x: x.rolling(window=3).mean().shift(-1))
+            
+            # Small Multiples (Facet Charts)
+            fig_prod = px.line(prod_df.dropna(), x='MONTH_ID', y=['SALES', 'Forecast'], facet_col='PRODUCTLINE',
+                              markers=True, template="plotly_white", title="Forward Momentum by Category (Top 3)")
+            st.plotly_chart(fig_prod, use_container_width=True)
 
-            # 4. Data Export for Planning
-            with st.expander("📥 View & Export Forecast Table"):
-                export_df = forecast_df[['YEAR', 'MONTH_ID', 'SALES', 'Target_Forecast', 'Upper_Bound', 'Lower_Bound']].dropna()
-                st.dataframe(export_df, use_container_width=True)
-                st.download_button("Download Planning CSV", export_df.to_csv(index=False), "demand_planning.csv", "text/csv")
-
+            # --- 5. INTERACTIVE FORECAST TABLE & EXPORT ---
+            st.divider()
+            st.subheader("📑 Forecast Data Intelligence")
+            final_table = timeline_df[['YEAR', 'MONTH_ID', 'SALES', 'Target_Forecast', 'Upper_Bound', 'Lower_Bound']].tail(12).round(2)
+            st.dataframe(final_table, use_container_width=True, hide_index=True)
+            
+            # Export Logic
+            csv_data = final_table.to_csv(index=False).encode('utf-8')
+            st.download_button(label="📥 Export Demand Planning CSV", data=csv_data, 
+                               file_name="predicticorp_demand_planning.csv", mime="text/csv")
         # TAB 5: Customer Analytics
         with tabs[4]:
             st.header("👥 Customer Lifetime Value & Loyalty")
@@ -292,6 +305,89 @@ if uploaded_file is not None:
             with col_c2:
                 st.subheader("Deal Size Analysis")
                 st.plotly_chart(px.histogram(df, x='DEALSIZE', color='DEALSIZE', template="plotly_white"), use_container_width=True)
+
+
+            
+            # --- 1. DATA PREPARATION (Customer Metrics) ---
+            cust_base = df.groupby('CUSTOMERNAME').agg({
+                'SALES': 'sum',
+                'ORDERNUMBER': 'nunique',
+                'ORDERDATE': 'max',
+                'COUNTRY': 'first'
+            }).reset_index()
+            cust_base.columns = ['Customer', 'Total_Revenue', 'Frequency', 'Last_Order', 'Country']
+            
+            # --- 2. CUSTOMER SEGMENTATION (BY REVENUE) ---
+            st.subheader("📊 Strategic Customer Segmentation")
+            col_s1, col_s2 = st.columns([1, 2])
+            
+            with col_s1:
+                # Segmenting into Value Tiers
+                cust_base['Segment'] = pd.qcut(cust_base['Total_Revenue'], q=3, 
+                                              labels=['Bronze (Emerging)', 'Silver (Growth)', 'Gold (VIP)'])
+                fig_seg = px.pie(cust_base, names='Segment', hole=0.5,
+                                 color_discrete_sequence=px.colors.qualitative.Bold,
+                                 template="plotly_white")
+                st.plotly_chart(fig_seg, use_container_width=True)
+            
+            with col_s2:
+                # Frequency vs Revenue Mapping
+                fig_loyalty = px.scatter(cust_base, x='Frequency', y='Total_Revenue',
+                                        size='Total_Revenue', color='Segment',
+                                        hover_name='Customer', template="plotly_white",
+                                        title="Loyalty Mapping: Order Frequency vs. Monetary Value")
+                st.plotly_chart(fig_loyalty, use_container_width=True)
+
+            # --- 3. LIFETIME VALUE (LTV) TREND ---
+            st.divider()
+            st.subheader("📈 Customer Lifetime Value (LTV) Momentum")
+            # Calculate cumulative revenue over time for the whole business
+            ltv_df = df.sort_values('ORDERDATE')
+            ltv_df['Cumulative_Revenue'] = ltv_df['SALES'].cumsum()
+            
+            fig_ltv = px.line(ltv_df, x='ORDERDATE', y='Cumulative_Revenue', 
+                             template="plotly_white", title="Cumulative Business Value Growth")
+            fig_ltv.update_traces(line_color='#1f4e79', fill='tozeroy')
+            st.plotly_chart(fig_ltv, use_container_width=True)
+
+            # --- 4. GEOGRAPHIC DISTRIBUTION & CHURN RISK ---
+            st.divider()
+            c_geo, c_churn = st.columns(2)
+            
+            with c_geo:
+                st.subheader("🌍 Top Customer Distribution")
+                fig_cust_map = px.scatter_geo(cust_base, locations="Country", locationmode='country names',
+                                             size="Total_Revenue", color="Segment",
+                                             hover_name="Customer", template="plotly_white",
+                                             projection="natural earth")
+                st.plotly_chart(fig_cust_map, use_container_width=True)
+            
+            with c_churn:
+                st.subheader("🚩 Churn Risk Analysis")
+                # Highlighting customers who haven't ordered in the last 4 months of the dataset
+                max_date = df['ORDERDATE'].max()
+                cust_base['Days_Since_Last'] = (max_date - cust_base['Last_Order']).dt.days
+                churn_risk = cust_base[cust_base['Days_Since_Last'] > 120].sort_values('Total_Revenue', ascending=False)
+                
+                st.warning(f"Total Customers at Risk: {len(churn_risk)}")
+                st.write("Top Value Customers with declining activity (>120 days):")
+                st.dataframe(churn_risk[['Customer', 'Total_Revenue', 'Days_Since_Last']].head(10), 
+                             hide_index=True, use_container_width=True)
+
+            # --- 5. PRODUCT PREFERENCE HEATMAP (Yellow-Blue-Red Range) ---
+            st.divider()
+            st.subheader("🧩 Product Preference Heatmap")
+            st.write("Analysis of Sales Volume: Customers × Product Lines")
+            
+            # Pivot data for heatmap
+            heat_df = df.pivot_table(index='CUSTOMERNAME', columns='PRODUCTLINE', 
+                                    values='SALES', aggfunc='sum').fillna(0).head(30) # Top 30 for readability
+            
+            # Using the 'RdYlBu_r' scale (Red-Yellow-Blue reversed) for vibrant distinction
+            fig_heat = px.imshow(heat_df, text_auto='.2s', aspect="auto",
+                                 color_continuous_scale='RdYlBu_r', 
+                                 template="plotly_white")
+            st.plotly_chart(fig_heat, use_container_width=True)
 
 else:
     # --- WELCOME PAGE ---
