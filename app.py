@@ -62,7 +62,7 @@ if uploaded_file is not None:
 
     df_master = load_and_process_data(uploaded_file)
     
-    # --- UPDATED SIDEBAR FILTERS (INCLUDES PRODUCT LINE) ---
+    # --- SIDEBAR FILTERS ---
     st.sidebar.subheader("🔍 Filter Strategy")
     st_year = st.sidebar.multiselect("Fiscal Year", options=sorted(df_master['YEAR'].unique()), default=df_master['YEAR'].unique())
     st_country = st.sidebar.multiselect("Active Markets", options=sorted(df_master['COUNTRY'].unique()), default=df_master['COUNTRY'].unique())
@@ -114,7 +114,7 @@ if uploaded_file is not None:
                 fig_pie = px.pie(df, values='SALES', names='PRODUCTLINE', hole=0.5, color_discrete_sequence=px.colors.qualitative.Prism)
                 st.plotly_chart(fig_pie, use_container_width=True)
             
-            # --- HIGHEST TO LOWEST REVENUE BY COUNTRY BAR CHART ---
+            # --- RANKED REVENUE BY COUNTRY BAR CHART ---
             st.markdown("#### Revenue Performance by Country (Ranked)")
             country_revenue = df.groupby('COUNTRY')['SALES'].sum().reset_index().sort_values('SALES', ascending=False)
             fig_bar = px.bar(country_revenue, x='COUNTRY', y='SALES', text_auto='.2s', color='SALES', color_continuous_scale='Blues', template="plotly_white")
@@ -133,14 +133,19 @@ if uploaded_file is not None:
             valid_products = df_master[df_master['COUNTRY'] == in_country]['PRODUCTLINE'].unique()
             in_prod = col2.selectbox(f"Available Products in {in_country}", valid_products)
             ref_data = df_master[df_master['PRODUCTLINE'] == in_prod]
-            avg_msrp = float(ref_data['MSRP'].mean())
-            min_msrp = float(ref_data['MSRP'].min())
-            max_msrp = float(ref_data['MSRP'].max())
+            
+            # Use float conversion to ensure decimal support
+            avg_msrp = float(ref_data['MSRP'].mean()) if not ref_data.empty else 0.0
+            min_msrp = float(ref_data['MSRP'].min()) if not ref_data.empty else 0.0
+            max_msrp = float(ref_data['MSRP'].max()) if not ref_data.empty else 0.0
+            
             st.info(f"💡 **Historical Price Context for {in_prod}:** Avg: ${avg_msrp:.2f} | Range: ${min_msrp:.2f} - ${max_msrp:.2f}")
+            
             in_qty = col1.slider("Quantity to Sell", 1, 1000, 50)
-          in_msrp = col2.number_input("Unit Price ($)", value=float(avg_msrp), step=0.01, format="%.2f")
-
+            # Corrected indentation and decimal support for Price Input
+            in_msrp = col2.number_input("Unit Price ($)", value=float(avg_msrp), step=0.01, format="%.2f")
             in_month = col3.slider("Order Month", 1, 12, 12)
+            
             if st.button("RUN AI SIMULATION & REALITY CHECK", use_container_width=True, type="primary"):
                 inp = pd.DataFrame([{'MONTH_ID': in_month, 'QTR_ID': (in_month-1)//3+1, 'MSRP': in_msrp, 'QUANTITYORDERED': in_qty, 'PRODUCTLINE': in_prod, 'COUNTRY': in_country}])
                 pred = bi_pipe.predict(inp)[0]
@@ -177,17 +182,15 @@ if uploaded_file is not None:
             fig_map.update_geos(projection_type="mercator")
             st.plotly_chart(fig_map, use_container_width=True)
 
-        # TAB 4: DEMAND FORECASTING
+        # TAB 4: Demand Forecast
         with tabs[3]:
             st.header("📅 Demand Forecasting (Predictive Planning)")
-            st.write("Predicting revenue momentum to help with inventory and budgeting.")
             forecast_df = df.groupby(['YEAR', 'MONTH_ID'])['SALES'].sum().reset_index()
             forecast_df['Target_Forecast'] = forecast_df['SALES'].rolling(window=3).mean().shift(-1)
             fig_forecast = px.line(forecast_df, x='MONTH_ID', y=['SALES', 'Target_Forecast'], markers=True, template="plotly_white", title="3-Month Sales Momentum Forecast")
             st.plotly_chart(fig_forecast, use_container_width=True)
-            st.info("Strategy: Use the predicted trend line to adjust stock levels for the upcoming quarter.")
 
-        # TAB 5: CUSTOMER ANALYTICS
+        # TAB 5: Customer Analytics
         with tabs[4]:
             st.header("👥 Customer Lifetime Value & Loyalty")
             cust_val = df.groupby('CUSTOMERNAME')['SALES'].sum().reset_index().sort_values('SALES', ascending=False).head(10)
@@ -198,14 +201,8 @@ if uploaded_file is not None:
             with col_c2:
                 st.subheader("Deal Size Analysis")
                 st.plotly_chart(px.histogram(df, x='DEALSIZE', color='DEALSIZE', template="plotly_white"), use_container_width=True)
-            st.success("Marketing Action: Assign VIP account managers to the top 10 customers identified above.")
 
 else:
     # --- WELCOME PAGE ---
     st.markdown("""<div class="welcome-header"><h1>🚀 Welcome to PredictiCorp Intelligence</h1><p>The Global Executive Suite for Data-Driven Market Strategy</p></div>""", unsafe_allow_html=True)
-    st.markdown("### 🛠️ Get Started in 3 Simple Steps")
-    s1, s2, s3 = st.columns(3)
-    with s1: st.markdown("""<div class="feature-box"><h2>📋</h2><h3>Step 1</h3><p>Download the CSV template.</p></div>""", unsafe_allow_html=True)
-    with s2: st.markdown("""<div class="feature-box"><h2>📥</h2><h3>Step 2</h3><p>Upload your sales data.</p></div>""", unsafe_allow_html=True)
-    with s3: st.markdown("""<div class="feature-box"><h2>💡</h2><h3>Step 3</h3><p>Explore analytical tabs.</p></div>""", unsafe_allow_html=True)
     st.info("👈 Please upload your Sales Data CSV in the sidebar to activate insights.")
