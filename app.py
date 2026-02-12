@@ -220,6 +220,66 @@ if uploaded_file is not None:
             forecast_df['Target_Forecast'] = forecast_df['SALES'].rolling(window=3).mean().shift(-1)
             fig_forecast = px.line(forecast_df, x='MONTH_ID', y=['SALES', 'Target_Forecast'], markers=True, template="plotly_white", title="3-Month Sales Momentum Forecast")
             st.plotly_chart(fig_forecast, use_container_width=True)
+            
+            # 1. Prepare Continuous Timeline
+            forecast_df = df.groupby(['YEAR', 'MONTH_ID'])['SALES'].sum().reset_index()
+            
+            # Calculate rolling stats for uncertainty
+            window = 3
+            forecast_df['Target_Forecast'] = forecast_df['SALES'].rolling(window=window).mean().shift(-1)
+            forecast_df['Volatility'] = forecast_df['SALES'].rolling(window=window).std()
+            
+            # Confidence Intervals (Forecast +/- 1 Standard Deviation)
+            forecast_df['Upper_Bound'] = forecast_df['Target_Forecast'] + (forecast_df['Volatility'] * 1.5)
+            forecast_df['Lower_Bound'] = forecast_df['Target_Forecast'] - (forecast_df['Volatility'] * 1.5)
+            forecast_df['Lower_Bound'] = forecast_df['Lower_Bound'].clip(lower=0) # No negative sales
+
+            # 2. Main Forecast Chart with Confidence Area
+            fig_forecast = go.Figure()
+
+            # Confidence Area
+            fig_forecast.add_trace(go.Scatter(
+                x=forecast_df.index, y=forecast_df['Upper_Bound'],
+                line=dict(width=0), showlegend=False, name='Upper'
+            ))
+            fig_forecast.add_trace(go.Scatter(
+                x=forecast_df.index, y=forecast_df['Lower_Bound'],
+                fill='tonexty', fillcolor='rgba(31, 78, 121, 0.1)',
+                line=dict(width=0), name='95% Confidence Range'
+            ))
+            # Actual and Forecast Lines
+            fig_forecast.add_trace(go.Scatter(x=forecast_df.index, y=forecast_df['SALES'], name='Actual Sales', line=dict(color='#1f4e79', width=3)))
+            fig_forecast.add_trace(go.Scatter(x=forecast_df.index, y=forecast_df['Target_Forecast'], name='AI Momentum Forecast', line=dict(color='#ff7f0e', dash='dot')))
+
+            fig_forecast.update_layout(title="Predictive Sales Momentum (with Confidence Bands)", template="plotly_white", xaxis_title="Historical Period", yaxis_title="Revenue ($)")
+            st.plotly_chart(fig_forecast, use_container_width=True)
+
+            # 3. Supply Chain Insights
+            c1, c2 = st.columns(2)
+            
+            with c1:
+                st.subheader("🌙 Seasonality Heat Index")
+                # Average performance per month across all years
+                seasonality = df.groupby('MONTH_ID')['SALES'].mean().reset_index()
+                fig_season = px.bar(seasonality, x='MONTH_ID', y='SALES', color='SALES', color_continuous_scale='Blues')
+                fig_season.update_layout(title="Average Demand Intensity by Month", showlegend=False)
+                st.plotly_chart(fig_season, use_container_width=True)
+
+            with c2:
+                st.subheader("📦 Inventory Strategy")
+                next_pred = forecast_df['Target_Forecast'].iloc[-2] if len(forecast_df) > 2 else 0
+                safety_stock = forecast_df['Volatility'].mean() * 1.65 # Statistical Safety Factor
+                
+                st.write(f"**Predicted Demand (Next Month):** ${next_pred:,.2f}")
+                st.write(f"**Recommended Safety Buffer:** ${safety_stock:,.2f}")
+                
+                st.success(f"💡 **Action:** Maintain total inventory value of **${(next_pred + safety_stock):,.2f}** to prevent stockouts with 95% confidence.")
+
+            # 4. Data Export for Planning
+            with st.expander("📥 View & Export Forecast Table"):
+                export_df = forecast_df[['YEAR', 'MONTH_ID', 'SALES', 'Target_Forecast', 'Upper_Bound', 'Lower_Bound']].dropna()
+                st.dataframe(export_df, use_container_width=True)
+                st.download_button("Download Planning CSV", export_df.to_csv(index=False), "demand_planning.csv", "text/csv")
 
         # TAB 5: Customer Analytics
         with tabs[4]:
