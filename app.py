@@ -181,33 +181,7 @@ if uploaded_file is not None:
             fig_map = px.choropleth(geo_df, locations="COUNTRY", locationmode='country names', color="COUNTRY", hover_name="COUNTRY", template="plotly_white")
             fig_map.update_geos(projection_type="mercator")
             st.plotly_chart(fig_map, use_container_width=True)
-            # --- 1. KPI Cards Row ---
-            k1, k2, k3 = st.columns(3)
-            with k1:
-                top_country = df.groupby('COUNTRY')['SALES'].sum().idxmax()
-                st.metric("Top Market (Country)", top_country)
-            with k2:
-                top_p = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
-                st.metric("Hero Product", top_p)
-            with k3:
-                total_rev = df['SALES'].sum()
-                st.metric("Total Analyzed Revenue", f"${total_rev/1e6:.2f}M")
-
-            st.markdown("---")
-
-            # --- 2. Choropleth Map (Multi-color Scaling) ---
-            st.markdown("#### Geographic Revenue Choropleth Map")
-            geo_df = df.groupby('COUNTRY')['SALES'].sum().reset_index()
-            # Turbo provides a high-contrast multi-color scale (Red-Yellow-Green-Blue)
-            fig_map = px.choropleth(geo_df, 
-                                    locations="COUNTRY", 
-                                    locationmode='country names', 
-                                    color="SALES", 
-                                    hover_name="COUNTRY", 
-                                    template="plotly_white",
-                                    color_continuous_scale="Turbo") 
-            fig_map.update_geos(projection_type="mercator")
-            st.plotly_chart(fig_map, use_container_width=True)
+           
 
             # --- 3. Heatmap and Top/Bottom Tables ---
             c3, c4 = st.columns([2, 1])
