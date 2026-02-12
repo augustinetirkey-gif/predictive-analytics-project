@@ -313,17 +313,87 @@ if uploaded_file is not None:
                 hide_index=True
             )
 
-        # TAB 5: Customer Analytics
+    # TAB 5: Customer Analytics (Advanced Intelligence Suite)
         with tabs[4]:
-            st.header("👥 Customer Lifetime Value & Loyalty")
-            cust_val = df.groupby('CUSTOMERNAME')['SALES'].sum().reset_index().sort_values('SALES', ascending=False).head(10)
-            col_c1, col_c2 = st.columns(2)
-            with col_c1:
-                st.subheader("Top 10 High-Value Customers")
-                st.plotly_chart(px.bar(cust_val, x='SALES', y='CUSTOMERNAME', orientation='h', template="plotly_white"), use_container_width=True)
-            with col_c2:
-                st.subheader("Deal Size Analysis")
-                st.plotly_chart(px.histogram(df, x='DEALSIZE', color='DEALSIZE', template="plotly_white"), use_container_width=True)
+            st.header("👥 Customer Intelligence & Loyalty")
+            
+            # --- 1. DATA PREPARATION (RFM Logic) ---
+            # We calculate Recency (days since last order), Frequency (order count), and Monetary (total sales)
+            current_date = df['ORDERDATE'].max()
+            cust_metrics = df.groupby('CUSTOMERNAME').agg({
+                'SALES': 'sum',
+                'ORDERNUMBER': 'nunique',
+                'ORDERDATE': 'max',
+                'COUNTRY': 'first'
+            }).reset_index()
+            cust_metrics.columns = ['Customer', 'Revenue', 'Frequency', 'LastOrder', 'Country']
+            cust_metrics['Recency'] = (current_date - cust_metrics['LastOrder']).dt.days
+            
+            # --- 2. CUSTOMER SEGMENTATION ---
+            st.subheader("📊 Strategic Customer Segmentation")
+            # Segmenting by Revenue Tiers
+            cust_metrics['Segment'] = pd.qcut(cust_metrics['Revenue'], q=3, labels=['Bronze', 'Silver', 'Gold (VIP)'])
+            
+            col_s1, col_s2 = st.columns([1, 2])
+            with col_s1:
+                fig_seg = px.pie(cust_metrics, names='Segment', hole=0.4, 
+                                 color_discrete_sequence=px.colors.qualitative.Pastel,
+                                 title="Customer Base by Value Tier")
+                st.plotly_chart(fig_seg, use_container_width=True)
+            
+            with col_s2:
+                fig_scatter = px.scatter(cust_metrics, x='Frequency', y='Revenue', 
+                                         size='Revenue', color='Segment', hover_name='Customer',
+                                         template="plotly_white", title="Loyalty Map: Frequency vs. Revenue")
+                st.plotly_chart(fig_scatter, use_container_width=True)
+
+            # --- 3. LIFETIME VALUE (LTV) TREND ---
+            st.divider()
+            st.subheader("📈 Cumulative Lifetime Value (LTV) Momentum")
+            # Calculate running total of sales over time
+            ltv_trend = df.sort_values('ORDERDATE').copy()
+            ltv_trend['Cumulative_LTV'] = ltv_trend['SALES'].cumsum()
+            fig_ltv = px.line(ltv_trend, x='ORDERDATE', y='Cumulative_LTV', 
+                              template="plotly_white", title="Cumulative Business Value Growth")
+            fig_ltv.update_traces(line_color='#1f4e79', fill='tozeroy')
+            st.plotly_chart(fig_ltv, use_container_width=True)
+
+            # --- 4. GEOGRAPHIC DISTRIBUTION & CHURN RISK ---
+            st.divider()
+            col_g1, col_g2 = st.columns(2)
+            
+            with col_g1:
+                st.subheader("🌍 Customer Geographic Footprint")
+                fig_geo = px.scatter_geo(cust_metrics, locations="Country", locationmode='country names',
+                                         size="Revenue", color="Segment", hover_name="Customer",
+                                         template="plotly_white", projection="natural earth")
+                st.plotly_chart(fig_geo, use_container_width=True)
+            
+            with col_g2:
+                st.subheader("🚩 Churn Risk Analysis")
+                # Flagging customers who haven't ordered in a long time (Recency > 120 days)
+                churn_df = cust_metrics[cust_metrics['Recency'] > 120].sort_values('Revenue', ascending=False)
+                st.write(f"**Found {len(churn_df)} customers at risk (No orders in 120+ days)**")
+                st.dataframe(churn_df[['Customer', 'Revenue', 'Recency', 'Country']].head(10), 
+                             use_container_width=True, hide_index=True)
+
+            # --- 5. PRODUCT PREFERENCE HEATMAP (Multi-Color) ---
+            st.divider()
+            st.subheader("🧩 Product Affinity Heatmap")
+            st.write("Correlation between top customers and product line preferences.")
+            
+            # Pivot data for heatmap: Top 25 customers by revenue
+            top_cust_names = cust_metrics.nlargest(25, 'Revenue')['Customer']
+            heat_data = df[df['CUSTOMERNAME'].isin(top_cust_names)].pivot_table(
+                index='CUSTOMERNAME', columns='PRODUCTLINE', values='SALES', aggfunc='sum'
+            ).fillna(0)
+            
+            # Using the 'RdYlBu_r' color scale for high distinction (Red = High, Yellow = Mid, Blue = Low)
+            fig_heat = px.imshow(heat_data, text_auto='.2s', aspect="auto",
+                                 color_continuous_scale='RdYlBu_r', 
+                                 template="plotly_white")
+            st.plotly_chart(fig_heat, use_container_width=True)
+        
 
 else:
     # --- WELCOME PAGE ---
