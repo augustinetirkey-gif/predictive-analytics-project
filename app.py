@@ -230,4 +230,4 @@ else:
     with s1: st.markdown("""<div class="feature-box"><h2>📋</h2><h3>Step 1</h3><p>Download the CSV template.</p></div>""", unsafe_allow_html=True)
     with s2: st.markdown("""<div class="feature-box"><h2>📥</h2><h3>Step 2</h3><p>Upload your sales data.</p></div>""", unsafe_allow_html=True)
     with s3: st.markdown("""<div class="feature-box"><h2>💡</h2><h3>Step 3</h3><p>Explore analytical tabs.</p></div>""", unsafe_allow_html=True)
-    st.info("👈 Please upload your Sales Data CSV in the sidebar to activate insights.")this one before upgrade of executive dashboards
+    st.info("👈 Please upload your Sales Data CSV in the sidebar to activate insights.")
