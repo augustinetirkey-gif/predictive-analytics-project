@@ -62,7 +62,54 @@ if uploaded_file is not None:
 
     df_master = load_and_process_data(uploaded_file)
     
+    # --- INDEPENDENT CHATGPT-LIKE SIDEBAR ANALYST ---
+    st.sidebar.divider()
+    st.sidebar.subheader("🤖 PredictiCorp AI Chat")
+    
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+
+    # Display chat history in sidebar
+    for message in st.session_state.messages:
+        with st.sidebar.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    if prompt := st.sidebar.chat_input("Ask about your data..."):
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.sidebar.chat_message("user"):
+            st.markdown(prompt)
+
+        with st.sidebar.chat_message("assistant"):
+            q = prompt.lower()
+            response = ""
+            
+            # Semantic Logic Engine for CSV queries
+            try:
+                if "total sales" in q or "revenue" in q:
+                    total = df_master['SALES'].sum()
+                    response = f"The total global revenue is **${total:,.2f}**."
+                elif "top country" in q or "best country" in q:
+                    top_c = df_master.groupby('COUNTRY')['SALES'].sum().idxmax()
+                    response = f"The top performing country is **{top_c}**."
+                elif "best product" in q or "top product" in q:
+                    top_p = df_master.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
+                    response = f"The highest revenue product line is **{top_p}**."
+                elif "average" in q:
+                    avg = df_master['SALES'].mean()
+                    response = f"The average order value is **${avg:,.2f}**."
+                elif "how many" in q or "count" in q:
+                    count = len(df_master)
+                    response = f"There are **{count:,}** total transactions in this dataset."
+                else:
+                    response = "I've analyzed the CSV. I can help with totals, averages, and ranking your products or countries. What would you like to know?"
+            except:
+                response = "I'm sorry, I couldn't process that. Please ensure the CSV is formatted correctly."
+            
+            st.markdown(response)
+            st.session_state.messages.append({"role": "assistant", "content": response})
+
     # --- SIDEBAR FILTERS ---
+    st.sidebar.divider()
     st.sidebar.subheader("🔍 Filter Strategy")
     st_year = st.sidebar.multiselect("Fiscal Year", options=sorted(df_master['YEAR'].unique()), default=df_master['YEAR'].unique())
     st_country = st.sidebar.multiselect("Active Markets", options=sorted(df_master['COUNTRY'].unique()), default=df_master['COUNTRY'].unique())
@@ -142,7 +189,6 @@ if uploaded_file is not None:
             st.info(f"💡 **Historical Price Context for {in_prod}:** Avg: ${avg_msrp:.2f} | Range: ${min_msrp:.2f} - ${max_msrp:.2f}")
             
             in_qty = col1.slider("Quantity to Sell", 1, 1000, 50)
-            # Corrected indentation and decimal support for Price Input
             in_msrp = col2.number_input("Unit Price ($)", value=float(avg_msrp), step=0.01, format="%.2f")
             in_month = col3.slider("Order Month", 1, 12, 12)
             
@@ -164,8 +210,6 @@ if uploaded_file is not None:
                     st.plotly_chart(fig_compare, use_container_width=True)
                     err = np.mean(abs(history['SALES'] - history['AI_PREDICTION']) / history['SALES']) * 100
                     st.success(f"✅ The AI matches historical data with an average error of only {err:.2f}% for this selection.")
-                else:
-                    st.warning("No historical data found for this specific combination to show a comparison.")
 
         # TAB 3: Market Insights
         with tabs[2]:
@@ -192,7 +236,7 @@ if uploaded_file is not None:
 
         # TAB 5: Customer Analytics
         with tabs[4]:
-            st.header("👥 Customer Lifetime Value & Loyalty")
+            st.header("👥 Customer Analytics")
             cust_val = df.groupby('CUSTOMERNAME')['SALES'].sum().reset_index().sort_values('SALES', ascending=False).head(10)
             col_c1, col_c2 = st.columns(2)
             with col_c1:
