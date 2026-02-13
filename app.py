@@ -13,13 +13,13 @@ import io
 # --- SYSTEM CONFIGURATION ---
 st.markdown("""
     <style>
-    /* 1. CLEAN APP CANVAS */
+    /* 1. CLEAN APP CANVAS - Force Light */
     .stApp {
         background-color: #f4f7f9 !important;
+        color: #1f4e79 !important;
     }
 
-    /* 2. REFINED KPI CARDS */
-    /* Target only the specific metric components for high visibility */
+    /* 2. REFINED KPI CARDS - Anti-Inversion */
     [data-testid="stMetricValue"] {
         font-size: 2.2rem !important;
         font-weight: 700 !important;
@@ -34,16 +34,18 @@ st.markdown("""
         letter-spacing: 1px;
     }
 
-    .stMetric {
+    /* Force the card background to stay white and text to stay dark */
+    [data-testid="metric-container"] {
         background-color: #ffffff !important;
         border-radius: 15px !important;
         padding: 25px !important;
         box-shadow: 0 10px 20px rgba(31, 78, 121, 0.05) !important;
         border: 1px solid #e1e4e8 !important;
         border-top: 6px solid #1f4e79 !important;
+        color: #1f4e79 !important;
     }
 
-    /* 3. MODERN TABS */
+    /* 3. MODERN TABS - Force Visibility */
     .stTabs [data-baseweb="tab-list"] {
         gap: 12px;
         background-color: transparent !important;
@@ -66,17 +68,21 @@ st.markdown("""
         -webkit-text-fill-color: #ffffff !important;
     }
 
-    /* 4. CLEANER TEXT & HEADERS */
-    h1, h2, h3 {
+    /* 4. HEADERS - Anti-Dark Mode */
+    h1, h2, h3, h4, h5, h6, p, span {
         color: #1f4e79 !important;
         -webkit-text-fill-color: #1f4e79 !important;
-        font-family: 'Inter', sans-serif;
     }
 
-    /* 5. SIDEBAR ELEGANCE */
+    /* 5. SIDEBAR - Force Light */
     [data-testid="stSidebar"] {
         background-color: #ffffff !important;
         border-right: 1px solid #e1e4e8 !important;
+    }
+    
+    [data-testid="stSidebar"] * {
+        color: #1f4e79 !important;
+        -webkit-text-fill-color: #1f4e79 !important;
     }
     </style>
     """, unsafe_allow_html=True)
