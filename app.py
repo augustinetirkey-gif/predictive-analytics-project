@@ -16,25 +16,51 @@ st.set_page_config(page_title="PredictiCorp BI Suite", layout="wide", initial_si
 # --- EXECUTIVE THEMING ---
 st.markdown("""
     <style>
-    .main { background-color: #f4f7f9; }
-    .stMetric { background-color: #ffffff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-top: 5px solid #1f4e79; }
-    .stTabs [data-baseweb="tab-list"] { gap: 10px; background-color: #f4f7f9; }
-    .stTabs [data-baseweb="tab"] { background-color: #ffffff; border-radius: 10px 10px 0 0; border: 1px solid #e1e4e8; padding: 10px 20px; font-weight: bold; color: #5c6c7b; }
-    .stTabs [aria-selected="true"] { background-color: #1f4e79 !important; color: white !important; }
-    .card { background-color: #ffffff; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; border-left: 8px solid #1f4e79; }
-    
-    .welcome-header {
-        background: linear-gradient(90deg, #1f4e79 0%, #2c3e50 100%);
-        color: white; padding: 60px; border-radius: 20px; text-align: center; margin-bottom: 40px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    /* 1. FORCE THE APP CANVAS TO STAY LIGHT */
+    .stApp {
+        background-color: #f4f7f9 !important;
     }
-    .feature-box {
-        background: white; padding: 30px; border-radius: 15px; border-bottom: 4px solid #1f4e79; text-align: center; transition: transform 0.3s ease;
+
+    /* 2. KPI BOXES: Force Dark Text on White Background */
+    /* This specifically targets the "invisible" text in your screenshots */
+    [data-testid="stMetricValue"], 
+    [data-testid="stMetricLabel"], 
+    [data-testid="stMetricDelta"] {
+        color: #1f4e79 !important;
+        -webkit-text-fill-color: #1f4e79 !important; /* Added for mobile browsers */
     }
-    .feature-box:hover { transform: translateY(-10px); }
+
+    .stMetric {
+        background-color: #ffffff !important;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        border-top: 5px solid #1f4e79 !important;
+    }
+
+    /* 3. TABS: Ensure they stay visible */
+    .stTabs [data-baseweb="tab"] {
+        color: #5c6c7b !important;
+        background-color: #ffffff !important;
+        -webkit-text-fill-color: #5c6c7b !important;
+    }
+
+    /* 4. HEADERS: Force them to stay dark */
+    h1, h2, h3, h4, p {
+        color: #1f4e79 !important;
+        -webkit-text-fill-color: #1f4e79 !important;
+    }
+
+    /* 5. SIDEBAR: Lock the colors */
+    section[data-testid="stSidebar"] {
+        background-color: #ffffff !important;
+    }
+    section[data-testid="stSidebar"] * {
+        color: #1f4e79 !important;
+        -webkit-text-fill-color: #1f4e79 !important;
+    }
     </style>
     """, unsafe_allow_html=True)
-
 # --- TEMPLATE GENERATOR ---
 def convert_df_to_csv(df):
     return df.to_csv(index=False).encode('utf-8')
