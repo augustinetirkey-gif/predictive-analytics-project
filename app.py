@@ -387,8 +387,8 @@ if uploaded_file is not None:
                                          size='Revenue', color='Segment', hover_name='Customer',
                                          template="plotly_white", title="Loyalty Map: Frequency vs. Revenue")
                 st.plotly_chart(fig_scatter, use_container_width=True)
-         
-# --- NEW 3. REVENUE CONCENTRATION (80/20 Rule) ---
+
+            # --- NEW 3. REVENUE CONCENTRATION (80/20 Rule) ---
 st.divider()
 st.subheader("🎯 Revenue Concentration Analysis")
 
@@ -409,6 +409,9 @@ fig_pareto.update_traces(line_color='#1f4e79', fillcolor='rgba(31, 78, 121, 0.2)
 st.plotly_chart(fig_pareto, use_container_width=True)
 st.info("💡 **Insight:** If the curve rises very steeply, your business is heavily dependent on a few top customers.")
           
+
+   
+
 
             # --- 4. GEOGRAPHIC DISTRIBUTION & CHURN RISK ---
             st.divider()
