@@ -380,15 +380,15 @@ if uploaded_file is not None:
             
             col_s1, col_s2 = st.columns([1, 1])
             with col_s1:
-                fig_seg = px.pie(cust_metrics, names='Deal size', hole=0.4, 
+                fig_seg = px.pie(cust_metrics, names='Customer tier', hole=0.4, 
                                  color_discrete_sequence=px.colors.qualitative.Pastel,
                                  title="Customer Base Share")
                 st.plotly_chart(fig_seg, use_container_width=True)
                 
             with col_s2:
                 # Bar Chart explaining average revenue per deal size tier
-                deal_summary = cust_metrics.groupby('Deal size')['Revenue'].mean().reset_index()
-                fig_deal_bar = px.bar(deal_summary, x='Deal size', y='Revenue',
+                deal_summary = cust_metrics.groupby('Customer tier')['Revenue'].mean().reset_index()
+                fig_deal_bar = px.bar(deal_summary, x='Customer tier', y='Revenue',
                                       color='Deal size',
                                       color_discrete_sequence=px.colors.qualitative.Pastel,
                                       title="Avg. Revenue per Deal Tier",
@@ -402,7 +402,7 @@ if uploaded_file is not None:
             st.divider()
             st.subheader("🌍 Customer Geographic Footprint")
             fig_geo = px.scatter_geo(cust_metrics, locations="Country", locationmode='country names',
-                                     size="Revenue", color="Deal size", hover_name="Customer",
+                                     size="Revenue", color="Customer tier ", hover_name="Customer",
                                      template="plotly", projection="natural earth")
             st.plotly_chart(fig_geo, use_container_width=True)
 
