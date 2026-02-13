@@ -388,17 +388,27 @@ if uploaded_file is not None:
                                          template="plotly_white", title="Loyalty Map: Frequency vs. Revenue")
                 st.plotly_chart(fig_scatter, use_container_width=True)
          
+# --- NEW 3. REVENUE CONCENTRATION (80/20 Rule) ---
+st.divider()
+st.subheader("🎯 Revenue Concentration Analysis")
 
-            # --- 3. LIFETIME VALUE (LTV) TREND ---
-            st.divider()
-            st.subheader("📈 Cumulative Lifetime Value (LTV) Momentum")
-            # Calculate running total of sales over time
-            ltv_trend = df.sort_values('ORDERDATE').copy()
-            ltv_trend['Cumulative_LTV'] = ltv_trend['SALES'].cumsum()
-            fig_ltv = px.line(ltv_trend, x='ORDERDATE', y='Cumulative_LTV', 
-                              template="plotly_white", title="Cumulative Business Value Growth")
-            fig_ltv.update_traces(line_color='#1f4e79', fill='tozeroy')
-            st.plotly_chart(fig_ltv, use_container_width=True)
+# Sort customers by revenue and calculate percentage of total revenue
+pareto_df = cust_metrics.sort_values('Revenue', ascending=False).copy()
+pareto_df['Revenue_Share'] = (pareto_df['Revenue'].cumsum() / pareto_df['Revenue'].sum()) * 100
+pareto_df['Customer_Count_Pct'] = np.arange(1, len(pareto_df) + 1) / len(pareto_df) * 100
+
+fig_pareto = px.area(pareto_df, x='Customer_Count_Pct', y='Revenue_Share',
+                     title="The Pareto Curve: % of Customers vs. % of Total Revenue",
+                     labels={'Customer_Count_Pct': '% of Total Customers', 'Revenue_Share': '% of Total Revenue'},
+                     template="plotly_white")
+
+# Add a reference line for the 80/20 rule
+fig_pareto.add_hline(y=80, line_dash="dash", line_color="red", annotation_text="80% Revenue Mark")
+fig_pareto.update_traces(line_color='#1f4e79', fillcolor='rgba(31, 78, 121, 0.2)')
+
+st.plotly_chart(fig_pareto, use_container_width=True)
+st.info("💡 **Insight:** If the curve rises very steeply, your business is heavily dependent on a few top customers.")
+          
 
             # --- 4. GEOGRAPHIC DISTRIBUTION & CHURN RISK ---
             st.divider()
