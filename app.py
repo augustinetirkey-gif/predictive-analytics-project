@@ -368,7 +368,7 @@ if uploaded_file is not None:
                 'COUNTRY': 'first'
                 'PHONE': 'first'
             }).reset_index()
-            cust_metrics.columns = ['Customer', 'Revenue', 'Frequency', 'LastOrder', 'Country']
+            cust_metrics.columns = ['Customer', 'Revenue', 'Frequency', 'LastOrder', 'Country''Phone']
             cust_metrics['Recency'] = (current_date - cust_metrics['LastOrder']).dt.days
             
             # --- 2. CUSTOMER SEGMENTATION ---
