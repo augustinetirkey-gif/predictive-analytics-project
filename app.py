@@ -355,7 +355,6 @@ if uploaded_file is not None:
             )
 
     # TAB 5: Customer Analytics (Advanced Intelligence Suite)
-       # TAB 5: Customer Analytics (Advanced Intelligence Suite)
         with tabs[4]:
             st.header("👥 Customer Intelligence & Loyalty")
             
@@ -391,7 +390,7 @@ if uploaded_file is not None:
                                          template="plotly", title="Loyalty Map: Frequency vs. Revenue")
                 st.plotly_chart(fig_scatter, use_container_width=True)
 
-            # --- NEW 3. REVENUE CONCENTRATION (80/20 Rule) ---
+            # --- 3. REVENUE CONCENTRATION (80/20 Rule) ---
             st.divider()
             st.subheader("🎯 Revenue Concentration Analysis")
 
@@ -412,40 +411,42 @@ if uploaded_file is not None:
             st.plotly_chart(fig_pareto, use_container_width=True)
             st.info("💡 **Insight:** If the curve rises very steeply, your business is heavily dependent on a few top customers.")
 
-            # --- NEW 4.GEOGRAPHIC DISTRIBUTION 
-               st.subheader("🌍 Customer Geographic Footprint")
-                fig_geo = px.scatter_geo(cust_metrics, locations="Country", locationmode='country names',
-                                         size="Revenue", color="Segment", hover_name="Customer",
-                                         template="plotly", projection="natural earth")
-                st.plotly_chart(fig_geo, use_container_width=True)
-         
+            # --- 4. GEOGRAPHIC DISTRIBUTION ---
+            st.divider()
+            st.subheader("🌍 Customer Geographic Footprint")
+            fig_geo = px.scatter_geo(cust_metrics, locations="Country", locationmode='country names',
+                                     size="Revenue", color="Segment", hover_name="Customer",
+                                     template="plotly", projection="natural earth")
+            st.plotly_chart(fig_geo, use_container_width=True)
 
-            # --- 5.TOP 10 HIGH-VALUE CLIENT DOSSIER & CHURN RISK ---
+            # --- 5. TOP 10 HIGH-VALUE CLIENT DOSSIER & CHURN RISK ---
             st.divider()
             col_g1, col_g2 = st.columns(2)
             
             with col_g1:
-               st.subheader("🏆 Top 10 High-Value Client Dossier")
-            top_10_df = cust_metrics.sort_values('Revenue', ascending=False).head(10)
-            
-            st.dataframe(
-                top_10_df[['Customer', 'Revenue', 'Recency', 'Country', 'Phone', 'Typical_Deal']],
-                column_config={
-                    "Revenue": st.column_config.NumberColumn("Total Spend", format="$%.2f"),
-                    "Recency": st.column_config.NumberColumn("Days Since Last Order", format="%d d"),
-                },
-                use_container_width=True, 
-                hide_index=True
-            )
+                st.subheader("🏆 Top 10 High-Value Client Dossier")
+                top_10_df = cust_metrics.sort_values('Revenue', ascending=False).head(10)
+                st.dataframe(
+                    top_10_df[['Customer', 'Revenue', 'Recency', 'Country', 'Phone', 'Typical_Deal']],
+                    column_config={
+                        "Revenue": st.column_config.NumberColumn("Total Spend", format="$%.2f"),
+                        "Recency": st.column_config.NumberColumn("Days Since Last Order", format="%d d"),
+                    },
+                    use_container_width=True, 
+                    hide_index=True
+                )
 
             with col_g2:
                 st.subheader("🚩 Churn Risk Analysis")
                 # Flagging customers who haven't ordered in a long time (Recency > 120 days)
                 churn_df = cust_metrics[cust_metrics['Recency'] > 120].sort_values('Revenue', ascending=False)
                 st.write(f"*Found {len(churn_df)} customers at risk (No orders in 120+ days)*")
-                st.dataframe(churn_df[['Customer', 'Revenue', 'Recency', 'Country', 'Phone']].head(10), 
-                             column_config={"Revenue": st.column_config.NumberColumn(format="$%.2f")},
-                             use_container_width=True, hide_index=True)
+                st.dataframe(
+                    churn_df[['Customer', 'Revenue', 'Recency', 'Country', 'Phone']].head(10), 
+                    column_config={"Revenue": st.column_config.NumberColumn(format="$%.2f")},
+                    use_container_width=True, 
+                    hide_index=True
+                )
 
             # --- 6. PRODUCT PREFERENCE HEATMAP (Multi-Color) ---
             st.divider()
@@ -463,7 +464,6 @@ if uploaded_file is not None:
                                  color_continuous_scale='RdYlBu_r', 
                                  template="plotly")
             st.plotly_chart(fig_heat, use_container_width=True)
-   
 else:
     # --- WELCOME PAGE ---
     st.markdown("""<div class="welcome-header"><h1>🚀 Welcome to PredictiCorp Intelligence</h1><p>The Global Executive Suite for Data-Driven Market Strategy</p></div>""", unsafe_allow_html=True)
