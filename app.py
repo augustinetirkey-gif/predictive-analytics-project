@@ -176,7 +176,7 @@ if uploaded_file is not None:
             fig_box = px.box(df, x='PRODUCTLINE', y='SALES', color='PRODUCTLINE', template="plotly")
             st.plotly_chart(fig_box, use_container_width=True)
 
-        # TAB 2: Simulator
+    # TAB 2: Simulator (Grounded in Historical Data)
         with tabs[1]:
             st.header("🔮 Strategic Scenario Simulator")
             col1, col2, col3 = st.columns(3)
@@ -186,6 +186,10 @@ if uploaded_file is not None:
             ref_data = df_master[df_master['PRODUCTLINE'] == in_prod]
             
             avg_msrp = float(ref_data['MSRP'].mean()) if not ref_data.empty else 0.0
+            min_msrp = float(ref_data['MSRP'].min()) if not ref_data.empty else 0.0
+            max_msrp = float(ref_data['MSRP'].max()) if not ref_data.empty else 0.0
+            
+            st.info(f"💡 *Historical Price Context for {in_prod}:* Avg: ${avg_msrp:.2f} | Range: ${min_msrp:.2f} - ${max_msrp:.2f}")
             
             in_qty = col1.slider("Quantity to Sell", 1, 1000, 50)
             in_msrp = col2.number_input("Unit Price ($)", value=float(avg_msrp), step=0.01, format="%.2f")
@@ -194,18 +198,23 @@ if uploaded_file is not None:
             if st.button("RUN AI SIMULATION & REALITY CHECK", use_container_width=True, type="primary"):
                 inp = pd.DataFrame([{'MONTH_ID': in_month, 'QTR_ID': (in_month-1)//3+1, 'MSRP': in_msrp, 'QUANTITYORDERED': in_qty, 'PRODUCTLINE': in_prod, 'COUNTRY': in_country}])
                 pred = bi_pipe.predict(inp)[0]
-                st.metric("Projected Revenue", f"${pred:,.2f}")
-                
+                st.markdown(f"""<div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;border: 2px solid #1f4e79;margin-bottom:25px;'><p style='color:#1f4e79; font-weight:bold; margin-bottom:0;'>PROJECTED REVENUE</p><h1 style='color:#1f4e79; font-size:48px; margin-top:0;'>${pred:,.2f}</h1></div>""", unsafe_allow_html=True)
+                st.divider()
+                st.subheader(f"📊 Historical Performance Review: {in_prod} in {in_country}")
                 history = df_master[(df_master['COUNTRY'] == in_country) & (df_master['PRODUCTLINE'] == in_prod)].copy()
                 if not history.empty:
-                    history['AI_PREDICTION'] = bi_pipe.predict(history[['MONTH_ID', 'QTR_ID', 'MSRP', 'QUANTITYORDERED', 'PRODUCTLINE', 'COUNTRY']])
+                    hist_features = history[['MONTH_ID', 'QTR_ID', 'MSRP', 'QUANTITYORDERED', 'PRODUCTLINE', 'COUNTRY']]
+                    history['AI_PREDICTION'] = bi_pipe.predict(hist_features)
+                    history = history.sort_values('ORDERDATE')
                     fig_compare = go.Figure()
-                    fig_compare.add_trace(go.Scatter(x=history['ORDERDATE'], y=history['SALES'], name='Actual Revenue'))
-                    fig_compare.add_trace(go.Scatter(x=history['ORDERDATE'], y=history['AI_PREDICTION'], name='AI Model Fit'))
-                    fig_compare.update_layout(template="plotly")
+                    fig_compare.add_trace(go.Scatter(x=history['ORDERDATE'], y=history['SALES'], name='Actual Revenue', line=dict(color='#1f4e79', width=3)))
+                    fig_compare.add_trace(go.Scatter(x=history['ORDERDATE'], y=history['AI_PREDICTION'], name='AI Model Fit', line=dict(color='#ff7f0e', dash='dot')))
+                    fig_compare.update_layout(title="How closely does the AI match historical reality?", template="plotly_white", xaxis_title="Timeline", yaxis_title="Revenue ($)")
                     st.plotly_chart(fig_compare, use_container_width=True)
-
-      
+                    err = np.mean(abs(history['SALES'] - history['AI_PREDICTION']) / history['SALES']) * 100
+                    st.success(f"✅ The AI matches historical data with an average error of only {err:.2f}% for this selection.")
+                else:
+                    st.warning("No historical data found for this specific combination to show a comparison.")      
         # TAB 3: Strategic Market Insights (UPGRADED VERSION)
         with tabs[2]:
             st.header("🌍 Strategic Market Insights")
