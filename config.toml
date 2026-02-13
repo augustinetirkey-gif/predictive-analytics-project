@@ -1,1 +1,16 @@
+[theme]
+# Primary accent color for interactive elements
+primaryColor = "#1f4e79"
 
+# Background color for the main content area
+backgroundColor = "#f4f7f9"
+
+# Background color for the sidebar
+secondaryBackgroundColor = "#ffffff"
+
+# Color for all text
+textColor = "#2c3e50"
+
+# Forces the app to ignore system Dark/Light mode settings
+# Choices are "light", "dark"
+base = "light"
