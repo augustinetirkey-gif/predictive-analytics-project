@@ -416,7 +416,7 @@ if uploaded_file is not None:
                 # Flagging customers who haven't ordered in a long time (Recency > 120 days)
                 churn_df = cust_metrics[cust_metrics['Recency'] > 120].sort_values('Revenue', ascending=False)
                 st.write(f"*Found {len(churn_df)} customers at risk (No orders in 120+ days)*")
-                st.dataframe(churn_df[['Customer', 'Revenue', 'Recency', 'Country','Phone']].head(10), 
+                st.dataframe(churn_df[['Customer', 'Revenue', 'Recency', 'Country', 'Phone']].head(10), 
                              use_container_width=True, hide_index=True)
 
             # --- 5. PRODUCT PREFERENCE HEATMAP (Multi-Color) ---
