@@ -59,6 +59,35 @@ st.markdown("""
         transition: transform 0.3s ease;
     }
     .feature-box:hover { transform: translateY(-10px); }
+    /* Use dynamic variables for the KPI Box */
+    [data-testid="stMetric"] {
+        background-color: rgba(128, 128, 128, 0.05); /* Light translucent grey */
+        border: 1px solid rgba(128, 128, 128, 0.2);
+        padding: 15px 20px;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease;
+    }
+
+    /* Add a nice hover effect to make it 'Attractive' */
+    [data-testid="stMetric"]:hover {
+        transform: translateY(-5px);
+        border-color: #1f4e79;
+        box-shadow: 0 8px 20px rgba(31, 78, 121, 0.2);
+    }
+
+    /* Fix the Label (Small text) visibility */
+    [data-testid="stMetricLabel"] p {
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    /* Fix the Value (Big number) visibility */
+    [data-testid="stMetricValue"] div {
+        font-weight: 700;
+        font-size: 2rem;
+    }
     </style>
     """, unsafe_allow_html=True)
 
