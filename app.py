@@ -376,14 +376,27 @@ if uploaded_file is not None:
             # 2. Customer Segmentation
             st.subheader("📊 Strategic Customer Segmentation")
             # Create the 'Deal size' column
-            cust_metrics['Deal size'] = pd.qcut(cust_metrics['Revenue'], q=3, labels=['Small', 'Medium', 'Large (VIP)'])
+            cust_metrics['Deal size'] = pd.qcut(cust_metrics['Revenue'], q=3, labels=['Small', 'Medium', 'Large '])
             
-            col_s1, = st.columns([1])
+            col_s1,col_s2 = st.columns([1,2])
             with col_s1:
                 fig_seg = px.pie(cust_metrics, names='Deal size', hole=0.4, 
                                  color_discrete_sequence=px.colors.qualitative.Pastel,
                                  title="Customer Base by Value Tier")
                 st.plotly_chart(fig_seg, use_container_width=True)
+                
+                With col_s2:
+                # Bar Chart explaining average revenue per deal size tier
+                deal_summary = cust_metrics.groupby('Deal size')['Revenue'].mean().reset_index()
+                fig_deal_bar = px.bar(deal_summary, x='Deal size', y='Revenue',
+                                      color='Deal size',
+                                      color_discrete_sequence=px.colors.qualitative.Pastel,
+                                      title="Avg. Revenue per Deal Tier",
+                                      labels={'Revenue': 'Average Spend ($)'},
+                                      text_auto='.2s')
+                # Force the layout to be clean for executive viewing
+                fig_deal_bar.update_layout(showlegend=False, template="plotly")
+                st.plotly_chart(fig_deal_bar, use_container_width=True)
 
             # 3. Geographic Distribution (CORRECTED COLUMN NAME)
             st.divider()
