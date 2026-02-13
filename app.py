@@ -390,7 +390,7 @@ if uploaded_file is not None:
             st.divider()
             st.subheader("🌍 Customer Geographic Footprint")
             fig_geo = px.scatter_geo(cust_metrics, locations="Country", locationmode='country names',
-                                     size="Revenue", color="deal size", hover_name="Customer",
+                                     size="Revenue", color="Segment", hover_name="Customer",
                                      template="plotly", projection="natural earth")
             st.plotly_chart(fig_geo, use_container_width=True)
             
