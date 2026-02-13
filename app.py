@@ -354,11 +354,12 @@ if uploaded_file is not None:
                 hide_index=True
             )
 
-    # TAB 5: Customer Analytics (Advanced Intelligence Suite)
+   
+          # --- TAB 5: CUSTOMER ANALYTICS (CORRECTED SECTION) ---
         with tabs[4]:
             st.header("👥 Customer Intelligence & Loyalty")
             
-            # --- 1. DATA PREPARATION (RFM Logic) ---
+            # 1. Data Preparation
             current_date = df['ORDERDATE'].max()
             cust_metrics = df.groupby('CUSTOMERNAME').agg({
                 'SALES': 'sum',
@@ -366,101 +367,64 @@ if uploaded_file is not None:
                 'ORDERDATE': 'max',
                 'COUNTRY': 'first',
                 'PHONE': 'first',
-                'DEALSIZE': lambda x: x.mode()[0] # Capture most frequent deal size
+                'DEALSIZE': lambda x: x.mode()[0]
             }).reset_index()
             
             cust_metrics.columns = ['Customer', 'Revenue', 'Frequency', 'LastOrder', 'Country', 'Phone', 'Typical_Deal']
             cust_metrics['Recency'] = (current_date - cust_metrics['LastOrder']).dt.days
             
-            # --- 2. CUSTOMER SEGMENTATION ---
+            # 2. Customer Segmentation
             st.subheader("📊 Strategic Customer Segmentation")
-            # Segmenting by Revenue Tiers
+            # Create the 'Deal size' column
             cust_metrics['Deal size'] = pd.qcut(cust_metrics['Revenue'], q=3, labels=['Small', 'Medium', 'Large (VIP)'])
             
-            col_s1,  = st.columns([1])
+            col_s1, = st.columns([1])
             with col_s1:
                 fig_seg = px.pie(cust_metrics, names='Deal size', hole=0.4, 
                                  color_discrete_sequence=px.colors.qualitative.Pastel,
                                  title="Customer Base by Value Tier")
                 st.plotly_chart(fig_seg, use_container_width=True)
-            
-            
-            
-            # --- 3. GEOGRAPHIC DISTRIBUTION ---
+
+            # 3. Geographic Distribution (CORRECTED COLUMN NAME)
             st.divider()
             st.subheader("🌍 Customer Geographic Footprint")
             fig_geo = px.scatter_geo(cust_metrics, locations="Country", locationmode='country names',
-                                     size="Revenue", color="Segment", hover_name="Customer",
+                                     size="Revenue", color="Deal size", hover_name="Customer",
                                      template="plotly", projection="natural earth")
             st.plotly_chart(fig_geo, use_container_width=True)
-            
-               # --- 4. REVENUE CONCENTRATION (80/20 Rule) ---
+
+            # 4. Revenue Concentration (80/20 Rule)
             st.divider()
             st.subheader("🎯 Revenue Concentration Analysis")
-
-            # Sort customers by revenue and calculate percentage of total revenue
             pareto_df = cust_metrics.sort_values('Revenue', ascending=False).copy()
             pareto_df['Revenue_Share'] = (pareto_df['Revenue'].cumsum() / pareto_df['Revenue'].sum()) * 100
             pareto_df['Customer_Count_Pct'] = np.arange(1, len(pareto_df) + 1) / len(pareto_df) * 100
 
             fig_pareto = px.area(pareto_df, x='Customer_Count_Pct', y='Revenue_Share',
-                                 title="The Pareto Curve: % of Customers vs. % of Total Revenue",
-                                 labels={'Customer_Count_Pct': '% of Total Customers', 'Revenue_Share': '% of Total Revenue'},
-                                 template="plotly")
-
-            # Add a reference line for the 80/20 rule
-            fig_pareto.add_hline(y=80, line_dash="dash", line_color="red", annotation_text="80% Revenue Mark")
-            fig_pareto.update_traces(line_color='#1f4e79', fillcolor='rgba(31, 78, 121, 0.2)')
-
+                                 title="The Pareto Curve", template="plotly")
+            fig_pareto.add_hline(y=80, line_dash="dash", line_color="red", annotation_text="80% Mark")
             st.plotly_chart(fig_pareto, use_container_width=True)
-            st.info("💡 **Insight:** If the curve rises very steeply, your business is heavily dependent on a few top customers.")
 
-
-            # --- 5. TOP 10 HIGH-VALUE CLIENT DOSSIER & CHURN RISK ---
+            # 5. Dossier & Churn
             st.divider()
             col_g1, col_g2 = st.columns(2)
-            
             with col_g1:
-                st.subheader("🏆 Top 10 High-Value Client Dossier")
-                top_10_df = cust_metrics.sort_values('Revenue', ascending=False).head(10)
-                st.dataframe(
-                    top_10_df[['Customer', 'Revenue', 'Recency', 'Country', 'Phone', 'Typical_Deal']],
-                    column_config={
-                        "Revenue": st.column_config.NumberColumn("Total Spend", format="$%.2f"),
-                        "Recency": st.column_config.NumberColumn("Days Since Last Order", format="%d d"),
-                    },
-                    use_container_width=True, 
-                    hide_index=True
-                )
+                st.subheader("🏆 Top 10 High-Value Clients")
+                top_10 = cust_metrics.sort_values('Revenue', ascending=False).head(10)
+                st.dataframe(top_10[['Customer', 'Revenue', 'Recency', 'Country', 'Phone', 'Typical_Deal']], use_container_width=True, hide_index=True)
 
             with col_g2:
                 st.subheader("🚩 Churn Risk Analysis")
-                # Flagging customers who haven't ordered in a long time (Recency > 120 days)
                 churn_df = cust_metrics[cust_metrics['Recency'] > 120].sort_values('Revenue', ascending=False)
-                st.write(f"*Found {len(churn_df)} customers at risk (No orders in 120+ days)*")
-                st.dataframe(
-                    churn_df[['Customer', 'Revenue', 'Recency', 'Country', 'Phone']].head(10), 
-                    column_config={"Revenue": st.column_config.NumberColumn(format="$%.2f")},
-                    use_container_width=True, 
-                    hide_index=True
-                )
+                st.write(f"*Found {len(churn_df)} customers at risk*")
+                st.dataframe(churn_df[['Customer', 'Revenue', 'Recency', 'Country', 'Phone']].head(10), use_container_width=True, hide_index=True)
 
-            # --- 6. PRODUCT PREFERENCE HEATMAP (Multi-Color) ---
+            # 6. Heatmap
             st.divider()
             st.subheader("🧩 Product Affinity Heatmap")
-            st.write("Correlation between top customers and product line preferences.")
-            
-            # Pivot data for heatmap: Top 25 customers by revenue
-            top_cust_names = cust_metrics.nlargest(25, 'Revenue')['Customer']
-            heat_data = df[df['CUSTOMERNAME'].isin(top_cust_names)].pivot_table(
-                index='CUSTOMERNAME', columns='PRODUCTLINE', values='SALES', aggfunc='sum'
-            ).fillna(0)
-            
-            # Using the 'RdYlBu_r' color scale for high distinction
-            fig_heat = px.imshow(heat_data, text_auto='.2s', aspect="auto",
-                                 color_continuous_scale='RdYlBu_r', 
-                                 template="plotly")
-            st.plotly_chart(fig_heat, use_container_width=True)
+            top_custs = cust_metrics.nlargest(25, 'Revenue')['Customer']
+            heat_data = df[df['CUSTOMERNAME'].isin(top_custs)].pivot_table(index='CUSTOMERNAME', columns='PRODUCTLINE', values='SALES', aggfunc='sum').fillna(0)
+            st.plotly_chart(px.imshow(heat_data, text_auto='.2s', aspect="auto", color_continuous_scale='RdYlBu_r', template="plotly"), use_container_width=True)
 else:
     # --- WELCOME PAGE ---
     st.markdown("""<div class="welcome-header"><h1>🚀 Welcome to PredictiCorp Intelligence</h1><p>The Global Executive Suite for Data-Driven Market Strategy</p></div>""", unsafe_allow_html=True)
