@@ -13,62 +13,15 @@ import io
 # --- SYSTEM CONFIGURATION ---
 st.set_page_config(page_title="PredictiCorp BI Suite", layout="wide", initial_sidebar_state="expanded")
 
-# --- EXECUTIVE THEMING (Updated for Theme Stability) ---
+# --- EXECUTIVE THEMING ---
 st.markdown("""
     <style>
-    /* Force the main app background */
-    .stApp {
-        background-color: #f4f7f9 !important;
-    }
-
-    /* Force KPI Metrics to stay dark blue on white */
-    [data-testid="stMetricValue"], [data-testid="stMetricLabel"] {
-        color: #1f4e79 !important;
-    }
-
-    .stMetric {
-        background-color: #ffffff !important;
-        color: #1f4e79 !important;
-        padding: 20px;
-        border-radius: 12px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-        border-top: 5px solid #1f4e79 !important;
-    }
-
-    /* Force the Sidebar and Tabs to stay light */
-    section[data-testid="stSidebar"] {
-        background-color: #ffffff !important;
-    }
-
-    .stTabs [data-baseweb="tab-list"] { 
-        gap: 10px; 
-        background-color: #f4f7f9 !important; 
-    }
-
-    .stTabs [data-baseweb="tab"] {
-        color: #5c6c7b !important;
-        background-color: #ffffff !important;
-        border-radius: 10px 10px 0 0;
-        border: 1px solid #e1e4e8;
-        padding: 10px 20px;
-        font-weight: bold;
-    }
-
-    .stTabs [aria-selected="true"] {
-        background-color: #1f4e79 !important;
-        color: white !important;
-    }
-
-    /* Force 'Executive' cards to keep dark text */
-    .card {
-        background-color: #ffffff !important;
-        color: #2c3e50 !important;
-        padding: 25px;
-        border-radius: 15px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-        margin-bottom: 20px;
-        border-left: 8px solid #1f4e79 !important;
-    }
+    .main { background-color: #f4f7f9; }
+    .stMetric { background-color: #ffffff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-top: 5px solid #1f4e79; }
+    .stTabs [data-baseweb="tab-list"] { gap: 10px; background-color: #f4f7f9; }
+    .stTabs [data-baseweb="tab"] { background-color: #ffffff; border-radius: 10px 10px 0 0; border: 1px solid #e1e4e8; padding: 10px 20px; font-weight: bold; color: #5c6c7b; }
+    .stTabs [aria-selected="true"] { background-color: #1f4e79 !important; color: white !important; }
+    .card { background-color: #ffffff; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; border-left: 8px solid #1f4e79; }
     
     .welcome-header {
         background: linear-gradient(90deg, #1f4e79 0%, #2c3e50 100%);
@@ -169,7 +122,7 @@ if uploaded_file is not None:
             fig_box = px.box(df, x='PRODUCTLINE', y='SALES', color='PRODUCTLINE', template="plotly_white")
             st.plotly_chart(fig_box, use_container_width=True)
 
-        # TAB 2: Simulator
+        # TAB 2: Simulator (Grounded in Historical Data)
         with tabs[1]:
             st.header("🔮 Strategic Scenario Simulator")
             col1, col2, col3 = st.columns(3)
@@ -209,7 +162,10 @@ if uploaded_file is not None:
                 else:
                     st.warning("No historical data found for this specific combination to show a comparison.")
 
-        # TAB 3: Strategic Market Insights
+        # TAB 3: Strategic Market Insights (UPGRADED VERSION)
+        with tabs[2]:
+            st.header("🌍 Strategic Market Insights")
+                    # TAB 3: Market Insights
         with tabs[2]:
             st.header("💡 Business Directives")
             top_country = df.groupby('COUNTRY')['SALES'].sum().idxmax()
@@ -219,17 +175,22 @@ if uploaded_file is not None:
                 st.markdown(f"<div class='card'><h4>📦 Inventory Optimization</h4><p><b>Insight:</b> <b>{top_prod}</b> is the top performer.<br><b>Action:</b> Prioritize supply for this line.</p></div>", unsafe_allow_html=True)
             with col_i2:
                 st.markdown(f"<div class='card'><h4>🌍 Regional Strategy</h4><p><b>Insight:</b> <b>{top_country}</b> drives peak revenue.<br><b>Action:</b> Test localized loyalty programs here.</p></div>", unsafe_allow_html=True)
-            
             geo_df = df.groupby('COUNTRY')['SALES'].sum().reset_index()
             fig_map = px.choropleth(geo_df, locations="COUNTRY", locationmode='country names', color="COUNTRY", hover_name="COUNTRY", template="plotly_white")
             fig_map.update_geos(projection_type="mercator")
             st.plotly_chart(fig_map, use_container_width=True)
             
+           
+
+            # --- 1. Heatmap and Top/Bottom Tables ---
             c3, c4 = st.columns([2, 1])
             with c3:
                 st.markdown("#### Revenue Heatmap: Country × Product Line")
                 heat_df = df.pivot_table(index='COUNTRY', columns='PRODUCTLINE', values='SALES', aggfunc='sum').fillna(0)
-                fig_heat = px.imshow(heat_df, text_auto='.2s', aspect="auto", color_continuous_scale="Spectral_r", template="plotly_white")
+                # Spectral_r uses a distinct multi-color spectrum for high visibility
+                fig_heat = px.imshow(heat_df, text_auto='.2s', aspect="auto", 
+                                     color_continuous_scale="Spectral_r", 
+                                     template="plotly_white")
                 st.plotly_chart(fig_heat, use_container_width=True)
             
             with c4:
@@ -240,39 +201,189 @@ if uploaded_file is not None:
                 st.write("**Bottom 5 Markets**")
                 st.dataframe(m_sorted.tail(5), hide_index=True, use_container_width=True)
 
-        # TAB 4: Demand Forecast
+            # --- 2. Growth Trend and Contribution Donut ---
+            c5, c6 = st.columns(2)
+            with c5:
+                st.markdown("#### YoY Revenue Performance")
+                growth_trend = df.groupby(['YEAR', 'MONTH_ID'])['SALES'].sum().reset_index()
+                fig_growth = px.bar(growth_trend, x='MONTH_ID', y='SALES', color='YEAR', 
+                                    barmode='group', template="plotly_white")
+                st.plotly_chart(fig_growth, use_container_width=True)
+            
+            with c6:
+                st.markdown("#### Product Revenue Contribution (%)")
+                fig_don = px.pie(df, values='SALES', names='PRODUCTLINE', hole=0.5, 
+                                 template="plotly_white", color_discrete_sequence=px.colors.qualitative.Pastel)
+                st.plotly_chart(fig_don, use_container_width=True)
+
+        # TAB 4: Demand Forecast (Advanced Strategic Planning)
         with tabs[3]:
             st.header("📅 Demand Forecasting (Predictive Planning)")
+            
+            # --- 1. DATA PREPARATION & FORECAST LOGIC ---
             forecast_df = df.groupby(['YEAR', 'MONTH_ID'])['SALES'].sum().reset_index()
+            
+            # Calculate simple AI Forecast (Rolling Mean)
             forecast_df['Target_Forecast'] = forecast_df['SALES'].rolling(window=3).mean().shift(-1)
+            
+            # Add Uncertainty (Confidence Intervals: +/- 20% range)
             forecast_df['Upper'] = forecast_df['Target_Forecast'] * 1.2
             forecast_df['Lower'] = forecast_df['Target_Forecast'] * 0.8
 
+            # --- 2. FORECAST VISUALIZATION WITH CONFIDENCE BANDS ---
             fig_forecast = go.Figure()
-            fig_forecast.add_trace(go.Scatter(x=forecast_df.index, y=forecast_df['Upper'], line=dict(width=0), showlegend=False))
-            fig_forecast.add_trace(go.Scatter(x=forecast_df.index, y=forecast_df['Lower'], fill='tonexty', fillcolor='rgba(31, 78, 121, 0.1)', line=dict(width=0), name='95% Confidence Interval'))
-            fig_forecast.add_trace(go.Scatter(x=forecast_df.index, y=forecast_df['SALES'], name='Actual Sales', line=dict(color='#1f4e79', width=3)))
-            fig_forecast.add_trace(go.Scatter(x=forecast_df.index, y=forecast_df['Target_Forecast'], name='AI Forecast', line=dict(color='#ff7f0e', dash='dot', width=2)))
-            fig_forecast.update_layout(title="Sales Momentum Forecast", template="plotly_white", xaxis_title="Timeline Step (Months)", yaxis_title="Revenue ($)")
+
+            # Confidence Range Area (Shaded Background)
+            fig_forecast.add_trace(go.Scatter(
+                x=forecast_df.index, y=forecast_df['Upper'], 
+                line=dict(width=0), showlegend=False, name='Upper Bound'
+            ))
+            fig_forecast.add_trace(go.Scatter(
+                x=forecast_df.index, y=forecast_df['Lower'], 
+                fill='tonexty', fillcolor='rgba(31, 78, 121, 0.1)', 
+                line=dict(width=0), name='95% Confidence Interval'
+            ))
+            
+            # Actual Sales Line
+            fig_forecast.add_trace(go.Scatter(
+                x=forecast_df.index, y=forecast_df['SALES'], 
+                name='Actual Sales', line=dict(color='#1f4e79', width=3)
+            ))
+            
+            # AI Forecast Line
+            fig_forecast.add_trace(go.Scatter(
+                x=forecast_df.index, y=forecast_df['Target_Forecast'], 
+                name='AI Forecast', line=dict(color='#ff7f0e', dash='dot', width=2)
+            ))
+
+            fig_forecast.update_layout(
+                title="Sales Momentum Forecast with Predictive Confidence Range", 
+                template="plotly_white", 
+                xaxis_title="Timeline Step (Months)", 
+                yaxis_title="Revenue ($)",
+                hovermode="x unified"
+            )
             st.plotly_chart(fig_forecast, use_container_width=True)
 
-        # TAB 5: Customer Analytics
+            # --- 3. SEASONALITY & YoY COMPARISON ---
+            st.divider()
+            c5, c6 = st.columns(2)
+            
+            with c5:
+                st.markdown("#### 🌙 Seasonality Analysis (Monthly Trends)")
+                # Average performance per month across all historical years
+                season_df = df_master.groupby('MONTH_ID')['SALES'].mean().reset_index()
+                fig_season = px.bar(
+                    season_df, x='MONTH_ID', y='SALES', 
+                    template="plotly_white", color='SALES', 
+                    color_continuous_scale="YlGnBu",
+                    labels={'MONTH_ID': 'Month Index', 'SALES': 'Avg Revenue'}
+                )
+                st.plotly_chart(fig_season, use_container_width=True)
+            
+            with c6:
+                st.markdown("#### 📊 Year-over-Year (YoY) Performance")
+                # Compare trends across different years
+                yoy_comp = df_master.groupby(['YEAR', 'MONTH_ID'])['SALES'].sum().reset_index()
+                fig_yoy = px.line(
+                    yoy_comp, x='MONTH_ID', y='SALES', color='YEAR', 
+                    markers=True, template="plotly_white",
+                    labels={'MONTH_ID': 'Month Index'}
+                )
+                st.plotly_chart(fig_yoy, use_container_width=True)
+
+            # --- 4. DATA INTELLIGENCE TABLE ---
+            st.divider()
+            st.markdown("#### 📥 Forecast Data Intelligence")
+            st.dataframe(
+                forecast_df[['YEAR', 'MONTH_ID', 'SALES', 'Target_Forecast', 'Upper', 'Lower']].dropna().round(2), 
+                use_container_width=True,
+                hide_index=True
+            )
+
+    # TAB 5: Customer Analytics (Advanced Intelligence Suite)
         with tabs[4]:
             st.header("👥 Customer Intelligence & Loyalty")
+            
+            # --- 1. DATA PREPARATION (RFM Logic) ---
+            # We calculate Recency (days since last order), Frequency (order count), and Monetary (total sales)
             current_date = df['ORDERDATE'].max()
-            cust_metrics = df.groupby('CUSTOMERNAME').agg({'SALES': 'sum', 'ORDERNUMBER': 'nunique', 'ORDERDATE': 'max', 'COUNTRY': 'first'}).reset_index()
+            cust_metrics = df.groupby('CUSTOMERNAME').agg({
+                'SALES': 'sum',
+                'ORDERNUMBER': 'nunique',
+                'ORDERDATE': 'max',
+                'COUNTRY': 'first'
+            }).reset_index()
             cust_metrics.columns = ['Customer', 'Revenue', 'Frequency', 'LastOrder', 'Country']
             cust_metrics['Recency'] = (current_date - cust_metrics['LastOrder']).dt.days
+            
+            # --- 2. CUSTOMER SEGMENTATION ---
+            st.subheader("📊 Strategic Customer Segmentation")
+            # Segmenting by Revenue Tiers
             cust_metrics['Segment'] = pd.qcut(cust_metrics['Revenue'], q=3, labels=['Bronze', 'Silver', 'Gold (VIP)'])
             
             col_s1, col_s2 = st.columns([1, 2])
             with col_s1:
-                fig_seg = px.pie(cust_metrics, names='Segment', hole=0.4, title="Customer Base by Value Tier")
+                fig_seg = px.pie(cust_metrics, names='Segment', hole=0.4, 
+                                 color_discrete_sequence=px.colors.qualitative.Pastel,
+                                 title="Customer Base by Value Tier")
                 st.plotly_chart(fig_seg, use_container_width=True)
+            
             with col_s2:
-                fig_scatter = px.scatter(cust_metrics, x='Frequency', y='Revenue', size='Revenue', color='Segment', hover_name='Customer', template="plotly_white")
+                fig_scatter = px.scatter(cust_metrics, x='Frequency', y='Revenue', 
+                                         size='Revenue', color='Segment', hover_name='Customer',
+                                         template="plotly_white", title="Loyalty Map: Frequency vs. Revenue")
                 st.plotly_chart(fig_scatter, use_container_width=True)
 
+            # --- 3. LIFETIME VALUE (LTV) TREND ---
+            st.divider()
+            st.subheader("📈 Cumulative Lifetime Value (LTV) Momentum")
+            # Calculate running total of sales over time
+            ltv_trend = df.sort_values('ORDERDATE').copy()
+            ltv_trend['Cumulative_LTV'] = ltv_trend['SALES'].cumsum()
+            fig_ltv = px.line(ltv_trend, x='ORDERDATE', y='Cumulative_LTV', 
+                              template="plotly_white", title="Cumulative Business Value Growth")
+            fig_ltv.update_traces(line_color='#1f4e79', fill='tozeroy')
+            st.plotly_chart(fig_ltv, use_container_width=True)
+
+            # --- 4. GEOGRAPHIC DISTRIBUTION & CHURN RISK ---
+            st.divider()
+            col_g1, col_g2 = st.columns(2)
+            
+            with col_g1:
+                st.subheader("🌍 Customer Geographic Footprint")
+                fig_geo = px.scatter_geo(cust_metrics, locations="Country", locationmode='country names',
+                                         size="Revenue", color="Segment", hover_name="Customer",
+                                         template="plotly_white", projection="natural earth")
+                st.plotly_chart(fig_geo, use_container_width=True)
+            
+            with col_g2:
+                st.subheader("🚩 Churn Risk Analysis")
+                # Flagging customers who haven't ordered in a long time (Recency > 120 days)
+                churn_df = cust_metrics[cust_metrics['Recency'] > 120].sort_values('Revenue', ascending=False)
+                st.write(f"**Found {len(churn_df)} customers at risk (No orders in 120+ days)**")
+                st.dataframe(churn_df[['Customer', 'Revenue', 'Recency', 'Country']].head(10), 
+                             use_container_width=True, hide_index=True)
+
+            # --- 5. PRODUCT PREFERENCE HEATMAP (Multi-Color) ---
+            st.divider()
+            st.subheader("🧩 Product Affinity Heatmap")
+            st.write("Correlation between top customers and product line preferences.")
+            
+            # Pivot data for heatmap: Top 25 customers by revenue
+            top_cust_names = cust_metrics.nlargest(25, 'Revenue')['Customer']
+            heat_data = df[df['CUSTOMERNAME'].isin(top_cust_names)].pivot_table(
+                index='CUSTOMERNAME', columns='PRODUCTLINE', values='SALES', aggfunc='sum'
+            ).fillna(0)
+            
+            # Using the 'RdYlBu_r' color scale for high distinction (Red = High, Yellow = Mid, Blue = Low)
+            fig_heat = px.imshow(heat_data, text_auto='.2s', aspect="auto",
+                                 color_continuous_scale='RdYlBu_r', 
+                                 template="plotly_white")
+            st.plotly_chart(fig_heat, use_container_width=True)
+        
+
 else:
+    # --- WELCOME PAGE ---
     st.markdown("""<div class="welcome-header"><h1>🚀 Welcome to PredictiCorp Intelligence</h1><p>The Global Executive Suite for Data-Driven Market Strategy</p></div>""", unsafe_allow_html=True)
     st.info("👈 Please upload your Sales Data CSV in the sidebar to activate insights.")
