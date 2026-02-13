@@ -375,22 +375,26 @@ if uploaded_file is not None:
             # --- 2. CUSTOMER SEGMENTATION ---
             st.subheader("📊 Strategic Customer Segmentation")
             # Segmenting by Revenue Tiers
-            cust_metrics['Segment'] = pd.qcut(cust_metrics['Revenue'], q=3, labels=['Bronze', 'Silver', 'Gold (VIP)'])
+            cust_metrics['Deal size'] = pd.qcut(cust_metrics['Revenue'], q=3, labels=['Small', 'Medium', 'Large (VIP)'])
             
-            col_s1, col_s2 = st.columns([1, 2])
+            col_s1,  = st.columns([1])
             with col_s1:
-                fig_seg = px.pie(cust_metrics, names='Segment', hole=0.4, 
+                fig_seg = px.pie(cust_metrics, names='Deal size', hole=0.4, 
                                  color_discrete_sequence=px.colors.qualitative.Pastel,
                                  title="Customer Base by Value Tier")
                 st.plotly_chart(fig_seg, use_container_width=True)
             
-            with col_s2:
-                fig_scatter = px.scatter(cust_metrics, x='Frequency', y='Revenue', 
-                                         size='Revenue', color='Segment', hover_name='Customer',
-                                         template="plotly", title="Loyalty Map: Frequency vs. Revenue")
-                st.plotly_chart(fig_scatter, use_container_width=True)
-
-            # --- 3. REVENUE CONCENTRATION (80/20 Rule) ---
+            
+            
+            # --- 3. GEOGRAPHIC DISTRIBUTION ---
+            st.divider()
+            st.subheader("🌍 Customer Geographic Footprint")
+            fig_geo = px.scatter_geo(cust_metrics, locations="Country", locationmode='country names',
+                                     size="Revenue", color="deal size", hover_name="Customer",
+                                     template="plotly", projection="natural earth")
+            st.plotly_chart(fig_geo, use_container_width=True)
+            
+               # --- 4. REVENUE CONCENTRATION (80/20 Rule) ---
             st.divider()
             st.subheader("🎯 Revenue Concentration Analysis")
 
@@ -411,13 +415,6 @@ if uploaded_file is not None:
             st.plotly_chart(fig_pareto, use_container_width=True)
             st.info("💡 **Insight:** If the curve rises very steeply, your business is heavily dependent on a few top customers.")
 
-            # --- 4. GEOGRAPHIC DISTRIBUTION ---
-            st.divider()
-            st.subheader("🌍 Customer Geographic Footprint")
-            fig_geo = px.scatter_geo(cust_metrics, locations="Country", locationmode='country names',
-                                     size="Revenue", color="Segment", hover_name="Customer",
-                                     template="plotly", projection="natural earth")
-            st.plotly_chart(fig_geo, use_container_width=True)
 
             # --- 5. TOP 10 HIGH-VALUE CLIENT DOSSIER & CHURN RISK ---
             st.divider()
