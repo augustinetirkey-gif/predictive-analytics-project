@@ -387,6 +387,17 @@ if uploaded_file is not None:
                                          size='Revenue', color='Segment', hover_name='Customer',
                                          template="plotly_white", title="Loyalty Map: Frequency vs. Revenue")
                 st.plotly_chart(fig_scatter, use_container_width=True)
+                    # --- 3. LIFETIME VALUE (LTV) TREND ---
+            st.divider()
+            st.subheader("📈 Cumulative Lifetime Value (LTV) Momentum")
+            # Calculate running total of sales over time
+            ltv_trend = df.sort_values('ORDERDATE').copy()
+            ltv_trend['Cumulative_LTV'] = ltv_trend['SALES'].cumsum()
+            fig_ltv = px.line(ltv_trend, x='ORDERDATE', y='Cumulative_LTV', 
+                              template="plotly_white", title="Cumulative Business Value Growth")
+            fig_ltv.update_traces(line_color='#1f4e79', fill='tozeroy')
+            st.plotly_chart(fig_ltv, use_container_width=True)
+
 
 
    
