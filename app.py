@@ -412,9 +412,20 @@ if uploaded_file is not None:
             st.plotly_chart(fig_pareto, use_container_width=True)
             st.info("💡 **Insight:** If the curve rises very steeply, your business is heavily dependent on a few top customers.")
 
-            # --- NEW 4. TOP 10 HIGH-VALUE CLIENT DOSSIER ---
+            # --- NEW 4.GEOGRAPHIC DISTRIBUTION 
+               st.subheader("🌍 Customer Geographic Footprint")
+                fig_geo = px.scatter_geo(cust_metrics, locations="Country", locationmode='country names',
+                                         size="Revenue", color="Segment", hover_name="Customer",
+                                         template="plotly", projection="natural earth")
+                st.plotly_chart(fig_geo, use_container_width=True)
+         
+
+            # --- 5.TOP 10 HIGH-VALUE CLIENT DOSSIER & CHURN RISK ---
             st.divider()
-            st.subheader("🏆 Top 10 High-Value Client Dossier")
+            col_g1, col_g2 = st.columns(2)
+            
+            with col_g1:
+               st.subheader("🏆 Top 10 High-Value Client Dossier")
             top_10_df = cust_metrics.sort_values('Revenue', ascending=False).head(10)
             
             st.dataframe(
@@ -427,17 +438,6 @@ if uploaded_file is not None:
                 hide_index=True
             )
 
-            # --- 5. GEOGRAPHIC DISTRIBUTION & CHURN RISK ---
-            st.divider()
-            col_g1, col_g2 = st.columns(2)
-            
-            with col_g1:
-                st.subheader("🌍 Customer Geographic Footprint")
-                fig_geo = px.scatter_geo(cust_metrics, locations="Country", locationmode='country names',
-                                         size="Revenue", color="Segment", hover_name="Customer",
-                                         template="plotly", projection="natural earth")
-                st.plotly_chart(fig_geo, use_container_width=True)
-            
             with col_g2:
                 st.subheader("🚩 Churn Risk Analysis")
                 # Flagging customers who haven't ordered in a long time (Recency > 120 days)
