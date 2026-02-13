@@ -365,7 +365,7 @@ if uploaded_file is not None:
                 'SALES': 'sum',
                 'ORDERNUMBER': 'nunique',
                 'ORDERDATE': 'max',
-                'COUNTRY': 'first'
+                'COUNTRY': 'first',
                 'PHONE': 'first'
             }).reset_index()
             cust_metrics.columns = ['Customer', 'Revenue', 'Frequency', 'LastOrder', 'Country''Phone']
