@@ -11,53 +11,72 @@ from sklearn.pipeline import Pipeline
 import io
 
 # --- SYSTEM CONFIGURATION ---
-st.set_page_config(page_title="PredictiCorp BI Suite", layout="wide", initial_sidebar_state="expanded")
-
-# --- EXECUTIVE THEMING ---
 st.markdown("""
     <style>
-    /* 1. FORCE THE APP CANVAS TO STAY LIGHT */
+    /* 1. CLEAN APP CANVAS */
     .stApp {
         background-color: #f4f7f9 !important;
     }
 
-    /* 2. KPI BOXES: Force Dark Text on White Background */
-    /* This specifically targets the "invisible" text in your screenshots */
-    [data-testid="stMetricValue"], 
-    [data-testid="stMetricLabel"], 
-    [data-testid="stMetricDelta"] {
+    /* 2. REFINED KPI CARDS */
+    /* Target only the specific metric components for high visibility */
+    [data-testid="stMetricValue"] {
+        font-size: 2.2rem !important;
+        font-weight: 700 !important;
         color: #1f4e79 !important;
-        -webkit-text-fill-color: #1f4e79 !important; /* Added for mobile browsers */
+        -webkit-text-fill-color: #1f4e79 !important;
+    }
+    
+    [data-testid="stMetricLabel"] {
+        color: #5c6c7b !important;
+        -webkit-text-fill-color: #5c6c7b !important;
+        text-transform: uppercase;
+        letter-spacing: 1px;
     }
 
     .stMetric {
         background-color: #ffffff !important;
-        padding: 20px;
-        border-radius: 12px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-        border-top: 5px solid #1f4e79 !important;
+        border-radius: 15px !important;
+        padding: 25px !important;
+        box-shadow: 0 10px 20px rgba(31, 78, 121, 0.05) !important;
+        border: 1px solid #e1e4e8 !important;
+        border-top: 6px solid #1f4e79 !important;
     }
 
-    /* 3. TABS: Ensure they stay visible */
+    /* 3. MODERN TABS */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 12px;
+        background-color: transparent !important;
+    }
+
     .stTabs [data-baseweb="tab"] {
-        color: #5c6c7b !important;
+        height: 50px;
         background-color: #ffffff !important;
-        -webkit-text-fill-color: #5c6c7b !important;
-    }
-
-    /* 4. HEADERS: Force them to stay dark */
-    h1, h2, h3, h4, p {
+        border-radius: 8px 8px 0 0 !important;
+        padding: 0 20px !important;
         color: #1f4e79 !important;
         -webkit-text-fill-color: #1f4e79 !important;
+        font-weight: 600 !important;
+        border: 1px solid #e1e4e8 !important;
     }
 
-    /* 5. SIDEBAR: Lock the colors */
-    section[data-testid="stSidebar"] {
-        background-color: #ffffff !important;
+    .stTabs [aria-selected="true"] {
+        background-color: #1f4e79 !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
     }
-    section[data-testid="stSidebar"] * {
+
+    /* 4. CLEANER TEXT & HEADERS */
+    h1, h2, h3 {
         color: #1f4e79 !important;
         -webkit-text-fill-color: #1f4e79 !important;
+        font-family: 'Inter', sans-serif;
+    }
+
+    /* 5. SIDEBAR ELEGANCE */
+    [data-testid="stSidebar"] {
+        background-color: #ffffff !important;
+        border-right: 1px solid #e1e4e8 !important;
     }
     </style>
     """, unsafe_allow_html=True)
