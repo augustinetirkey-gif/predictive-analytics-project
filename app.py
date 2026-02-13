@@ -430,4 +430,4 @@ if uploaded_file is not None:
 else:
     # --- WELCOME PAGE ---
     st.markdown("""<div class="welcome-header"><h1>🚀 Welcome to PredictiCorp Intelligence</h1><p>The Global Executive Suite for Data-Driven Market Strategy</p></div>""", unsafe_allow_html=True)
-      st.info("👈 Please upload your Sales Data CSV in the sidebar to activate insights.")
+    st.info("👈 Please upload your Sales Data CSV in the sidebar to activate insights.")
