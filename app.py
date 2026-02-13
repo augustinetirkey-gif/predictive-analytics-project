@@ -366,6 +366,7 @@ if uploaded_file is not None:
                 'ORDERNUMBER': 'nunique',
                 'ORDERDATE': 'max',
                 'COUNTRY': 'first'
+                'PHONE': 'first'
             }).reset_index()
             cust_metrics.columns = ['Customer', 'Revenue', 'Frequency', 'LastOrder', 'Country']
             cust_metrics['Recency'] = (current_date - cust_metrics['LastOrder']).dt.days
