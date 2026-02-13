@@ -370,12 +370,12 @@ if uploaded_file is not None:
             }).reset_index()
             cust_metrics.columns = ['Customer', 'Revenue', 'Frequency', 'LastOrder', 'Country','Phone']
             cust_metrics['Recency'] = (current_date - cust_metrics['LastOrder']).dt.days
-            with c7:
+           # with c7:
                 st.markdown("#### Top 10 High-Value Customers")
                 cust_val = df.groupby('CUSTOMERNAME')['SALES'].sum().reset_index().sort_values('SALES', ascending=False).head(10)
                 st.plotly_chart(px.bar(cust_val, x='SALES', y='CUSTOMERNAME', orientation='h', template="plotly_white", color='SALES'), use_container_width=True)
             
-            with c8:
+            #with c8:
                 st.markdown("#### Customer Loyalty Segmentation")
                 fig_seg = px.pie(cust_base, names='Segment', template="plotly_white", hole=0.4)
                 st.plotly_chart(fig_seg, use_container_width=True)
