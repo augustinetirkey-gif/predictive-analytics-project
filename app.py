@@ -422,7 +422,7 @@ if uploaded_file is not None:
             # INSIGHT
             
 
-[Image of Pareto Chart principle]
+#[Image of Pareto Chart principle]
 
             st.caption("💡 **Concentration Insight:** This curve visualizes business risk. A steep incline toward the 80% mark indicates heavy reliance on a small group of VIPs, making the loss of a single top account highly impactful.")
 
