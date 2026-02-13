@@ -355,7 +355,7 @@ if uploaded_file is not None:
             )
 
    
-          # --- TAB 5: CUSTOMER ANALYTICS (CORRECTED SECTION) ---
+     # --- TAB 5: CUSTOMER ANALYTICS (CORRECTED SECTION) ---
         with tabs[4]:
             st.header("👥 Customer Intelligence & Loyalty")
             
@@ -376,16 +376,16 @@ if uploaded_file is not None:
             # 2. Customer Segmentation
             st.subheader("📊 Strategic Customer Segmentation")
             # Create the 'Deal size' column
-            cust_metrics['Deal size'] = pd.qcut(cust_metrics['Revenue'], q=3, labels=['Small', 'Medium', 'Large '])
+            cust_metrics['Deal size'] = pd.qcut(cust_metrics['Revenue'], q=3, labels=['Small', 'Medium', 'Large'])
             
-            col_s1,col_s2 = st.columns([1,2])
+            col_s1, col_s2 = st.columns([1, 1])
             with col_s1:
                 fig_seg = px.pie(cust_metrics, names='Deal size', hole=0.4, 
                                  color_discrete_sequence=px.colors.qualitative.Pastel,
-                                 title="Customer Base by Value Tier")
+                                 title="Customer Base Share")
                 st.plotly_chart(fig_seg, use_container_width=True)
                 
-                With col_s2:
+            with col_s2:
                 # Bar Chart explaining average revenue per deal size tier
                 deal_summary = cust_metrics.groupby('Deal size')['Revenue'].mean().reset_index()
                 fig_deal_bar = px.bar(deal_summary, x='Deal size', y='Revenue',
@@ -398,7 +398,7 @@ if uploaded_file is not None:
                 fig_deal_bar.update_layout(showlegend=False, template="plotly")
                 st.plotly_chart(fig_deal_bar, use_container_width=True)
 
-            # 3. Geographic Distribution (CORRECTED COLUMN NAME)
+            # 3. Geographic Distribution
             st.divider()
             st.subheader("🌍 Customer Geographic Footprint")
             fig_geo = px.scatter_geo(cust_metrics, locations="Country", locationmode='country names',
@@ -424,20 +424,23 @@ if uploaded_file is not None:
             with col_g1:
                 st.subheader("🏆 Top 10 High-Value Clients")
                 top_10 = cust_metrics.sort_values('Revenue', ascending=False).head(10)
-                st.dataframe(top_10[['Customer', 'Revenue', 'Recency', 'Country', 'Phone', 'Typical_Deal']], use_container_width=True, hide_index=True)
+                st.dataframe(top_10[['Customer', 'Revenue', 'Recency', 'Country', 'Phone', 'Typical_Deal']], 
+                             use_container_width=True, hide_index=True)
 
             with col_g2:
                 st.subheader("🚩 Churn Risk Analysis")
                 churn_df = cust_metrics[cust_metrics['Recency'] > 120].sort_values('Revenue', ascending=False)
                 st.write(f"*Found {len(churn_df)} customers at risk*")
-                st.dataframe(churn_df[['Customer', 'Revenue', 'Recency', 'Country', 'Phone']].head(10), use_container_width=True, hide_index=True)
+                st.dataframe(churn_df[['Customer', 'Revenue', 'Recency', 'Country', 'Phone']].head(10), 
+                             use_container_width=True, hide_index=True)
 
             # 6. Heatmap
             st.divider()
             st.subheader("🧩 Product Affinity Heatmap")
             top_custs = cust_metrics.nlargest(25, 'Revenue')['Customer']
             heat_data = df[df['CUSTOMERNAME'].isin(top_custs)].pivot_table(index='CUSTOMERNAME', columns='PRODUCTLINE', values='SALES', aggfunc='sum').fillna(0)
-            st.plotly_chart(px.imshow(heat_data, text_auto='.2s', aspect="auto", color_continuous_scale='RdYlBu_r', template="plotly"), use_container_width=True)
+            st.plotly_chart(px.imshow(heat_data, text_auto='.2s', aspect="auto", 
+                                     color_continuous_scale='RdYlBu_r', template="plotly"), use_container_width=True)
 else:
     # --- WELCOME PAGE ---
     st.markdown("""<div class="welcome-header"><h1>🚀 Welcome to PredictiCorp Intelligence</h1><p>The Global Executive Suite for Data-Driven Market Strategy</p></div>""", unsafe_allow_html=True)
