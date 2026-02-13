@@ -604,10 +604,7 @@ if uploaded_file is not None:
 else:
     # --- WELCOME PAGE ---
     st.markdown("""<div class="welcome-header"><h1>🚀 Welcome to PredictiCorp Intelligence</h1><p>The Global Executive Suite for Data-Driven Market Strategy</p></div>""", unsafe_allow_html=True)
-    
-    
-    
-    st.markdown("### 🛠️ Get Started in 3 Simple Steps")
+     st.markdown("### 🛠️ Get Started in 3 Simple Steps")
     s1, s2, s3 = st.columns(3)
     with s1: st.markdown("""<div class="feature-box"><h2>📋</h2><h3>Step 1</h3><p>Download the CSV template.</p></div>""", unsafe_allow_html=True)
     with s2: st.markdown("""<div class="feature-box"><h2>📥</h2><h3>Step 2</h3><p>Upload your sales data.</p></div>""", unsafe_allow_html=True)
