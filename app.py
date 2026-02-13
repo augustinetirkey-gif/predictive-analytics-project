@@ -370,7 +370,24 @@ if uploaded_file is not None:
             }).reset_index()
             cust_metrics.columns = ['Customer', 'Revenue', 'Frequency', 'LastOrder', 'Country','Phone']
             cust_metrics['Recency'] = (current_date - cust_metrics['LastOrder']).dt.days
-           # with c7:
+            # --- 2. CUSTOMER SEGMENTATION ---
+            st.subheader("📊 Strategic Customer Segmentation")
+            # Segmenting by Revenue Tiers
+            cust_metrics['Segment'] = pd.qcut(cust_metrics['Revenue'], q=3, labels=['Bronze', 'Silver', 'Gold (VIP)'])
+            
+            col_s1, col_s2 = st.columns([1, 2])
+            with col_s1:
+                fig_seg = px.pie(cust_metrics, names='Segment', hole=0.4, 
+                                 color_discrete_sequence=px.colors.qualitative.Pastel,
+                                 title="Customer Base by Value Tier")
+                st.plotly_chart(fig_seg, use_container_width=True)
+            
+            with col_s2:
+                fig_scatter = px.scatter(cust_metrics, x='Frequency', y='Revenue', 
+                                         size='Revenue', color='Segment', hover_name='Customer',
+                                         template="plotly_white", title="Loyalty Map: Frequency vs. Revenue")
+                st.plotly_chart(fig_scatter, use_container_width=True)
+                # with c7:
                 st.markdown("#### Top 10 High-Value Customers")
                 cust_val = df.groupby('CUSTOMERNAME')['SALES'].sum().reset_index().sort_values('SALES', ascending=False).head(10)
                 st.plotly_chart(px.bar(cust_val, x='SALES', y='CUSTOMERNAME', orientation='h', template="plotly_white", color='SALES'), use_container_width=True)
@@ -391,22 +408,6 @@ if uploaded_file is not None:
                 c_prod_heat = df.pivot_table(index='CUSTOMERNAME', columns='PRODUCTLINE', values='SALES', aggfunc='sum').fillna(0).head(20)
                 st.plotly_chart(px.imshow(c_prod_heat, template="plotly_white", color_continuous_scale="Purples"), use_container_width=True)
             # --- 2. CUSTOMER SEGMENTATION ---
-            st.subheader("📊 Strategic Customer Segmentation")
-            # Segmenting by Revenue Tiers
-            cust_metrics['Segment'] = pd.qcut(cust_metrics['Revenue'], q=3, labels=['Bronze', 'Silver', 'Gold (VIP)'])
-            
-            col_s1, col_s2 = st.columns([1, 2])
-            with col_s1:
-                fig_seg = px.pie(cust_metrics, names='Segment', hole=0.4, 
-                                 color_discrete_sequence=px.colors.qualitative.Pastel,
-                                 title="Customer Base by Value Tier")
-                st.plotly_chart(fig_seg, use_container_width=True)
-            
-            with col_s2:
-                fig_scatter = px.scatter(cust_metrics, x='Frequency', y='Revenue', 
-                                         size='Revenue', color='Segment', hover_name='Customer',
-                                         template="plotly_white", title="Loyalty Map: Frequency vs. Revenue")
-                st.plotly_chart(fig_scatter, use_container_width=True)
 
             # --- 3. LIFETIME VALUE (LTV) TREND ---
             st.divider()
