@@ -11,81 +11,30 @@ from sklearn.pipeline import Pipeline
 import io
 
 # --- SYSTEM CONFIGURATION ---
+st.set_page_config(page_title="PredictiCorp BI Suite", layout="wide", initial_sidebar_state="expanded")
+
+# --- EXECUTIVE THEMING ---
 st.markdown("""
     <style>
-    /* 1. CLEAN APP CANVAS - Force Light */
-    .stApp {
-        background-color: #f4f7f9 !important;
-        color: #1f4e79 !important;
-    }
-
-    /* 2. REFINED KPI CARDS - Anti-Inversion */
-    [data-testid="stMetricValue"] {
-        font-size: 2.2rem !important;
-        font-weight: 700 !important;
-        color: #1f4e79 !important;
-        -webkit-text-fill-color: #1f4e79 !important;
-    }
+    .main { background-color: #f4f7f9; }
+    .stMetric { background-color: #ffffff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-top: 5px solid #1f4e79; }
+    .stTabs [data-baseweb="tab-list"] { gap: 10px; background-color: #f4f7f9; }
+    .stTabs [data-baseweb="tab"] { background-color: #ffffff; border-radius: 10px 10px 0 0; border: 1px solid #e1e4e8; padding: 10px 20px; font-weight: bold; color: #5c6c7b; }
+    .stTabs [aria-selected="true"] { background-color: #1f4e79 !important; color: white !important; }
+    .card { background-color: #ffffff; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; border-left: 8px solid #1f4e79; }
     
-    [data-testid="stMetricLabel"] {
-        color: #5c6c7b !important;
-        -webkit-text-fill-color: #5c6c7b !important;
-        text-transform: uppercase;
-        letter-spacing: 1px;
+    .welcome-header {
+        background: linear-gradient(90deg, #1f4e79 0%, #2c3e50 100%);
+        color: white; padding: 60px; border-radius: 20px; text-align: center; margin-bottom: 40px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
     }
-
-    /* Force the card background to stay white and text to stay dark */
-    [data-testid="metric-container"] {
-        background-color: #ffffff !important;
-        border-radius: 15px !important;
-        padding: 25px !important;
-        box-shadow: 0 10px 20px rgba(31, 78, 121, 0.05) !important;
-        border: 1px solid #e1e4e8 !important;
-        border-top: 6px solid #1f4e79 !important;
-        color: #1f4e79 !important;
+    .feature-box {
+        background: white; padding: 30px; border-radius: 15px; border-bottom: 4px solid #1f4e79; text-align: center; transition: transform 0.3s ease;
     }
-
-    /* 3. MODERN TABS - Force Visibility */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 12px;
-        background-color: transparent !important;
-    }
-
-    .stTabs [data-baseweb="tab"] {
-        height: 50px;
-        background-color: #ffffff !important;
-        border-radius: 8px 8px 0 0 !important;
-        padding: 0 20px !important;
-        color: #1f4e79 !important;
-        -webkit-text-fill-color: #1f4e79 !important;
-        font-weight: 600 !important;
-        border: 1px solid #e1e4e8 !important;
-    }
-
-    .stTabs [aria-selected="true"] {
-        background-color: #1f4e79 !important;
-        color: #ffffff !important;
-        -webkit-text-fill-color: #ffffff !important;
-    }
-
-    /* 4. HEADERS - Anti-Dark Mode */
-    h1, h2, h3, h4, h5, h6, p, span {
-        color: #1f4e79 !important;
-        -webkit-text-fill-color: #1f4e79 !important;
-    }
-
-    /* 5. SIDEBAR - Force Light */
-    [data-testid="stSidebar"] {
-        background-color: #ffffff !important;
-        border-right: 1px solid #e1e4e8 !important;
-    }
-    
-    [data-testid="stSidebar"] * {
-        color: #1f4e79 !important;
-        -webkit-text-fill-color: #1f4e79 !important;
-    }
+    .feature-box:hover { transform: translateY(-10px); }
     </style>
     """, unsafe_allow_html=True)
+
 # --- TEMPLATE GENERATOR ---
 def convert_df_to_csv(df):
     return df.to_csv(index=False).encode('utf-8')
