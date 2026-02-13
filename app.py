@@ -357,7 +357,7 @@ if uploaded_file is not None:
         with tabs[4]:
             st.header("👥 Customer Intelligence & Loyalty")
             
-            # 1. Data Preparation (RFM Logic)
+            # 1. Data Preparation
             current_date = df['ORDERDATE'].max()
             cust_metrics = df.groupby('CUSTOMERNAME').agg({
                 'SALES': 'sum',
@@ -388,12 +388,13 @@ if uploaded_file is not None:
                                       color='Deal size',
                                       color_discrete_sequence=px.colors.qualitative.Pastel,
                                       title="Avg. Revenue per Deal Tier",
+                                      labels={'Revenue': 'Average Spend ($)'},
                                       text_auto='.2s')
                 fig_deal_bar.update_layout(showlegend=False, template="plotly")
                 st.plotly_chart(fig_deal_bar, use_container_width=True)
             
-            # Insight for Segmentation
-            st.info("💡 **Segment Insight:** While the base share is distributed, the 'Large' tier generates significantly higher average revenue. Focused loyalty programs for the 'Medium' tier could accelerate their transition into high-value clients.")
+            # INSIGHT
+            st.caption("💡 **Segmentation Insight:** While the base is evenly distributed, the 'Large' tier generates significantly higher average revenue per client. Shifting 'Medium' tier clients upward via targeted upselling represents your largest growth opportunity.")
 
             # 3. Geographic Distribution
             st.divider()
@@ -403,9 +404,8 @@ if uploaded_file is not None:
                                      template="plotly", projection="natural earth")
             st.plotly_chart(fig_geo, use_container_width=True)
             
-            # Insight for Geography
-            top_market = cust_metrics.groupby('Country')['Revenue'].sum().idxmax()
-            st.info(f"💡 **Market Insight:** **{top_market}** is currently the primary revenue driver. Strategic expansion should target high-performing clusters identified on the map to replicate this success in neighboring regions.")
+            # INSIGHT
+            st.caption("💡 **Geographic Insight:** Revenue clusters are concentrated in specific global hubs. Identifying high-value 'Large' tier pockets in emerging regions can guide localized marketing and logistics expansion.")
 
             # 4. Revenue Concentration (80/20 Rule)
             st.divider()
@@ -419,12 +419,12 @@ if uploaded_file is not None:
             fig_pareto.add_hline(y=80, line_dash="dash", line_color="red", annotation_text="80% Mark")
             st.plotly_chart(fig_pareto, use_container_width=True)
             
-            # Insight for Pareto
+            # INSIGHT
             
 
 [Image of Pareto Chart principle]
 
-            st.warning("💡 **Risk Insight:** The Pareto curve highlights business dependency. A steep curve above the red line indicates that a small group of VIPs controls 80% of your revenue, increasing the impact of individual client churn.")
+            st.caption("💡 **Concentration Insight:** This curve visualizes business risk. A steep incline toward the 80% mark indicates heavy reliance on a small group of VIPs, making the loss of a single top account highly impactful.")
 
             # 5. Dossier & Churn
             st.divider()
@@ -434,7 +434,7 @@ if uploaded_file is not None:
                 top_10 = cust_metrics.sort_values('Revenue', ascending=False).head(10)
                 st.dataframe(top_10[['Customer', 'Revenue', 'Recency', 'Country', 'Phone', 'Typical_Deal']], 
                              use_container_width=True, hide_index=True)
-                st.caption("✅ **Dossier Insight:** These top accounts represent your core revenue stability. Maintain high-touch engagement to secure these long-term partnerships.")
+                st.caption("📈 **Account Insight:** These 'Anchor' clients provide your revenue baseline; prioritize high-touch relationship management for these accounts.")
 
             with col_g2:
                 st.subheader("🚩 Churn Risk Analysis")
@@ -442,7 +442,7 @@ if uploaded_file is not None:
                 st.write(f"Found {len(churn_df)} customers at risk")
                 st.dataframe(churn_df[['Customer', 'Revenue', 'Recency', 'Country', 'Phone']].head(10), 
                              use_container_width=True, hide_index=True)
-                st.error("🚨 **Churn Alert:** Customers in this list have been inactive for over 120 days. High-revenue clients listed here should be targeted with immediate re-engagement campaigns.")
+                st.caption("⚠️ **Retention Insight:** Inactive clients (120+ days) require immediate re-engagement campaigns or personalized offers to prevent permanent loss of market share.")
 
             # 6. Heatmap
             st.divider()
@@ -452,8 +452,8 @@ if uploaded_file is not None:
             st.plotly_chart(px.imshow(heat_data, text_auto='.2s', aspect="auto", 
                                      color_continuous_scale='RdYlBu_r', template="plotly"), use_container_width=True)
             
-            # Insight for Heatmap
-            st.info("💡 **Inventory Insight:** The heatmap identifies cross-selling opportunities. Blank cells for high-revenue customers represent untapped product categories where targeted bundling offers could drive growth.")
+            # INSIGHT
+            st.caption("💡 **Cross-Sell Insight:** Gaps in this heatmap (cool blue areas for top customers) represent untapped cross-selling opportunities where existing high-value buyers have yet to explore other product lines.")
 else:
     # --- WELCOME PAGE ---
     st.markdown("""<div class="welcome-header"><h1>🚀 Welcome to PredictiCorp Intelligence</h1><p>The Global Executive Suite for Data-Driven Market Strategy</p></div>""", unsafe_allow_html=True)
