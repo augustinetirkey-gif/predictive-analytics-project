@@ -423,7 +423,7 @@ if uploaded_file is not None:
             col_g1, col_g2 = st.columns(2)
             with col_g1:
                 st.subheader("🏆 Top 10 High-Value Clients")
-                top_10 = cust_metrics.sort_values('Revenue', ascending=False).head(10)
+                top_10 = cust_metrics.sort_values('Revenue', ascending=False).head(100)
                 st.dataframe(top_10[['Customer', 'Revenue', 'Recency', 'Country', 'Phone', 'Typical_Deal']], 
                              use_container_width=True, hide_index=True)
 
@@ -431,7 +431,7 @@ if uploaded_file is not None:
                 st.subheader("🚩 Churn Risk Analysis")
                 churn_df = cust_metrics[cust_metrics['Recency'] > 120].sort_values('Revenue', ascending=False)
                 st.write(f"*Found {len(churn_df)} customers at risk*")
-                st.dataframe(churn_df[['Customer', 'Revenue', 'Recency', 'Country', 'Phone']].head(10), 
+                st.dataframe(churn_df[['Customer', 'Revenue', 'Recency', 'Country', 'Phone']].head(100), 
                              use_container_width=True, hide_index=True)
 
             # 6. Heatmap
