@@ -370,7 +370,26 @@ if uploaded_file is not None:
             }).reset_index()
             cust_metrics.columns = ['Customer', 'Revenue', 'Frequency', 'LastOrder', 'Country','Phone']
             cust_metrics['Recency'] = (current_date - cust_metrics['LastOrder']).dt.days
+            with c7:
+                st.markdown("#### Top 10 High-Value Customers")
+                cust_val = df.groupby('CUSTOMERNAME')['SALES'].sum().reset_index().sort_values('SALES', ascending=False).head(10)
+                st.plotly_chart(px.bar(cust_val, x='SALES', y='CUSTOMERNAME', orientation='h', template="plotly_white", color='SALES'), use_container_width=True)
             
+            with c8:
+                st.markdown("#### Customer Loyalty Segmentation")
+                fig_seg = px.pie(cust_base, names='Segment', template="plotly_white", hole=0.4)
+                st.plotly_chart(fig_seg, use_container_width=True)
+
+            # --- Geo Map and Churn ---
+            st.markdown("#### Geographic Customer Value Distribution")
+            fig_cust_map = px.scatter_geo(cust_base, locations="COUNTRY", locationmode='country names', size="SALES", color="Segment", template="plotly_white", title="Customer Locations by Value Tier")
+            st.plotly_chart(fig_cust_map, use_container_width=True)
+
+            c9, c10 = st.columns(2)
+            with c9:
+                st.markdown("#### Product Preference by Top Customers")
+                c_prod_heat = df.pivot_table(index='CUSTOMERNAME', columns='PRODUCTLINE', values='SALES', aggfunc='sum').fillna(0).head(20)
+                st.plotly_chart(px.imshow(c_prod_heat, template="plotly_white", color_continuous_scale="Purples"), use_container_width=True)
             # --- 2. CUSTOMER SEGMENTATION ---
             st.subheader("📊 Strategic Customer Segmentation")
             # Segmenting by Revenue Tiers
