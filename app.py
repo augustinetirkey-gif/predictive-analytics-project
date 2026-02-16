@@ -294,7 +294,7 @@ if uploaded_file is not None:
             
             
 
-[Image of Pareto Chart principle]
+#[Image of Pareto Chart principle]
 
             fig_pareto = px.area(pareto_df, x='Customer_Count_Pct', y='Revenue_Share', title="The Pareto Curve", template="plotly")
             fig_pareto.add_hline(y=80, line_dash="dash", line_color="red", annotation_text="80% Mark")
