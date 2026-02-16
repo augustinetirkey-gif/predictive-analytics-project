@@ -440,39 +440,57 @@ if uploaded_file is not None:
                 st.write(f"*Found {len(churn_df)} customers at risk*")
                 st.dataframe(churn_df.head(10), use_container_width=True, hide_index=True)
 
-           # 6. Heatmap (Fixed to show ALL Product Lines)
-  # --- TAB 5: CUSTOMER ANALYTICS (HEATMAP SECTION ONLY) ---
+      # --- TAB 5: CUSTOMER ANALYTICS ---
         with tabs[4]:
-     st.header("👥 Customer Intelligence & Loyalty")
-    
-        # 1. ENSURE DATA PREP IS COMPLETE (Prevents NameError)
-         current_date = df['ORDERDATE'].max()
-         phone_col = 'PHONE' if 'PHONE' in df.columns else 'CUSTOMERNAME'
-    
-    # Aggregate data for customers
-    cust_metrics = df.groupby('CUSTOMERNAME').agg({
-        'SALES': 'sum',
-        'ORDERNUMBER': 'nunique',
-        'ORDERDATE': 'max',
-        'COUNTRY': 'first',
-        phone_col: 'first'
-    }).reset_index()
-    
-    cust_metrics.columns = ['Customer', 'Revenue', 'Frequency', 'LastOrder', 'Country', 'Phone']
-    cust_metrics['Recency'] = (current_date - cust_metrics['LastOrder']).dt.days
+            st.header("👥 Customer Intelligence & Loyalty")
+            
+            # 1. ENSURE DATA PREP IS COMPLETE
+            current_date = df['ORDERDATE'].max()
+            phone_col = 'PHONE' if 'PHONE' in df.columns else 'CUSTOMERNAME'
+            
+            # Aggregate data for customers
+            cust_metrics = df.groupby('CUSTOMERNAME').agg({
+                'SALES': 'sum',
+                'ORDERNUMBER': 'nunique',
+                'ORDERDATE': 'max',
+                'COUNTRY': 'first',
+                phone_col: 'first'
+            }).reset_index()
+            
+            cust_metrics.columns = ['Customer', 'Revenue', 'Frequency', 'LastOrder', 'Country', 'Phone']
+            cust_metrics['Recency'] = (current_date - cust_metrics['LastOrder']).dt.days
 
-    # ... [Insert Segmentation/Pareto code here if needed] ...
+            # 6. Heatmap (Fixed to show ALL Product Lines)
+            st.divider()
+            st.subheader("🧩 Product Affinity Heatmap")
+            
+            master_products = sorted(df_master['PRODUCTLINE'].unique())
+            top_custs = cust_metrics.nlargest(25, 'Revenue')['Customer']
+            
+            heat_data = df[df['CUSTOMERNAME'].isin(top_custs)].pivot_table(
+                index='CUSTOMERNAME', columns='PRODUCTLINE', values='SALES', aggfunc='sum'
+            ).fillna(0)
+            
+            heat_data = heat_data.reindex(columns=master_products, fill_value=0)
+            
+            st.plotly_chart(px.imshow(
+                heat_data, text_auto='.2s', aspect="auto", 
+                color_continuous_scale='RdYlBu_r', template="plotly"
+            ), use_container_width=True)
 
+# --- THE FIX: Align 'else' with the original 'if uploaded_file' ---
 else:
-       # --- WELCOME PAGE ---
-           st.markdown("""<div class="welcome-header"><h1>🚀 Welcome to PredictiCorp Intelligence</h1><p>The Global Executive Suite for Data-Driven Market Strategy</p></div>""", unsafe_allow_html=True)
+    # --- WELCOME PAGE ---
+    st.markdown("""<div class="welcome-header"><h1>🚀 Welcome to PredictiCorp Intelligence</h1><p>The Global Executive Suite for Data-Driven Market Strategy</p></div>""", unsafe_allow_html=True)
     
+    st.markdown("### 🛠️ Get Started in 3 Simple Steps")
+    s1, s2, s3 = st.columns(3)
+    with s1: 
+        st.markdown("""<div class="feature-box"><h2>📋</h2><h3>Step 1</h3><p>Download the CSV template.</p></div>""", unsafe_allow_html=True)
+    with s2: 
+        st.markdown("""<div class="feature-box"><h2>📥</h2><h3>Step 2</h3><p>Upload your sales data.</p></div>""", unsafe_allow_html=True)
+    with s3: 
+        st.markdown("""<div class="feature-box"><h2>💡</h2><h3>Step 3</h3><p>Explore analytical tabs.</p></div>""", unsafe_allow_html=True)
     
-    
-          st.markdown("### 🛠️ Get Started in 3 Simple Steps")
-            s1, s2, s3 = st.columns(3)
-          with s1: st.markdown("""<div class="feature-box"><h2>📋</h2><h3>Step 1</h3><p>Download the CSV template.</p></div>""", unsafe_allow_html=True)
-           with s2: st.markdown("""<div class="feature-box"><h2>📥</h2><h3>Step 2</h3><p>Upload your sales data.</p></div>""", unsafe_allow_html=True)
-            with s3: st.markdown("""<div class="feature-box"><h2>💡</h2><h3>Step 3</h3><p>Explore analytical tabs.</p></div>""", unsafe_allow_html=True)
-            st.markdown("---")
-             st.info("👈 Please upload your Sales Data CSV in the sidebar to activate insights.")
+    st.markdown("---")
+    st.info("👈 Please upload your Sales Data CSV in the sidebar to activate insights.")
