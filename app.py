@@ -441,34 +441,27 @@ if uploaded_file is not None:
                 st.dataframe(churn_df.head(10), use_container_width=True, hide_index=True)
 
            # 6. Heatmap (Fixed to show ALL Product Lines)
-    st.divider()
-    st.subheader("🧩 Product Affinity Heatmap")
+  # --- TAB 5: CUSTOMER ANALYTICS (HEATMAP SECTION ONLY) ---
+with tabs[4]:
+    st.header("👥 Customer Intelligence & Loyalty")
     
-    # Identify ALL unique products from the master dataset so none are "hidden"
-    master_products = sorted(df_master['PRODUCTLINE'].unique())
+    # 1. ENSURE DATA PREP IS COMPLETE (Prevents NameError)
+    current_date = df['ORDERDATE'].max()
+    phone_col = 'PHONE' if 'PHONE' in df.columns else 'CUSTOMERNAME'
     
-    # Filter for top customers based on your CURRENT sidebar filters
-    top_custs = cust_metrics.nlargest(25, 'Revenue')['Customer']
+    # Aggregate data for customers
+    cust_metrics = df.groupby('CUSTOMERNAME').agg({
+        'SALES': 'sum',
+        'ORDERNUMBER': 'nunique',
+        'ORDERDATE': 'max',
+        'COUNTRY': 'first',
+        phone_col: 'first'
+    }).reset_index()
     
-    # Create the pivot table
-    heat_data = df[df['CUSTOMERNAME'].isin(top_custs)].pivot_table(
-        index='CUSTOMERNAME', 
-        columns='PRODUCTLINE', 
-        values='SALES', 
-        aggfunc='sum'
-    ).fillna(0)
-    
-    # FORCE the heatmap to include all master product lines (Motorcycles, Ships, etc.)
-    # This ensures the X-axis is complete even if top customers didn't buy them
-    heat_data = heat_data.reindex(columns=master_products, fill_value=0)
-    
-    st.plotly_chart(px.imshow(
-        heat_data, 
-        text_auto='.2s', 
-        aspect="auto",
-        color_continuous_scale='RdYlBu_r', 
-        template="plotly"
-    ), use_container_width=True)
+    cust_metrics.columns = ['Customer', 'Revenue', 'Frequency', 'LastOrder', 'Country', 'Phone']
+    cust_metrics['Recency'] = (current_date - cust_metrics['LastOrder']).dt.days
+
+    # ... [Insert Segmentation/Pareto code here if needed] ...
 else:
     # --- WELCOME PAGE ---
     st.markdown("""<div class="welcome-header"><h1>🚀 Welcome to PredictiCorp Intelligence</h1><p>The Global Executive Suite for Data-Driven Market Strategy</p></div>""", unsafe_allow_html=True)
