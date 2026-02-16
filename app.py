@@ -462,6 +462,7 @@ with tabs[4]:
     cust_metrics['Recency'] = (current_date - cust_metrics['LastOrder']).dt.days
 
     # ... [Insert Segmentation/Pareto code here if needed] ...
+
 else:
     # --- WELCOME PAGE ---
     st.markdown("""<div class="welcome-header"><h1>🚀 Welcome to PredictiCorp Intelligence</h1><p>The Global Executive Suite for Data-Driven Market Strategy</p></div>""", unsafe_allow_html=True)
