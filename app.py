@@ -13,26 +13,22 @@ import io
 # --- SYSTEM CONFIGURATION ---
 st.set_page_config(page_title="PredictiCorp BI Suite", layout="wide", initial_sidebar_state="expanded")
 
-# --- EXECUTIVE THEMING (Refactored for Theme Support) ---
+# --- EXECUTIVE THEMING ---
 st.markdown("""
     <style>
-    /* Use transparent borders and adaptive shadows for theme compatibility */
     .stMetric { 
         padding: 20px; 
         border-radius: 12px; 
         box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
         border: 1px solid rgba(128, 128, 128, 0.2);
     }
-    
     .stTabs [data-baseweb="tab-list"] { gap: 10px; }
-    
     .stTabs [data-baseweb="tab"] { 
         border-radius: 10px 10px 0 0; 
         border: 1px solid rgba(128, 128, 128, 0.2);
         padding: 10px 20px; 
         font-weight: bold; 
     }
-
     .card { 
         padding: 25px; 
         border-radius: 15px; 
@@ -40,7 +36,6 @@ st.markdown("""
         margin-bottom: 20px; 
         border: 1px solid rgba(128, 128, 128, 0.2);
     }
-    
     .welcome-header {
         background: linear-gradient(90deg, rgba(31, 78, 121, 0.9) 0%, rgba(44, 62, 80, 0.9) 100%);
         color: white; 
@@ -50,7 +45,6 @@ st.markdown("""
         margin-bottom: 40px;
         box-shadow: 0 10px 30px rgba(0,0,0,0.2);
     }
-    
     .feature-box {
         padding: 30px; 
         border-radius: 15px; 
@@ -59,35 +53,21 @@ st.markdown("""
         transition: transform 0.3s ease;
     }
     .feature-box:hover { transform: translateY(-10px); }
-    /* Use dynamic variables for the KPI Box */
     [data-testid="stMetric"] {
-        background-color: rgba(128, 128, 128, 0.05); /* Light translucent grey */
+        background-color: rgba(128, 128, 128, 0.05); 
         border: 1px solid rgba(128, 128, 128, 0.2);
         padding: 15px 20px;
         border-radius: 12px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         transition: transform 0.3s ease;
     }
-
-    /* Add a nice hover effect to make it 'Attractive' */
     [data-testid="stMetric"]:hover {
         transform: translateY(-5px);
         border-color: #1f4e79;
         box-shadow: 0 8px 20px rgba(31, 78, 121, 0.2);
     }
-
-    /* Fix the Label (Small text) visibility */
-    [data-testid="stMetricLabel"] p {
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    /* Fix the Value (Big number) visibility */
-    [data-testid="stMetricValue"] div {
-        font-weight: 700;
-        font-size: 2rem;
-    }
+    [data-testid="stMetricLabel"] p { font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    [data-testid="stMetricValue"] div { font-weight: 700; font-size: 2rem; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -246,18 +226,6 @@ if uploaded_file is not None:
                 st.write("*Bottom 5 Markets*")
                 st.dataframe(m_sorted.tail(5), hide_index=True, use_container_width=True)
 
-            c5, c6 = st.columns(2)
-            with c5:
-                st.markdown("#### YoY Revenue Performance")
-                growth_trend = df.groupby(['YEAR', 'MONTH_ID'])['SALES'].sum().reset_index()
-                fig_growth = px.bar(growth_trend, x='MONTH_ID', y='SALES', color='YEAR', barmode='group', template="plotly_white")
-                st.plotly_chart(fig_growth, use_container_width=True)
-            
-            with c6:
-                st.markdown("#### Product Revenue Contribution (%)")
-                fig_don = px.pie(df, values='SALES', names='PRODUCTLINE', hole=0.5, template="plotly_white", color_discrete_sequence=px.colors.qualitative.Pastel)
-                st.plotly_chart(fig_don, use_container_width=True)
-
         # TAB 4: Demand Forecast
         with tabs[3]:
             st.header("📅 Demand Forecasting (Predictive Planning)")
@@ -275,24 +243,10 @@ if uploaded_file is not None:
             fig_forecast.update_layout(title="Sales Momentum Forecast", template="plotly_white", xaxis_title="Timeline Step (Months)", yaxis_title="Revenue ($)", hovermode="x unified")
             st.plotly_chart(fig_forecast, use_container_width=True)
 
-            st.divider()
-            c5, c6 = st.columns(2)
-            with c5:
-                st.markdown("#### 🌙 Seasonality Analysis")
-                season_df = df_master.groupby('MONTH_ID')['SALES'].mean().reset_index()
-                fig_season = px.bar(season_df, x='MONTH_ID', y='SALES', template="plotly_white", color='SALES', color_continuous_scale="YlGnBu")
-                st.plotly_chart(fig_season, use_container_width=True)
-            with c6:
-                st.markdown("#### 📊 YoY Performance Comparison")
-                yoy_comp = df_master.groupby(['YEAR', 'MONTH_ID'])['SALES'].sum().reset_index()
-                fig_yoy = px.line(yoy_comp, x='MONTH_ID', y='SALES', color='YEAR', markers=True, template="plotly_white")
-                st.plotly_chart(fig_yoy, use_container_width=True)
-
-        # TAB 5: CUSTOMER ANALYTICS
+        # --- TAB 5: CUSTOMER ANALYTICS (ERROR FIX APPLIED HERE) ---
         with tabs[4]:
             st.header("👥 Customer Intelligence & Loyalty")
             current_date = df['ORDERDATE'].max()
-            # Handling phone column safely if missing
             phone_col = 'PHONE' if 'PHONE' in df.columns else 'CUSTOMERNAME'
             
             cust_metrics = df.groupby('CUSTOMERNAME').agg({
@@ -308,9 +262,20 @@ if uploaded_file is not None:
             cust_metrics['Recency'] = (current_date - cust_metrics['LastOrder']).dt.days
             
             st.subheader("📊 Strategic Customer Segmentation")
-            # FIX APPLIED HERE: duplicates='drop' prevents error when bin edges are identical
-            cust_metrics['Deal size'] = pd.qcut(cust_metrics['Revenue'], q=3, labels=['Small', 'Medium', 'Large'], duplicates='drop')
             
+            # --- ROBUST FIX FOR Q_CUT ERROR ---
+            try:
+                # We attempt to create 3 bins. If data is heavily skewed, we use unique bins.
+                # 'duplicates=drop' can reduce the number of bins, so we dynamically generate labels.
+                quantiles = pd.qcut(cust_metrics['Revenue'], q=3, duplicates='drop')
+                num_bins = len(quantiles.cat.categories)
+                dynamic_labels = ['Small', 'Medium', 'Large'][:num_bins]
+                cust_metrics['Deal size'] = pd.qcut(cust_metrics['Revenue'], q=3, labels=dynamic_labels, duplicates='drop')
+            except Exception as e:
+                # Fallback to manual cut if data is too uniform for qcut
+                st.warning("Data distribution too uniform for automated quantiles. Using standard segmentation.")
+                cust_metrics['Deal size'] = pd.cut(cust_metrics['Revenue'], bins=3, labels=['Small', 'Medium', 'Large'])
+
             col_s1, col_s2 = st.columns([1, 1])
             with col_s1:
                 fig_seg = px.pie(cust_metrics, names='Deal size', hole=0.4, color_discrete_sequence=px.colors.qualitative.Pastel, title="Customer Base Share")
@@ -321,22 +286,15 @@ if uploaded_file is not None:
                 fig_deal_bar = px.bar(deal_summary, x='Deal size', y='Revenue', color='Deal size', color_discrete_sequence=px.colors.qualitative.Pastel, title="Avg. Revenue per Deal Tier", text_auto='.2s')
                 st.plotly_chart(fig_deal_bar, use_container_width=True)
             
-            st.caption("💡 **Segmentation Insight:** While the base is evenly distributed, the 'Large' tier generates significantly higher average revenue per client.")
-
-            st.divider()
-            st.subheader("🌍 Customer Geographic Footprint")
-            fig_geo = px.scatter_geo(cust_metrics, locations="Country", locationmode='country names', size="Revenue", color="Deal size", hover_name="Customer", template="plotly", projection="natural earth")
-            st.plotly_chart(fig_geo, use_container_width=True)
-
             st.divider()
             st.subheader("🎯 Revenue Concentration Analysis")
             pareto_df = cust_metrics.sort_values('Revenue', ascending=False).copy()
             pareto_df['Revenue_Share'] = (pareto_df['Revenue'].cumsum() / pareto_df['Revenue'].sum()) * 100
             pareto_df['Customer_Count_Pct'] = np.arange(1, len(pareto_df) + 1) / len(pareto_df) * 100
-
+            
             
 
-#[Image of Pareto Chart principle]
+[Image of Pareto Chart principle]
 
             fig_pareto = px.area(pareto_df, x='Customer_Count_Pct', y='Revenue_Share', title="The Pareto Curve", template="plotly")
             fig_pareto.add_hline(y=80, line_dash="dash", line_color="red", annotation_text="80% Mark")
@@ -359,6 +317,7 @@ if uploaded_file is not None:
             top_custs = cust_metrics.nlargest(25, 'Revenue')['Customer']
             heat_data = df[df['CUSTOMERNAME'].isin(top_custs)].pivot_table(index='CUSTOMERNAME', columns='PRODUCTLINE', values='SALES', aggfunc='sum').fillna(0)
             st.plotly_chart(px.imshow(heat_data, text_auto='.2s', aspect="auto", color_continuous_scale='RdYlBu_r', template="plotly"), use_container_width=True)
+
 else:
     st.markdown("""<div class="welcome-header"><h1>🚀 Welcome to PredictiCorp Intelligence</h1><p>The Global Executive Suite for Data-Driven Market Strategy</p></div>""", unsafe_allow_html=True)
     st.markdown("### 🛠️ Get Started in 3 Simple Steps")
