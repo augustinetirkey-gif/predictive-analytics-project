@@ -440,14 +440,35 @@ if uploaded_file is not None:
                 st.write(f"*Found {len(churn_df)} customers at risk*")
                 st.dataframe(churn_df.head(10), use_container_width=True, hide_index=True)
 
-            # 6. Heatmap
-            st.divider()
-            st.subheader("🧩 Product Affinity Heatmap")
-            top_custs = cust_metrics.nlargest(25, 'Revenue')['Customer']
-            heat_data = df[df['CUSTOMERNAME'].isin(top_custs)].pivot_table(index='CUSTOMERNAME', columns='PRODUCTLINE', values='SALES', aggfunc='sum').fillna(0)
-            st.plotly_chart(px.imshow(heat_data, text_auto='.2s', color_continuous_scale='RdYlBu_r'), use_container_width=True)
-
-
+           # 6. Heatmap (Fixed to show ALL Product Lines)
+    st.divider()
+    st.subheader("🧩 Product Affinity Heatmap")
+    
+    # Identify ALL unique products from the master dataset so none are "hidden"
+    master_products = sorted(df_master['PRODUCTLINE'].unique())
+    
+    # Filter for top customers based on your CURRENT sidebar filters
+    top_custs = cust_metrics.nlargest(25, 'Revenue')['Customer']
+    
+    # Create the pivot table
+    heat_data = df[df['CUSTOMERNAME'].isin(top_custs)].pivot_table(
+        index='CUSTOMERNAME', 
+        columns='PRODUCTLINE', 
+        values='SALES', 
+        aggfunc='sum'
+    ).fillna(0)
+    
+    # FORCE the heatmap to include all master product lines (Motorcycles, Ships, etc.)
+    # This ensures the X-axis is complete even if top customers didn't buy them
+    heat_data = heat_data.reindex(columns=master_products, fill_value=0)
+    
+    st.plotly_chart(px.imshow(
+        heat_data, 
+        text_auto='.2s', 
+        aspect="auto",
+        color_continuous_scale='RdYlBu_r', 
+        template="plotly"
+    ), use_container_width=True)
 else:
     # --- WELCOME PAGE ---
     st.markdown("""<div class="welcome-header"><h1>🚀 Welcome to PredictiCorp Intelligence</h1><p>The Global Executive Suite for Data-Driven Market Strategy</p></div>""", unsafe_allow_html=True)
