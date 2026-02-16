@@ -442,12 +442,12 @@ if uploaded_file is not None:
 
            # 6. Heatmap (Fixed to show ALL Product Lines)
   # --- TAB 5: CUSTOMER ANALYTICS (HEATMAP SECTION ONLY) ---
-with tabs[4]:
-    st.header("👥 Customer Intelligence & Loyalty")
+        with tabs[4]:
+     st.header("👥 Customer Intelligence & Loyalty")
     
-    # 1. ENSURE DATA PREP IS COMPLETE (Prevents NameError)
-    current_date = df['ORDERDATE'].max()
-    phone_col = 'PHONE' if 'PHONE' in df.columns else 'CUSTOMERNAME'
+        # 1. ENSURE DATA PREP IS COMPLETE (Prevents NameError)
+         current_date = df['ORDERDATE'].max()
+         phone_col = 'PHONE' if 'PHONE' in df.columns else 'CUSTOMERNAME'
     
     # Aggregate data for customers
     cust_metrics = df.groupby('CUSTOMERNAME').agg({
@@ -464,15 +464,15 @@ with tabs[4]:
     # ... [Insert Segmentation/Pareto code here if needed] ...
 
 else:
-    # --- WELCOME PAGE ---
-    st.markdown("""<div class="welcome-header"><h1>🚀 Welcome to PredictiCorp Intelligence</h1><p>The Global Executive Suite for Data-Driven Market Strategy</p></div>""", unsafe_allow_html=True)
+# --- WELCOME PAGE ---
+st.markdown("""<div class="welcome-header"><h1>🚀 Welcome to PredictiCorp Intelligence</h1><p>The Global Executive Suite for Data-Driven Market Strategy</p></div>""", unsafe_allow_html=True)
     
     
     
-    st.markdown("### 🛠️ Get Started in 3 Simple Steps")
-    s1, s2, s3 = st.columns(3)
-    with s1: st.markdown("""<div class="feature-box"><h2>📋</h2><h3>Step 1</h3><p>Download the CSV template.</p></div>""", unsafe_allow_html=True)
-    with s2: st.markdown("""<div class="feature-box"><h2>📥</h2><h3>Step 2</h3><p>Upload your sales data.</p></div>""", unsafe_allow_html=True)
-    with s3: st.markdown("""<div class="feature-box"><h2>💡</h2><h3>Step 3</h3><p>Explore analytical tabs.</p></div>""", unsafe_allow_html=True)
-    st.markdown("---")
-    st.info("👈 Please upload your Sales Data CSV in the sidebar to activate insights.")
+st.markdown("### 🛠️ Get Started in 3 Simple Steps")
+ s1, s2, s3 = st.columns(3)
+with s1: st.markdown("""<div class="feature-box"><h2>📋</h2><h3>Step 1</h3><p>Download the CSV template.</p></div>""", unsafe_allow_html=True)
+with s2: st.markdown("""<div class="feature-box"><h2>📥</h2><h3>Step 2</h3><p>Upload your sales data.</p></div>""", unsafe_allow_html=True)
+with s3: st.markdown("""<div class="feature-box"><h2>💡</h2><h3>Step 3</h3><p>Explore analytical tabs.</p></div>""", unsafe_allow_html=True)
+st.markdown("---")
+ st.info("👈 Please upload your Sales Data CSV in the sidebar to activate insights.")
