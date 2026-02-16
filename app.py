@@ -359,23 +359,38 @@ if uploaded_file is not None:
             
             # 1. Data Preparation
             current_date = df['ORDERDATE'].max()
+            phone_col = 'PHONE' if 'PHONE' in df.columns else 'CUSTOMERNAME'
+            
             cust_metrics = df.groupby('CUSTOMERNAME').agg({
                 'SALES': 'sum',
                 'ORDERNUMBER': 'nunique',
                 'ORDERDATE': 'max',
                 'COUNTRY': 'first',
-                'PHONE': 'first',
-                'DEALSIZE': lambda x: x.mode()[0]
+                phone_col: 'first',
+                'DEALSIZE': lambda x: x.mode()[0] if not x.mode().empty else 'Small'
             }).reset_index()
             
             cust_metrics.columns = ['Customer', 'Revenue', 'Frequency', 'LastOrder', 'Country', 'Phone', 'Typical_Deal']
             cust_metrics['Recency'] = (current_date - cust_metrics['LastOrder']).dt.days
             
-            # 2. Customer Segmentation
+            # 2. Customer Segmentation (REPAIRED LOGIC)
             st.subheader("📊 Strategic Customer Segmentation")
-            # Create the 'Deal size' column
-            cust_metrics['Deal size'] = pd.qcut(cust_metrics['Revenue'], q=3, labels=['Small', 'Medium', 'Large'])
             
+            # THE FIX: Dynamically determine labels based on unique bin edges found
+            try:
+                # Calculate edges with duplicates dropped to find actual groupable bins
+                bin_check = pd.qcut(cust_metrics['Revenue'], q=3, duplicates='drop')
+                actual_bins = len(bin_check.cat.categories)
+                
+                # Assign labels only for the bins that exist
+                label_options = ['Small', 'Medium', 'Large']
+                final_labels = label_options[:actual_bins] if actual_bins > 0 else ['General']
+                
+                cust_metrics['Deal size'] = pd.qcut(cust_metrics['Revenue'], q=3, labels=final_labels, duplicates='drop')
+            except Exception:
+                # Fallback to standard cut if qcut is mathematically impossible
+                cust_metrics['Deal size'] = pd.cut(cust_metrics['Revenue'], bins=3, labels=['Small', 'Medium', 'Large'])
+
             col_s1, col_s2 = st.columns([1, 1])
             with col_s1:
                 fig_seg = px.pie(cust_metrics, names='Deal size', hole=0.4, 
@@ -384,15 +399,14 @@ if uploaded_file is not None:
                 st.plotly_chart(fig_seg, use_container_width=True)
                 
             with col_s2:
-                # Bar Chart explaining average revenue per deal size tier
-                deal_summary = cust_metrics.groupby('Deal size')['Revenue'].mean().reset_index()
+                # Use observed=False to handle potential empty categories from the dynamic fix
+                deal_summary = cust_metrics.groupby('Deal size', observed=False)['Revenue'].mean().reset_index()
                 fig_deal_bar = px.bar(deal_summary, x='Deal size', y='Revenue',
                                       color='Deal size',
                                       color_discrete_sequence=px.colors.qualitative.Pastel,
                                       title="Avg. Revenue per Deal Tier",
                                       labels={'Revenue': 'Average Spend ($)'},
                                       text_auto='.2s')
-                # Force the layout to be clean for executive viewing
                 fig_deal_bar.update_layout(showlegend=False, template="plotly")
                 st.plotly_chart(fig_deal_bar, use_container_width=True)
 
@@ -404,16 +418,14 @@ if uploaded_file is not None:
                                      template="plotly", projection="natural earth")
             st.plotly_chart(fig_geo, use_container_width=True)
 
-            # 4. Revenue Concentration (80/20 Rule)
+            # 4. Revenue Concentration
             st.divider()
             st.subheader("🎯 Revenue Concentration Analysis")
             pareto_df = cust_metrics.sort_values('Revenue', ascending=False).copy()
             pareto_df['Revenue_Share'] = (pareto_df['Revenue'].cumsum() / pareto_df['Revenue'].sum()) * 100
             pareto_df['Customer_Count_Pct'] = np.arange(1, len(pareto_df) + 1) / len(pareto_df) * 100
-
-            fig_pareto = px.area(pareto_df, x='Customer_Count_Pct', y='Revenue_Share',
-                                 title="The Pareto Curve", template="plotly")
-            fig_pareto.add_hline(y=80, line_dash="dash", line_color="red", annotation_text="80% Mark")
+            fig_pareto = px.area(pareto_df, x='Customer_Count_Pct', y='Revenue_Share', title="The Pareto Curve")
+            fig_pareto.add_hline(y=80, line_dash="dash", line_color="red")
             st.plotly_chart(fig_pareto, use_container_width=True)
 
             # 5. Dossier & Churn
@@ -421,24 +433,23 @@ if uploaded_file is not None:
             col_g1, col_g2 = st.columns(2)
             with col_g1:
                 st.subheader("🏆 Top 10 High-Value Clients")
-                top_10 = cust_metrics.sort_values('Revenue', ascending=False).head(10)
-                st.dataframe(top_10[['Customer', 'Revenue', 'Recency', 'Country', 'Phone', 'Typical_Deal']], 
-                             use_container_width=True, hide_index=True)
-
+                st.dataframe(cust_metrics.sort_values('Revenue', ascending=False).head(10), use_container_width=True, hide_index=True)
             with col_g2:
                 st.subheader("🚩 Churn Risk Analysis")
                 churn_df = cust_metrics[cust_metrics['Recency'] > 120].sort_values('Revenue', ascending=False)
                 st.write(f"*Found {len(churn_df)} customers at risk*")
-                st.dataframe(churn_df[['Customer', 'Revenue', 'Recency', 'Country', 'Phone']].head(10), 
-                             use_container_width=True, hide_index=True)
+                st.dataframe(churn_df.head(10), use_container_width=True, hide_index=True)
 
             # 6. Heatmap
             st.divider()
             st.subheader("🧩 Product Affinity Heatmap")
             top_custs = cust_metrics.nlargest(25, 'Revenue')['Customer']
             heat_data = df[df['CUSTOMERNAME'].isin(top_custs)].pivot_table(index='CUSTOMERNAME', columns='PRODUCTLINE', values='SALES', aggfunc='sum').fillna(0)
-            st.plotly_chart(px.imshow(heat_data, text_auto='.2s', aspect="auto", 
-                                     color_continuous_scale='RdYlBu_r', template="plotly"), use_container_width=True)
+            st.plotly_chart(px.imshow(heat_data, text_auto='.2s', color_continuous_scale='RdYlBu_r'), use_container_width=True)
+
+else:
+    st.markdown("""<div class="welcome-header"><h1>🚀 Welcome to PredictiCorp Intelligence</h1><p>The Global Executive Suite for Data-Driven Market Strategy</p></div>""", unsafe_allow_html=True)
+    st.info("👈 Please upload your Sales Data CSV in the sidebar to activate insights.")
 else:
     # --- WELCOME PAGE ---
     st.markdown("""<div class="welcome-header"><h1>🚀 Welcome to PredictiCorp Intelligence</h1><p>The Global Executive Suite for Data-Driven Market Strategy</p></div>""", unsafe_allow_html=True)
