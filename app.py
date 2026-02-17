@@ -156,6 +156,7 @@ if uploaded_file is not None:
         return best_pipe, metrics
 
     bi_pipe, ai_metrics = train_bi_model(df_master)
+    
     # --- DATA VALIDATION ---
     expected_cols = set(template_df.columns)
     actual_cols = set(df_master.columns)
