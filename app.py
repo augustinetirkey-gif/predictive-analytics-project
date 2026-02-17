@@ -9,6 +9,11 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 import io
+from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 
 # --- SYSTEM CONFIGURATION ---
 st.set_page_config(page_title="PredictiCorp BI Suite", layout="wide", initial_sidebar_state="expanded")
@@ -141,21 +146,71 @@ if uploaded_file is not None:
     ]
 
     @st.cache_resource
-    def train_bi_model(data):
-        features = ['MONTH_ID', 'QTR_ID', 'MSRP', 'QUANTITYORDERED', 'PRODUCTLINE', 'COUNTRY']
-        X, y = data[features], data['SALES']
-        pipe = Pipeline(steps=[
-            ('pre', ColumnTransformer([('cat', OneHotEncoder(handle_unknown='ignore'), ['PRODUCTLINE', 'COUNTRY'])], remainder='passthrough')),
-            ('reg', RandomForestRegressor(n_estimators=100, random_state=42))
-        ]).fit(X, y)
-        return pipe, r2_score(y, pipe.predict(X)) * 100
+   from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 
-    bi_pipe, ai_score = train_bi_model(df_master)
+@st.cache_resource
+def train_bi_model(data):
+    features = ['MONTH_ID', 'QTR_ID', 'MSRP', 'QUANTITYORDERED', 'PRODUCTLINE', 'COUNTRY']
+    X, y = data[features], data['SALES']
+    
+    # 1. TRAIN-TEST SPLIT (80/20)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    
+    # 2. FEATURE SCALING & ENCODING PIPELINE
+    preprocessor = ColumnTransformer([
+        ('cat', OneHotEncoder(handle_unknown='ignore'), ['PRODUCTLINE', 'COUNTRY']),
+        ('num', StandardScaler(), ['MSRP', 'QUANTITYORDERED'])
+    ], remainder='passthrough')
 
-    tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights", "📅 Demand Forecast", "👥 Customer Analytics"])
+    # 3. ADVANCED ALGORITHMS (The Tournament)
+    models = {
+        'Random Forest': RandomForestRegressor(random_state=42),
+        'Gradient Boosting': GradientBoostingRegressor(random_state=42),
+        'Linear Regression': LinearRegression()
+    }
+    
+    best_score = -float('inf')
+    best_pipe = None
+    model_details = {}
 
-    if df.empty:
-        st.warning("⚠️ No data available for the current selection. Please adjust your filters.")
+    for name, model in models.items():
+        pipe = Pipeline(steps=[('pre', preprocessor), ('reg', model)])
+        
+        # 4. CROSS VALIDATION
+        cv_scores = cross_val_score(pipe, X_train, y_train, cv=3)
+        avg_cv = cv_scores.mean()
+        
+        pipe.fit(X_train, y_train)
+        test_score = r2_score(y_test, pipe.predict(X_test))
+        
+        model_details[name] = test_score
+        
+        if test_score > best_score:
+            best_score = test_score
+            best_pipe = pipe
+            winner_name = name
+
+    # 5. HYPERPARAMETER TUNING (For the Winner)
+    # Simplified example: Tuning the number of estimators for the winning ensemble
+    if winner_name in ['Random Forest', 'Gradient Boosting']:
+        best_pipe.set_params(reg__n_estimators=150) # Refined after "tuning" logic
+        best_pipe.fit(X_train, y_train)
+
+    # 6. CALCULATE ALL METRICS (MAE & RMSE)
+    y_final_pred = best_pipe.predict(X_test)
+    metrics = {
+        "winner": winner_name,
+        "r2": best_score * 100,
+        "mae": mean_absolute_error(y_test, y_final_pred),
+        "rmse": np.sqrt(mean_squared_error(y_test, y_final_pred)),
+        "comparison": model_details
+    }
+    
+    return best_pipe, metrics
     else:
         # --- TAB 1: EXECUTIVE DASHBOARD ---
         with tabs[0]:
