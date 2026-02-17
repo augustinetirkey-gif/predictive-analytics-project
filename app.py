@@ -325,7 +325,7 @@ if uploaded_file is not None:
             st.markdown("#### 📥 Forecast Data Intelligence")
             st.dataframe(forecast_df[['YEAR', 'MONTH_ID', 'SALES', 'Target_Forecast', 'Upper', 'Lower']].dropna().round(2), use_container_width=True, hide_index=True)
 
-     TAB 5: CUSTOMER ANALYTICS (CORRECTED SECTION) ---
+    # TAB 5: CUSTOMER ANALYTICS (CORRECTED SECTION) ---
         with tabs[4]:
             st.header("👥 Customer Intelligence & Loyalty")
             
