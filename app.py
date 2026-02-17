@@ -134,11 +134,6 @@ if uploaded_file is not None:
         (df_master['PRODUCTLINE'].isin(st_product))
     ]
 
-   from sklearn.model_selection import train_test_split, cross_val_score
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import mean_absolute_error, mean_squared_error
-from sklearn.linear_model import LinearRegression
-from sklearn.ensemble import GradientBoostingRegressor
 
 @st.cache_resource
 def train_bi_model(data):
