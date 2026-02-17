@@ -340,8 +340,23 @@ if uploaded_file is not None:
                 fig_seg = px.pie(cust_metrics, names='Deal size', hole=0.4, title="Customer Base Share")
                 st.plotly_chart(fig_seg, use_container_width=True)
             with col_s2:
-                fig_pareto = px.area(cust_metrics.sort_values('Revenue', ascending=False), title="Revenue Concentration (Pareto)")
-                st.plotly_chart(fig_pareto, use_container_width=True)
+              
+                # 1. Sort and calculate cumulative share
+pareto_df = cust_metrics.sort_values('Revenue', ascending=False).reset_index(drop=True)
+pareto_df['Revenue_Share'] = (pareto_df['Revenue'].cumsum() / pareto_df['Revenue'].sum()) * 100
+pareto_df['Customer_Index'] = pareto_df.index + 1
+
+# 2. Plot specifying the exact X and Y columns
+fig_pareto = px.area(
+    pareto_df, 
+    x='Customer_Index', 
+    y='Revenue_Share', 
+    title="Revenue Concentration (Pareto Curve)",
+    labels={'Customer_Index': 'Number of Customers', 'Revenue_Share': '% of Total Revenue'}
+)
+
+# Optional: Add the 80/20 rule line
+fig_pareto.add_hline(y=80, line_dash="dash", line_color="red", annotation_text="80% Revenue Mark")
 
             st.divider()
             st.subheader("🧩 Product Affinity Heatmap")
