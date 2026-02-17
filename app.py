@@ -117,6 +117,17 @@ if uploaded_file is not None:
         return df
 
     df_master = load_and_process_data(uploaded_file)
+
+    # --- DATA VALIDATION ---
+    expected_cols = set(template_df.columns)
+    actual_cols = set(df_master.columns)
+    missing_cols = expected_cols - actual_cols
+
+    if missing_cols:
+        st.error(f"❌ **Invalid File Format!**")
+        st.info(f"Your file is missing the following required columns: `{', '.join(missing_cols)}`.")
+        st.warning("Please download the **CSV Template** from the sidebar and ensure your data matches that format exactly before re-uploading.")
+        st.stop() # This prevents the rest of the app from running and crashing
     
     st.sidebar.subheader("🔍 Filter Strategy")
     st_year = st.sidebar.multiselect("Fiscal Year", options=sorted(df_master['YEAR'].unique()), default=df_master['YEAR'].unique())
