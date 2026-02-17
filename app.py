@@ -156,6 +156,16 @@ if uploaded_file is not None:
         return best_pipe, metrics
 
     bi_pipe, ai_metrics = train_bi_model(df_master)
+    # --- DATA VALIDATION ---
+    expected_cols = set(template_df.columns)
+    actual_cols = set(df_master.columns)
+    missing_cols = expected_cols - actual_cols
+
+    if missing_cols:
+        st.error(f"❌ **Invalid File Format!**")
+        st.info(f"Your file is missing the following required columns: `{', '.join(missing_cols)}`.")
+        st.warning("Please download the **CSV Template** from the sidebar and ensure your data matches that format exactly before re-uploading.")
+        st.stop() # This prevents the rest of the app from running and crashing
 
     tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights", "📅 Demand Forecast", "👥 Customer Analytics"])
 
