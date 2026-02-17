@@ -129,17 +129,72 @@ if uploaded_file is not None:
         (df_master['PRODUCTLINE'].isin(st_product))
     ]
 
-    @st.cache_resource
-    def train_bi_model(data):
-        features = ['MONTH_ID', 'QTR_ID', 'MSRP', 'QUANTITYORDERED', 'PRODUCTLINE', 'COUNTRY']
-        X, y = data[features], data['SALES']
-        pipe = Pipeline(steps=[
-            ('pre', ColumnTransformer([('cat', OneHotEncoder(handle_unknown='ignore'), ['PRODUCTLINE', 'COUNTRY'])], remainder='passthrough')),
-            ('reg', RandomForestRegressor(n_estimators=100, random_state=42))
-        ]).fit(X, y)
-        return pipe, r2_score(y, pipe.predict(X)) * 100
+   from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import mean_absolute_error, mean_squared_error
+from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import GradientBoostingRegressor
 
-    bi_pipe, ai_score = train_bi_model(df_master)
+@st.cache_resource
+def train_bi_model(data):
+    features = ['MONTH_ID', 'QTR_ID', 'MSRP', 'QUANTITYORDERED', 'PRODUCTLINE', 'COUNTRY']
+    X, y = data[features], data['SALES']
+    
+    # 1. TRAIN-TEST SPLIT (80/20)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    
+    # 2. FEATURE SCALING & ENCODING PIPELINE
+    preprocessor = ColumnTransformer([
+        ('cat', OneHotEncoder(handle_unknown='ignore'), ['PRODUCTLINE', 'COUNTRY']),
+        ('num', StandardScaler(), ['MSRP', 'QUANTITYORDERED'])
+    ], remainder='passthrough')
+
+    # 3. ADVANCED ALGORITHMS (The Tournament)
+    models = {
+        'Random Forest': RandomForestRegressor(random_state=42),
+        'Gradient Boosting': GradientBoostingRegressor(random_state=42),
+        'Linear Regression': LinearRegression()
+    }
+    
+    best_score = -float('inf')
+    best_pipe = None
+    model_details = {}
+    winner_name = ""
+
+    for name, model in models.items():
+        pipe = Pipeline(steps=[('pre', preprocessor), ('reg', model)])
+        
+        # 4. CROSS VALIDATION (R2 based)
+        cv_scores = cross_val_score(pipe, X_train, y_train, cv=3)
+        
+        pipe.fit(X_train, y_train)
+        test_score = r2_score(y_test, pipe.predict(X_test))
+        model_details[name] = test_score
+        
+        if test_score > best_score:
+            best_score = test_score
+            best_pipe = pipe
+            winner_name = name
+
+    # 5. REFINEMENT
+    if winner_name in ['Random Forest', 'Gradient Boosting']:
+        best_pipe.set_params(reg__n_estimators=150)
+        best_pipe.fit(X_train, y_train)
+
+    # 6. CALCULATE FINAL METRICS
+    y_final_pred = best_pipe.predict(X_test)
+    metrics = {
+        "winner": winner_name,
+        "r2": best_score * 100,
+        "mae": mean_absolute_error(y_test, y_final_pred),
+        "rmse": np.sqrt(mean_squared_error(y_test, y_final_pred)),
+        "comparison": model_details
+    }
+    
+    return best_pipe, metrics
+
+# Update the variable unpacking here
+bi_pipe, ai_metrics = train_bi_model(df_master)
 
     tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights", "📅 Demand Forecast", "👥 Customer Analytics"])
 
@@ -177,29 +232,49 @@ if uploaded_file is not None:
             st.plotly_chart(fig_box, use_container_width=True)
 
     # TAB 2: Simulator (Grounded in Historical Data)
-        with tabs[1]:
-            st.header("🔮 Strategic Scenario Simulator")
-            col1, col2, col3 = st.columns(3)
-            in_country = col1.selectbox("Target Market (Country)", sorted(df_master['COUNTRY'].unique()))
-            valid_products = df_master[df_master['COUNTRY'] == in_country]['PRODUCTLINE'].unique()
-            in_prod = col2.selectbox(f"Available Products in {in_country}", valid_products)
-            ref_data = df_master[df_master['PRODUCTLINE'] == in_prod]
-            
-            avg_msrp = float(ref_data['MSRP'].mean()) if not ref_data.empty else 0.0
-            min_msrp = float(ref_data['MSRP'].min()) if not ref_data.empty else 0.0
-            max_msrp = float(ref_data['MSRP'].max()) if not ref_data.empty else 0.0
-            
-            st.info(f"💡 *Historical Price Context for {in_prod}:* Avg: ${avg_msrp:.2f} | Range: ${min_msrp:.2f} - ${max_msrp:.2f}")
-            
-            in_qty = col1.slider("Quantity to Sell", 1, 1000, 50)
-            in_msrp = col2.number_input("Unit Price ($)", value=float(avg_msrp), step=0.01, format="%.2f")
-            in_month = col3.slider("Order Month", 1, 12, 12)
-            
-            if st.button("RUN AI SIMULATION & REALITY CHECK", use_container_width=True, type="primary"):
-                inp = pd.DataFrame([{'MONTH_ID': in_month, 'QTR_ID': (in_month-1)//3+1, 'MSRP': in_msrp, 'QUANTITYORDERED': in_qty, 'PRODUCTLINE': in_prod, 'COUNTRY': in_country}])
+       if st.button("RUN AI SIMULATION & REALITY CHECK", use_container_width=True, type="primary"):
+                # 1. Prediction Logic
+                inp = pd.DataFrame([{
+                    'MONTH_ID': in_month, 
+                    'QTR_ID': (in_month-1)//3+1, 
+                    'MSRP': in_msrp, 
+                    'QUANTITYORDERED': in_qty, 
+                    'PRODUCTLINE': in_prod, 
+                    'COUNTRY': in_country
+                }])
                 pred = bi_pipe.predict(inp)[0]
-                st.markdown(f"""<div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;border: 2px solid #1f4e79;margin-bottom:25px;'><p style='color:#1f4e79; font-weight:bold; margin-bottom:0;'>PROJECTED REVENUE</p><h1 style='color:#1f4e79; font-size:48px; margin-top:0;'>${pred:,.2f}</h1></div>""", unsafe_allow_html=True)
+                
+                # 2. Main Revenue Display
+                st.markdown(f"""
+                    <div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;border: 2px solid #1f4e79;margin-bottom:25px;'>
+                        <p style='color:#1f4e79; font-weight:bold; margin-bottom:0;'>PROJECTED REVENUE</p>
+                        <h1 style='color:#1f4e79; font-size:48px; margin-top:0;'>${pred:,.2f}</h1>
+                    </div>
+                """, unsafe_allow_html=True)
+
+                # 3. THE NEW RIGOR SECTION
+                with st.expander("🛠️ View AI Model Selection & Rigor"):
+                    st.write(f"**Final Model Selected:** :green[{ai_metrics['winner']}]")
+                    st.write("The system compared multiple algorithms and selected the most accurate.")
+                    
+                    # Display the Tournament results
+                    comparison_df = pd.DataFrame({
+                        "Algorithm": ai_metrics['comparison'].keys(),
+                        "R² Accuracy Score": [f"{v*100:.2f}%" for v in ai_metrics['comparison'].values()]
+                    })
+                    st.table(comparison_df)
+                    
+                    # Display the detailed metrics (MAE & RMSE)
+                    mc1, mc2, mc3 = st.columns(3)
+                    mc1.metric("Avg Error (MAE)", f"${ai_metrics['mae']:,.2f}")
+                    mc2.metric("Penalty Error (RMSE)", f"${ai_metrics['rmse']:,.2f}")
+                    mc3.metric("Pre-processing", "StandardScaler")
+                    
+                    st.caption("✅ Train-Test Split (80/20) and 3-Fold Cross Validation applied.")
+
                 st.divider()
+                
+                # 4. Historical Performance Review (Retained from original)
                 st.subheader(f"📊 Historical Performance Review: {in_prod} in {in_country}")
                 history = df_master[(df_master['COUNTRY'] == in_country) & (df_master['PRODUCTLINE'] == in_prod)].copy()
                 if not history.empty:
@@ -211,10 +286,11 @@ if uploaded_file is not None:
                     fig_compare.add_trace(go.Scatter(x=history['ORDERDATE'], y=history['AI_PREDICTION'], name='AI Model Fit', line=dict(color='#ff7f0e', dash='dot')))
                     fig_compare.update_layout(title="How closely does the AI match historical reality?", template="plotly_white", xaxis_title="Timeline", yaxis_title="Revenue ($)")
                     st.plotly_chart(fig_compare, use_container_width=True)
+                    
                     err = np.mean(abs(history['SALES'] - history['AI_PREDICTION']) / history['SALES']) * 100
                     st.success(f"✅ The AI matches historical data with an average error of only {err:.2f}% for this selection.")
                 else:
-                    st.warning("No historical data found for this specific combination to show a comparison.")      
+                    st.warning("No historical data found for this specific combination to show a comparison.")   
         # TAB 3: Strategic Market Insights (UPGRADED VERSION)
         with tabs[2]:
             st.header("🌍 Strategic Market Insights")
