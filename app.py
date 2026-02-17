@@ -108,22 +108,18 @@ if uploaded_file is not None:
         (df_master['PRODUCTLINE'].isin(st_product))
     ]
 
-    # --- ADVANCED MODEL ENGINE (Addressing Partially Done & Missing Points) ---
+    # --- ADVANCED MODEL ENGINE ---
     @st.cache_resource
     def train_bi_model(data):
         features = ['MONTH_ID', 'QTR_ID', 'MSRP', 'QUANTITYORDERED', 'PRODUCTLINE', 'COUNTRY']
         X, y = data[features], data['SALES']
-        
-        # 1. TRAIN-TEST SPLIT (Requirement Met)
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
         
-        # 2. FEATURE SCALING & ENCODING (Requirement Met)
         preprocessor = ColumnTransformer([
             ('cat', OneHotEncoder(handle_unknown='ignore'), ['PRODUCTLINE', 'COUNTRY']),
             ('num', StandardScaler(), ['MSRP', 'QUANTITYORDERED'])
         ], remainder='passthrough')
 
-        # 3. ADVANCED ALGORITHMS TOURNAMENT (Requirement Met)
         models = {
             'Random Forest': RandomForestRegressor(random_state=42),
             'Gradient Boosting': GradientBoostingRegressor(random_state=42),
@@ -137,25 +133,19 @@ if uploaded_file is not None:
 
         for name, model in models.items():
             pipe = Pipeline(steps=[('pre', preprocessor), ('reg', model)])
-            
-            # 4. CROSS VALIDATION (Requirement Met)
             cv_scores = cross_val_score(pipe, X_train, y_train, cv=3)
-            
             pipe.fit(X_train, y_train)
             test_score = r2_score(y_test, pipe.predict(X_test))
             model_details[name] = test_score
-            
             if test_score > best_score:
                 best_score = test_score
                 best_pipe = pipe
                 winner_name = name
 
-        # 5. HYPERPARAMETER TUNING & FINAL SELECTION (Requirement Met)
         if winner_name in ['Random Forest', 'Gradient Boosting']:
             best_pipe.set_params(reg__n_estimators=150) 
             best_pipe.fit(X_train, y_train)
 
-        # 6. CALCULATE MAE & RMSE (Requirement Met)
         y_final_pred = best_pipe.predict(X_test)
         metrics = {
             "winner": winner_name,
@@ -163,7 +153,6 @@ if uploaded_file is not None:
             "mae": mean_absolute_error(y_test, y_final_pred),
             "rmse": np.sqrt(mean_squared_error(y_test, y_final_pred))
         }
-        
         return best_pipe, metrics
 
     bi_pipe, ai_metrics = train_bi_model(df_master)
@@ -203,7 +192,7 @@ if uploaded_file is not None:
             fig_box = px.box(df, x='PRODUCTLINE', y='SALES', color='PRODUCTLINE', template="plotly")
             st.plotly_chart(fig_box, use_container_width=True)
 
-        # --- TAB 2: SIMULATOR (Updated with Rigor Section) ---
+        # --- TAB 2: SIMULATOR ---
         with tabs[1]:
             st.header("🔮 Strategic Scenario Simulator")
             col1, col2, col3 = st.columns(3)
@@ -233,21 +222,17 @@ if uploaded_file is not None:
                     </div>
                     """, unsafe_allow_html=True)
 
-                # --- RIGOR SECTION (Addresses Justification & Metrics) ---
                 with st.expander("🛠️ View AI Model Selection & Rigor"):
                     st.write(f"**Final Model Selected:** :green[{ai_metrics['winner']}]")
-                    
                     comparison_df = pd.DataFrame({
                         "Algorithm": ai_metrics['comparison'].keys(),
                         "R² Accuracy": [f"{v*100:.2f}%" for v in ai_metrics['comparison'].values()]
                     })
                     st.table(comparison_df)
-                    
                     mc1, mc2, mc3 = st.columns(3)
                     mc1.metric("Avg Error (MAE)", f"${ai_metrics['mae']:,.2f}")
                     mc2.metric("Penalty Error (RMSE)", f"${ai_metrics['rmse']:,.2f}")
                     mc3.metric("Pre-processing", "StandardScaler")
-                    
                     st.caption("✅ 80/20 Train-Test Split | 3-Fold Cross Validation | Hyperparameter Tuning applied.")
 
                 st.divider()
@@ -260,16 +245,16 @@ if uploaded_file is not None:
                     fig_compare = go.Figure()
                     fig_compare.add_trace(go.Scatter(x=history['ORDERDATE'], y=history['SALES'], name='Actual Revenue', line=dict(color='#1f4e79', width=3)))
                     fig_compare.add_trace(go.Scatter(x=history['ORDERDATE'], y=history['AI_PREDICTION'], name='AI Model Fit', line=dict(color='#ff7f0e', dash='dot')))
-                    fig_compare.update_layout(title="How closely does the AI match historical reality?", template="plotly_white", xaxis_title="Timeline", yaxis_title="Revenue ($)")
+                    fig_compare.update_layout(template="plotly_white", xaxis_title="Timeline", yaxis_title="Revenue ($)")
                     st.plotly_chart(fig_compare, use_container_width=True)
-                    
                     err = np.mean(abs(history['SALES'] - history['AI_PREDICTION']) / history['SALES']) * 100
                     st.success(f"✅ The AI matches historical data with an average error of only {err:.2f}% for this selection.")
                 else:
                     st.warning("No historical data found for this specific combination.")
 
-        # --- TAB 3: STRATEGIC MARKET INSIGHTS ---
+        # --- TAB 3: STRATEGIC MARKET INSIGHTS (RESTORED ORIGINAL) ---
         with tabs[2]:
+            st.header("🌍 Strategic Market Insights")
             st.header("💡 Business Directives")
             top_country = df.groupby('COUNTRY')['SALES'].sum().idxmax()
             top_prod = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
@@ -278,7 +263,6 @@ if uploaded_file is not None:
                 st.markdown(f"<div class='card'><h4>📦 Inventory Optimization</h4><p><b>Insight:</b> <b>{top_prod}</b> is the top performer.<br><b>Action:</b> Prioritize supply for this line.</p></div>", unsafe_allow_html=True)
             with col_i2:
                 st.markdown(f"<div class='card'><h4>🌍 Regional Strategy</h4><p><b>Insight:</b> <b>{top_country}</b> drives peak revenue.<br><b>Action:</b> Test localized loyalty programs here.</p></div>", unsafe_allow_html=True)
-            
             geo_df = df.groupby('COUNTRY')['SALES'].sum().reset_index()
             fig_map = px.choropleth(geo_df, locations="COUNTRY", locationmode='country names', color="COUNTRY", hover_name="COUNTRY", template="plotly_white")
             fig_map.update_geos(projection_type="mercator")
@@ -290,7 +274,6 @@ if uploaded_file is not None:
                 heat_df = df.pivot_table(index='COUNTRY', columns='PRODUCTLINE', values='SALES', aggfunc='sum').fillna(0)
                 fig_heat = px.imshow(heat_df, text_auto='.2s', aspect="auto", color_continuous_scale="Spectral_r", template="plotly_white")
                 st.plotly_chart(fig_heat, use_container_width=True)
-            
             with c4:
                 st.markdown("#### Top 5 vs Bottom 5 Markets")
                 m_sorted = df.groupby('COUNTRY')['SALES'].sum().sort_values(ascending=False).reset_index()
@@ -299,7 +282,18 @@ if uploaded_file is not None:
                 st.write("*Bottom 5 Markets*")
                 st.dataframe(m_sorted.tail(5), hide_index=True, use_container_width=True)
 
-        # --- TAB 4: DEMAND FORECAST ---
+            c5, c6 = st.columns(2)
+            with c5:
+                st.markdown("#### YoY Revenue Performance")
+                growth_trend = df.groupby(['YEAR', 'MONTH_ID'])['SALES'].sum().reset_index()
+                fig_growth = px.bar(growth_trend, x='MONTH_ID', y='SALES', color='YEAR', barmode='group', template="plotly_white")
+                st.plotly_chart(fig_growth, use_container_width=True)
+            with c6:
+                st.markdown("#### Product Revenue Contribution (%)")
+                fig_don = px.pie(df, values='SALES', names='PRODUCTLINE', hole=0.5, template="plotly_white", color_discrete_sequence=px.colors.qualitative.Pastel)
+                st.plotly_chart(fig_don, use_container_width=True)
+
+        # --- TAB 4: DEMAND FORECAST (RESTORED ORIGINAL) ---
         with tabs[3]:
             st.header("📅 Demand Forecasting (Predictive Planning)")
             forecast_df = df.groupby(['YEAR', 'MONTH_ID'])['SALES'].sum().reset_index()
@@ -312,21 +306,34 @@ if uploaded_file is not None:
             fig_forecast.add_trace(go.Scatter(x=forecast_df.index, y=forecast_df['Lower'], fill='tonexty', fillcolor='rgba(31, 78, 121, 0.1)', line=dict(width=0), name='95% Confidence Interval'))
             fig_forecast.add_trace(go.Scatter(x=forecast_df.index, y=forecast_df['SALES'], name='Actual Sales', line=dict(color='#1f4e79', width=3)))
             fig_forecast.add_trace(go.Scatter(x=forecast_df.index, y=forecast_df['Target_Forecast'], name='AI Forecast', line=dict(color='#ff7f0e', dash='dot', width=2)))
-
-            fig_forecast.update_layout(template="plotly_white", xaxis_title="Timeline Step", yaxis_title="Revenue ($)", hovermode="x unified")
+            fig_forecast.update_layout(title="Sales Momentum Forecast", template="plotly_white", xaxis_title="Timeline Step", yaxis_title="Revenue ($)", hovermode="x unified")
             st.plotly_chart(fig_forecast, use_container_width=True)
 
-        # --- TAB 5: CUSTOMER ANALYTICS ---
+            st.divider()
+            c5, c6 = st.columns(2)
+            with c5:
+                st.markdown("#### 🌙 Seasonality Analysis (Monthly Trends)")
+                season_df = df_master.groupby('MONTH_ID')['SALES'].mean().reset_index()
+                fig_season = px.bar(season_df, x='MONTH_ID', y='SALES', template="plotly_white", color='SALES', color_continuous_scale="YlGnBu")
+                st.plotly_chart(fig_season, use_container_width=True)
+            with c6:
+                st.markdown("#### 📊 Year-over-Year (YoY) Performance")
+                yoy_comp = df_master.groupby(['YEAR', 'MONTH_ID'])['SALES'].sum().reset_index()
+                fig_yoy = px.line(yoy_comp, x='MONTH_ID', y='SALES', color='YEAR', markers=True, template="plotly_white")
+                st.plotly_chart(fig_yoy, use_container_width=True)
+            st.divider()
+            st.markdown("#### 📥 Forecast Data Intelligence")
+            st.dataframe(forecast_df[['YEAR', 'MONTH_ID', 'SALES', 'Target_Forecast', 'Upper', 'Lower']].dropna().round(2), use_container_width=True, hide_index=True)
+
+        # --- TAB 5: CUSTOMER ANALYTICS (RESTORED ORIGINAL WITH PARETO FIX) ---
         with tabs[4]:
             st.header("👥 Customer Intelligence & Loyalty")
             current_date = df['ORDERDATE'].max()
+            phone_col = 'PHONE' if 'PHONE' in df.columns else 'CUSTOMERNAME'
             cust_metrics = df.groupby('CUSTOMERNAME').agg({
-                'SALES': 'sum',
-                'ORDERNUMBER': 'nunique',
-                'ORDERDATE': 'max',
-                'COUNTRY': 'first'
+                'SALES': 'sum', 'ORDERNUMBER': 'nunique', 'ORDERDATE': 'max', 'COUNTRY': 'first', phone_col: 'first'
             }).reset_index()
-            cust_metrics.columns = ['Customer', 'Revenue', 'Frequency', 'LastOrder', 'Country']
+            cust_metrics.columns = ['Customer', 'Revenue', 'Frequency', 'LastOrder', 'Country', 'Phone']
             cust_metrics['Recency'] = (current_date - cust_metrics['LastOrder']).dt.days
 
             st.subheader("📊 Strategic Customer Segmentation")
@@ -340,23 +347,23 @@ if uploaded_file is not None:
                 fig_seg = px.pie(cust_metrics, names='Deal size', hole=0.4, title="Customer Base Share")
                 st.plotly_chart(fig_seg, use_container_width=True)
             with col_s2:
-              
-                # 1. Sort and calculate cumulative share
-pareto_df = cust_metrics.sort_values('Revenue', ascending=False).reset_index(drop=True)
-pareto_df['Revenue_Share'] = (pareto_df['Revenue'].cumsum() / pareto_df['Revenue'].sum()) * 100
-pareto_df['Customer_Index'] = pareto_df.index + 1
+                # --- PARETO FIX APPLIED HERE ---
+                pareto_df = cust_metrics.sort_values('Revenue', ascending=False).reset_index(drop=True)
+                pareto_df['Revenue_Share'] = (pareto_df['Revenue'].cumsum() / pareto_df['Revenue'].sum()) * 100
+                pareto_df['Customer_Index'] = pareto_df.index + 1
+                fig_pareto = px.area(pareto_df, x='Customer_Index', y='Revenue_Share', title="Revenue Concentration (Pareto Curve)")
+                fig_pareto.add_hline(y=80, line_dash="dash", line_color="red", annotation_text="80% Revenue Mark")
+                st.plotly_chart(fig_pareto, use_container_width=True)
 
-# 2. Plot specifying the exact X and Y columns
-fig_pareto = px.area(
-    pareto_df, 
-    x='Customer_Index', 
-    y='Revenue_Share', 
-    title="Revenue Concentration (Pareto Curve)",
-    labels={'Customer_Index': 'Number of Customers', 'Revenue_Share': '% of Total Revenue'}
-)
-
-# Optional: Add the 80/20 rule line
-fig_pareto.add_hline(y=80, line_dash="dash", line_color="red", annotation_text="80% Revenue Mark")
+            st.divider()
+            col_g1, col_g2 = st.columns(2)
+            with col_g1:
+                st.subheader("🏆 Top 10 High-Value Clients")
+                st.dataframe(cust_metrics.sort_values('Revenue', ascending=False).head(10), use_container_width=True, hide_index=True)
+            with col_g2:
+                st.subheader("🚩 Churn Risk Analysis")
+                churn_df = cust_metrics[cust_metrics['Recency'] > 120].sort_values('Revenue', ascending=False)
+                st.dataframe(churn_df.head(10), use_container_width=True, hide_index=True)
 
             st.divider()
             st.subheader("🧩 Product Affinity Heatmap")
