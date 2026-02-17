@@ -325,7 +325,7 @@ if uploaded_file is not None:
             st.markdown("#### 📥 Forecast Data Intelligence")
             st.dataframe(forecast_df[['YEAR', 'MONTH_ID', 'SALES', 'Target_Forecast', 'Upper', 'Lower']].dropna().round(2), use_container_width=True, hide_index=True)
 
-        # --- TAB 5: CUSTOMER ANALYTICS (RESTORED ORIGINAL WITH PARETO FIX) ---
+     # --- TAB 5: CUSTOMER ANALYTICS (RESTORED ORIGINAL WITH PARETO FIX) ---
         with tabs[4]:
             st.header("👥 Customer Intelligence & Loyalty")
             current_date = df['ORDERDATE'].max()
@@ -372,6 +372,7 @@ if uploaded_file is not None:
             heat_data = df[df['CUSTOMERNAME'].isin(top_custs)].pivot_table(index='CUSTOMERNAME', columns='PRODUCTLINE', values='SALES', aggfunc='sum').fillna(0)
             heat_data = heat_data.reindex(columns=master_products, fill_value=0)
             st.plotly_chart(px.imshow(heat_data, text_auto='.2s', color_continuous_scale='RdYlBu_r', template="plotly"), use_container_width=True)
+
 
 else:
     # --- WELCOME PAGE ---
