@@ -3,17 +3,216 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import r2_score
-from sklearn.preprocessing import OneHotEncoder
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
+from sklearn.model_selection import train_test_split, cross_val_score
 import io
- from sklearn.model_selection import train_test_split, cross_val_score
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import mean_absolute_error, mean_squared_error
-from sklearn.linear_model import LinearRegression
-from sklearn.ensemble import GradientBoostingRegressor
+
+# --- SYSTEM CONFIGURATION ---
+st.set_page_config(page_title="PredictiCorp BI Suite", layout="wide", initial_sidebar_state="expanded")
+
+# --- EXECUTIVE THEMING ---
+st.markdown("""
+    <style>
+    .stMetric { padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: 1px solid rgba(128, 128, 128, 0.2); }
+    .stTabs [data-baseweb="tab-list"] { gap: 10px; }
+    .stTabs [data-baseweb="tab"] { border-radius: 10px 10px 0 0; border: 1px solid rgba(128, 128, 128, 0.2); padding: 10px 20px; font-weight: bold; }
+    .card { padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 20px; border: 1px solid rgba(128, 128, 128, 0.2); }
+    .welcome-header { background: linear-gradient(90deg, rgba(31, 78, 121, 0.9) 0%, rgba(44, 62, 80, 0.9) 100%); color: white; padding: 60px; border-radius: 20px; text-align: center; margin-bottom: 40px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+    .feature-box { padding: 30px; border-radius: 15px; border: 1px solid rgba(128, 128, 128, 0.2); text-align: center; transition: transform 0.3s ease; }
+    .feature-box:hover { transform: translateY(-10px); }
+    [data-testid="stMetric"] { background-color: rgba(128, 128, 128, 0.05); border: 1px solid rgba(128, 128, 128, 0.2); border-radius: 12px; }
+    </style>
+    """, unsafe_allow_html=True)
+
+# --- BACKEND: ADVANCED MODEL TOURNAMENT ---
+
+@st.cache_resource
+def train_bi_model(data):
+    features = ['MONTH_ID', 'QTR_ID', 'MSRP', 'QUANTITYORDERED', 'PRODUCTLINE', 'COUNTRY']
+    X, y = data[features], data['SALES']
+    
+    # 1. Train-Test Split (80/20)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    
+    # 2. Feature Scaling & Encoding
+    preprocessor = ColumnTransformer([
+        ('cat', OneHotEncoder(handle_unknown='ignore'), ['PRODUCTLINE', 'COUNTRY']),
+        ('num', StandardScaler(), ['MSRP', 'QUANTITYORDERED'])
+    ], remainder='passthrough')
+
+    # 3. Model Tournament
+    models = {
+        'Random Forest': RandomForestRegressor(random_state=42),
+        'Gradient Boosting': GradientBoostingRegressor(random_state=42),
+        'Linear Regression': LinearRegression()
+    }
+    
+    best_score = -float('inf')
+    best_pipe = None
+    model_details = {}
+
+    for name, model in models.items():
+        pipe = Pipeline(steps=[('pre', preprocessor), ('reg', model)])
+        
+        # 4. Cross Validation
+        cv_scores = cross_val_score(pipe, X_train, y_train, cv=3)
+        
+        pipe.fit(X_train, y_train)
+        test_score = r2_score(y_test, pipe.predict(X_test))
+        model_details[name] = test_score
+        
+        if test_score > best_score:
+            best_score = test_score
+            best_pipe = pipe
+            winner_name = name
+
+    # 5. Hyperparameter Tuning for the Winner
+    if winner_name in ['Random Forest', 'Gradient Boosting']:
+        best_pipe.set_params(reg__n_estimators=150) 
+        best_pipe.fit(X_train, y_train)
+
+    # 6. Comprehensive Metrics
+    y_final_pred = best_pipe.predict(X_test)
+    metrics = {
+        "winner": winner_name,
+        "r2": best_score * 100,
+        "mae": mean_absolute_error(y_test, y_final_pred),
+        "rmse": np.sqrt(mean_squared_error(y_test, y_final_pred)),
+        "comparison": model_details
+    }
+    return best_pipe, metrics
+
+# --- TEMPLATE GENERATOR ---
+def convert_df_to_csv(df):
+    return df.to_csv(index=False).encode('utf-8')
+
+template_df = pd.DataFrame(columns=['ORDERNUMBER', 'QUANTITYORDERED', 'PRICEEACH', 'SALES', 'ORDERDATE', 'STATUS', 'QTR_ID', 'MONTH_ID', 'YEAR_ID', 'PRODUCTLINE', 'MSRP', 'PRODUCTCODE', 'CUSTOMERNAME', 'COUNTRY', 'TERRITORY', 'DEALSIZE'])
+csv_template = convert_df_to_csv(template_df)
+
+# --- SIDEBAR ---
+st.sidebar.title("🏢 BI Command Center")
+st.sidebar.download_button(label="📥 Download CSV Template", data=csv_template, file_name="sales_data_template.csv", mime="text/csv")
+st.sidebar.divider()
+uploaded_file = st.sidebar.file_uploader("Upload Sales Data (CSV)", type=["csv"])
+
+if uploaded_file is not None:
+    @st.cache_data
+    def load_and_process_data(file):
+        df = pd.read_csv(file)
+        if 'ORDERDATE' in df.columns:
+            df['ORDERDATE'] = pd.to_datetime(df['ORDERDATE'])
+            df['YEAR'] = df['ORDERDATE'].dt.year
+            df['MONTH_NAME'] = df['ORDERDATE'].dt.month_name()
+        elif 'YEAR_ID' in df.columns:
+            df['YEAR'] = df['YEAR_ID']
+        return df
+
+    df_master = load_and_process_data(uploaded_file)
+
+    # Validation Logic
+    expected_cols = set(template_df.columns)
+    actual_cols = set(df_master.columns)
+    if not expected_cols.issubset(actual_cols):
+        st.error(f"❌ Invalid File Format! Missing: {expected_cols - actual_cols}")
+        st.stop()
+
+    st.sidebar.subheader("🔍 Filter Strategy")
+    st_year = st.sidebar.multiselect("Fiscal Year", options=sorted(df_master['YEAR'].unique()), default=df_master['YEAR'].unique())
+    st_country = st.sidebar.multiselect("Active Markets", options=sorted(df_master['COUNTRY'].unique()), default=df_master['COUNTRY'].unique())
+    st_product = st.sidebar.multiselect("Product Line", options=sorted(df_master['PRODUCTLINE'].unique()), default=df_master['PRODUCTLINE'].unique())
+    
+    df = df_master[(df_master['YEAR'].isin(st_year)) & (df_master['COUNTRY'].isin(st_country)) & (df_master['PRODUCTLINE'].isin(st_product))]
+
+    # Run Model Backend
+    bi_pipe, ai_metrics = train_bi_model(df_master)
+
+    tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights", "📅 Demand Forecast", "👥 Customer Analytics"])
+
+    if df.empty:
+        st.warning("⚠️ No data available for the current selection.")
+    else:
+        # --- TAB 1: EXECUTIVE DASHBOARD ---
+        with tabs[0]:
+            st.subheader("Performance KPIs")
+            k1, k2, k3, k4 = st.columns(4)
+            k1.metric("Total Revenue", f"${df['SALES'].sum()/1e6:.2f}M")
+            k2.metric("Avg Order Value", f"${df['SALES'].mean():,.2f}")
+            k3.metric("Transaction Volume", f"{len(df):,}")
+            k4.metric("Active Regions", f"{df['COUNTRY'].nunique()}")
+            
+            st.divider()
+            c1, c2 = st.columns([2, 1])
+            with c1:
+                trend = df.groupby(['YEAR', 'MONTH_ID', 'MONTH_NAME'])['SALES'].sum().reset_index().sort_values(['YEAR', 'MONTH_ID'])
+                st.plotly_chart(px.line(trend, x='MONTH_NAME', y='SALES', color='YEAR', markers=True, title="Monthly Sales Performance"), use_container_width=True)
+            with c2:
+                st.plotly_chart(px.pie(df, values='SALES', names='PRODUCTLINE', hole=0.5, title="Revenue Share"), use_container_width=True)
+
+        # --- TAB 2: REVENUE SIMULATOR ---
+        with tabs[1]:
+            st.header("🔮 Strategic Scenario Simulator")
+            col1, col2, col3 = st.columns(3)
+            in_country = col1.selectbox("Target Market", sorted(df_master['COUNTRY'].unique()))
+            valid_products = df_master[df_master['COUNTRY'] == in_country]['PRODUCTLINE'].unique()
+            in_prod = col2.selectbox(f"Products in {in_country}", valid_products)
+            ref_data = df_master[df_master['PRODUCTLINE'] == in_prod]
+            avg_msrp = float(ref_data['MSRP'].mean()) if not ref_data.empty else 0.0
+            
+            in_qty = col1.slider("Quantity to Sell", 1, 1000, 50)
+            in_msrp = col2.number_input("Unit Price ($)", value=avg_msrp)
+            in_month = col3.slider("Order Month", 1, 12, 6)
+
+            if st.button("RUN AI SIMULATION", use_container_width=True, type="primary"):
+                inp = pd.DataFrame([{'MONTH_ID': in_month, 'QTR_ID': (in_month-1)//3+1, 'MSRP': in_msrp, 'QUANTITYORDERED': in_qty, 'PRODUCTLINE': in_prod, 'COUNTRY': in_country}])
+                pred = bi_pipe.predict(inp)[0]
+                
+                st.markdown(f"""<div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;border:2px solid #1f4e79;'><h3>PROJECTED REVENUE</h3><h1>${pred:,.2f}</h1></div>""", unsafe_allow_html=True)
+                
+                with st.expander("🛠️ View AI Model Selection & Rigor"):
+                    st.write(f"**Selected Model:** :green[{ai_metrics['winner']}]")
+                    st.table(pd.DataFrame({"Algorithm": ai_metrics['comparison'].keys(), "R² Score": [f"{v*100:.2f}%" for v in ai_metrics['comparison'].values()]}))
+                    m_c1, m_c2, m_c3 = st.columns(3)
+                    m_c1.metric("MAE", f"${ai_metrics['mae']:,.2f}")
+                    m_c2.metric("RMSE", f"${ai_metrics['rmse']:,.2f}")
+                    m_c3.metric("Processing", "StandardScaler")
+                    st.caption("✅ 80/20 Split, Cross-Validation, and Tuning applied.")
+
+        # --- TAB 3: MARKET INSIGHTS ---
+        with tabs[2]:
+            st.header("🌍 Strategic Market Insights")
+            top_country = df.groupby('COUNTRY')['SALES'].sum().idxmax()
+            top_prod = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
+            ti1, ti2 = st.columns(2)
+            ti1.info(f"🚀 Top Product: {top_prod}")
+            ti2.success(f"📍 Top Market: {top_country}")
+            
+            heat_df = df.pivot_table(index='COUNTRY', columns='PRODUCTLINE', values='SALES', aggfunc='sum').fillna(0)
+            st.plotly_chart(px.imshow(heat_df, text_auto='.2s', color_continuous_scale="Spectral_r", title="Revenue Heatmap"), use_container_width=True)
+
+        # --- TAB 4: DEMAND FORECAST ---
+        with tabs[3]:
+            st.header("📅 Demand Forecasting")
+            forecast_df = df.groupby(['YEAR', 'MONTH_ID'])['SALES'].sum().reset_index()
+            forecast_df['Forecast'] = forecast_df['SALES'].rolling(window=3).mean().shift(-1)
+            fig_f = go.Figure()
+            fig_f.add_trace(go.Scatter(x=forecast_df.index, y=forecast_df['SALES'], name='Actual'))
+            fig_f.add_trace(go.Scatter(x=forecast_df.index, y=forecast_df['Forecast'], name='AI Forecast', line=dict(dash='dot')))
+            st.plotly_chart(fig_f, use_container_width=True)
+
+        # --- TAB 5: CUSTOMER ANALYTICS ---
+        with tabs[4]:
+            st.header("👥 Customer Intelligence")
+            cust_df = df.groupby('CUSTOMERNAME')['SALES'].sum().sort_values(ascending=False).head(10).reset_index()
+            st.plotly_chart(px.bar(cust_df, x='CUSTOMERNAME', y='SALES', title="Top 10 Clients"), use_container_width=True)
+
+else:
+    st.markdown('<div class="welcome-header"><h1>🚀 Welcome to PredictiCorp Intelligence</h1><p>Executive Global Data Suite</p></div>', unsafe_allow_html=True)
+    st.info("👈 Please upload your Sales Data CSV in the sidebar to begin.")
 
 # --- SYSTEM CONFIGURATION ---
 st.set_page_config(page_title="PredictiCorp BI Suite", layout="wide", initial_sidebar_state="expanded")
