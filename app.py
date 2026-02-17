@@ -204,9 +204,8 @@ def train_bi_model(data):
         "rmse": np.sqrt(mean_squared_error(y_test, y_final_pred)),
         "comparison": model_details
     }
-    
-    return best_pipe, metrics
 else:
+    return best_pipe, metrics
         # --- TAB 1: EXECUTIVE DASHBOARD ---
         with tabs[0]:
             st.subheader("Performance KPIs")
