@@ -440,13 +440,39 @@ if uploaded_file is not None:
                 st.write(f"*Found {len(churn_df)} customers at risk*")
                 st.dataframe(churn_df.head(10), use_container_width=True, hide_index=True)
 
-            # 6. Heatmap
+          # 6. Heatmap (Corrected to show ALL Product Lines)
             st.divider()
             st.subheader("🧩 Product Affinity Heatmap")
+            
+            # Step 1: Identify ALL unique products from the master dataset
+            # This ensures "Motorcycles", "Ships", etc., are never hidden
+            master_products = sorted(df_master['PRODUCTLINE'].unique())
+            
+            # Step 2: Identify the top 25 customers based on your CURRENT filters
             top_custs = cust_metrics.nlargest(25, 'Revenue')['Customer']
-            heat_data = df[df['CUSTOMERNAME'].isin(top_custs)].pivot_table(index='CUSTOMERNAME', columns='PRODUCTLINE', values='SALES', aggfunc='sum').fillna(0)
-            st.plotly_chart(px.imshow(heat_data, text_auto='.2s', color_continuous_scale='RdYlBu_r'), use_container_width=True)
-
+            
+            # Step 3: Create the Pivot Table
+            heat_data = df[df['CUSTOMERNAME'].isin(top_custs)].pivot_table(
+                index='CUSTOMERNAME', 
+                columns='PRODUCTLINE', 
+                values='SALES', 
+                aggfunc='sum'
+            ).fillna(0)
+            
+            # Step 4: THE FIX - Reindex to force ALL products to show on the X-axis
+            # If a product isn't there, it will now show as 0.0
+            heat_data = heat_data.reindex(columns=master_products, fill_value=0)
+            
+            # Step 5: Render the Heatmap
+            st.plotly_chart(px.imshow(
+                heat_data, 
+                text_auto='.2s', 
+                aspect="auto", 
+                color_continuous_scale='RdYlBu_r',
+                template="plotly"
+            ), use_container_width=True)
+            
+            st.caption("💡 **Insight:** Columns for all product lines are visible. Cells with '0.0' indicate untapped cross-selling opportunities for those specific customers.")
 
 else:
     # --- WELCOME PAGE ---
