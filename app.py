@@ -206,7 +206,7 @@ def train_bi_model(data):
     }
     
     return best_pipe, metrics
- else:
+else:
         # --- TAB 1: EXECUTIVE DASHBOARD ---
         with tabs[0]:
             st.subheader("Performance KPIs")
