@@ -163,6 +163,21 @@ if uploaded_file is not None:
             st.subheader("📊 Descriptive Statistics Summary")
             st.dataframe(df.describe(), use_container_width=True)
 
+            st.subheader("🧠 Key EDA Insights")
+
+total_rev = df['SALES'].sum()
+top_country = df.groupby('COUNTRY')['SALES'].sum().idxmax()
+top_product = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
+
+st.markdown(f"""
+• Total revenue generated is **${total_rev:,.2f}**  
+• Highest revenue comes from **{top_country}**  
+• Best performing product line is **{top_product}**  
+• Sales show seasonal monthly variation  
+• Dataset contains multiple markets and product categories  
+""")
+
+
             
             c1, c2 = st.columns([2, 1])
             with c1:
