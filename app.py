@@ -181,6 +181,17 @@ if uploaded_file is not None:
           • Sales show seasonal monthly variation  
           • Dataset contains multiple markets and product categories  
             """)
+            st.subheader("🧹 Data Cleaning Summary")
+
+            missing = df.isnull().sum().sum()
+
+            st.markdown(f"""
+          • Total records: **{len(df)}**  
+          • Missing values handled: **{missing}**  
+          • Date converted to datetime  
+          • Feature engineering applied (Year extraction)  
+              """)
+
             c1, c2 = st.columns([2, 1])
             with c1:
                 st.markdown("#### Monthly Sales Trend")
@@ -199,7 +210,8 @@ if uploaded_file is not None:
 
             st.markdown("#### 🔍 Sales Outlier Detection")
             fig_box = px.box(df, x='PRODUCTLINE', y='SALES', color='PRODUCTLINE', template="plotly")
-            st.plotly_chart(fig_box, use_container_width=True)
+            st.plotly_chart(fig_box, use_container_width=True
+                           
 
         # --- TAB 2: REVENUE SIMULATOR ---
         with tabs[1]:
