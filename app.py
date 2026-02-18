@@ -200,7 +200,7 @@ if uploaded_file is not None:
 
             # Handle outliers for numeric features
             numeric_cols = ['SALES','QUANTITYORDERED','MSRP']
-for col in numeric_cols:
+      for col in numeric_cols:
             q1 = df[col].quantile(0.25)
             q3 = df[col].quantile(0.75)
             iqr = q3 - q1
