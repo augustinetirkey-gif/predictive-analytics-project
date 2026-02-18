@@ -198,7 +198,7 @@ if uploaded_file is not None:
             fig_corr = px.imshow(corr, text_auto=True, aspect="auto", title="Correlation Matrix")
             st.plotly_chart(fig_corr, use_container_width=True)
 
-              c1, c2 = st.columns([2, 1])
+            c1, c2 = st.columns([2, 1])
             with c1:
                 st.markdown("#### Monthly Sales Trend")
                 trend = df.groupby(['YEAR', 'MONTH_ID', 'MONTH_NAME'])['SALES'].sum().reset_index().sort_values(['YEAR', 'MONTH_ID'])
