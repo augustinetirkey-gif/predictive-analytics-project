@@ -136,7 +136,7 @@ if uploaded_file is not None:
         (df_master['PRODUCTLINE'].isin(st_product))
     ]
 
-  @st.cache_resource
+@st.cache_resource
 def train_models(data):
     features = ['MONTH_ID', 'QTR_ID', 'MSRP', 'QUANTITYORDERED', 'PRODUCTLINE', 'COUNTRY']
     X = data[features]
