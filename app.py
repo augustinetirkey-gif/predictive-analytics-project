@@ -311,15 +311,7 @@ if uploaded_file is not None:
                     st.warning("No historical data found for this specific combination.")
 
         # --- TAB 3: STRATEGIC MARKET INSIGHTS ---
-        st.subheader("🤖 Advanced Algorithms Used")
-
-        st.markdown("""
-        • Gradient Boosting → Captures complex patterns  
-        • XGBoost → High performance boosting algorithm  
-        • Random Forest → Ensemble learning for stability  
-        • Linear Regression → Baseline model  
-         """)
-
+        
         with tabs[2]:
             st.header("🌍 Strategic Market Insights")
             st.header("💡 Business Directives")
