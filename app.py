@@ -176,7 +176,7 @@ st.markdown(f"""
 • Sales show seasonal monthly variation  
 • Dataset contains multiple markets and product categories  
 """)
-          c1, c2 = st.columns([2, 1])
+            c1, c2 = st.columns([2, 1])
             with c1:
                 st.markdown("#### Monthly Sales Trend")
                 trend = df.groupby(['YEAR', 'MONTH_ID', 'MONTH_NAME'])['SALES'].sum().reset_index().sort_values(['YEAR', 'MONTH_ID'])
