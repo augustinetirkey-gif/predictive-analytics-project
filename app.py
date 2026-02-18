@@ -191,6 +191,13 @@ if uploaded_file is not None:
           • Date converted to datetime  
           • Feature engineering applied (Year extraction)  
               """)
+            st.subheader("🔗 Correlation Analysis")
+
+            corr = df[['SALES','QUANTITYORDERED','MSRP','MONTH_ID']].corr()
+
+            fig_corr = px.imshow(corr, text_auto=True, aspect="auto", title="Correlation Matrix")
+            st.plotly_chart(fig_corr, use_container_width=True)
+
 
             c1, c2 = st.columns([2, 1])
             with c1:
