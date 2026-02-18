@@ -92,7 +92,7 @@ st.sidebar.download_button(label="📥 Download CSV Template", data=csv_template
 st.sidebar.divider()
 uploaded_file = st.sidebar.file_uploader("Upload Sales Data (CSV)", type=["csv"])
 
-# Define prediction features globally for use in functions and tuning
+# Define prediction features globally
 MODEL_FEATURES = ['MONTH_ID', 'QTR_ID', 'MSRP', 'QUANTITYORDERED', 'PRODUCTLINE', 'COUNTRY']
 
 if uploaded_file is not None:
@@ -122,7 +122,8 @@ if uploaded_file is not None:
 
     @st.cache_resource
     def train_models(data):
-        data = data[MODEL_FEATURES + ['SALES']]
+        # Ensure we only work with relevant columns
+        data = data[MODEL_FEATURES + ['SALES']].dropna()
 
         X = data[MODEL_FEATURES]
         y = data['SALES']
@@ -169,13 +170,12 @@ if uploaded_file is not None:
             desc = df.describe().T
             st.dataframe(desc)
 
-            # Document insights
             st.markdown(f"""
-           - Average SALES: ${desc.loc['SALES','mean']:.2f}  
-           - Min / Max SALES: ${desc.loc['SALES','min']:.2f} / ${desc.loc['SALES','max']:.2f}  
-           - Average QUANTITYORDERED: {desc.loc['QUANTITYORDERED','mean']:.2f}  
-           - Average MSRP: ${desc.loc['MSRP','mean']:.2f}  
-             """)
+            - Average SALES: ${desc.loc['SALES','mean']:.2f}  
+            - Min / Max SALES: ${desc.loc['SALES','min']:.2f} / ${desc.loc['SALES','max']:.2f}  
+            - Average QUANTITYORDERED: {desc.loc['QUANTITYORDERED','mean']:.2f}  
+            - Average MSRP: ${desc.loc['MSRP','mean']:.2f}  
+            """)
 
             st.subheader("🧠 Key EDA Insights")
             st.markdown("""
@@ -184,7 +184,6 @@ if uploaded_file is not None:
             - **MSRP**: Top-selling products are moderately priced  
             - **COUNTRY**: USA, Germany, France contribute most revenue  
             - **PRODUCTLINE**: Classic Cars & Motorcycles generate max revenue  
-            - Outliers handled in numeric columns
             """)
 
             st.subheader("🧹 Data Cleaning Summary")
@@ -192,47 +191,42 @@ if uploaded_file is not None:
             st.markdown("Numeric features `MONTH_ID`, `QTR_ID`, `MSRP`, `QUANTITYORDERED` are scaled using StandardScaler for model stability.")
 
             # --- Detailed Data Cleaning ---
-            # Check duplicates
             duplicates = df.duplicated().sum()
             st.write(f"Duplicate records found: {duplicates}")
             df = df.drop_duplicates()
 
-            # Handle outliers for numeric features
             numeric_cols = ['SALES','QUANTITYORDERED','MSRP']
             for col in numeric_cols:
                 q1 = df[col].quantile(0.25)
                 q3 = df[col].quantile(0.75)
-                iqr = q3 - iqr = q3 - q1
+                iqr = q3 - q1
                 lower = q1 - 1.5 * iqr
                 upper = q3 + 1.5 * iqr
                 outliers = df[(df[col] < lower) | (df[col] > upper)]
                 st.write(f"Outliers removed in {col}: {len(outliers)}")
                 df = df[(df[col] >= lower) & (df[col] <= upper)]
 
-            # Handle missing values explicitly
-            st.write("Missing values per column:")
+            st.write("Missing values per column after initial check:")
             st.write(df.isnull().sum())
             df = df.dropna()
 
-            # Document summary
             st.markdown(f"""
-            - Total initial records: {len(df_master)}
+            - Total final records used for display: {len(df)}
             - Duplicates removed: {duplicates}
-            - Outliers removed: numeric features handled
-            - Missing values handled: {df.isnull().sum().sum()}
-             """)
+            - Outliers removed: numeric features handled via IQR
+            - Missing values handled: dropped rows with NaNs
+            """)
 
             st.subheader("🔗 Correlation Analysis")
             corr = df[['SALES','QUANTITYORDERED','MSRP','MONTH_ID']].corr()
             fig_corr = px.imshow(corr, text_auto=True, aspect="auto", title="Correlation Matrix")
             st.plotly_chart(fig_corr, use_container_width=True)
 
-            # Document interpretation
             st.markdown("""
-           - **SALES vs QUANTITYORDERED** → strong positive correlation (more orders → higher revenue)  
-           - **SALES vs MSRP** → moderate correlation (price has moderate impact)  
-           - **SALES vs MONTH_ID** → seasonal trend visible (peak months generate more sales)
-             """)
+            - **SALES vs QUANTITYORDERED** → strong positive correlation  
+            - **SALES vs MSRP** → moderate correlation  
+            - **SALES vs MONTH_ID** → seasonal trend visible
+            """)
 
             c1, c2 = st.columns([2, 1])
             with c1:
@@ -284,12 +278,12 @@ if uploaded_file is not None:
                     'model__n_estimators': [50, 100, 150],
                     'model__max_depth': [None, 5, 10]
                 }
-                preprocessor = ColumnTransformer([
+                preprocessor_tune = ColumnTransformer([
                     ('cat', OneHotEncoder(handle_unknown='ignore'), ['PRODUCTLINE', 'COUNTRY'])
                 ], remainder='passthrough')
                 
                 rf_pipe = Pipeline([
-                    ('pre', preprocessor),
+                    ('pre', preprocessor_tune),
                     ('model', RandomForestRegressor(random_state=42))
                 ])
 
@@ -331,12 +325,12 @@ if uploaded_file is not None:
                     
                     mae = mean_absolute_error(history['SALES'], history['AI_PREDICTION'])
                     rmse = np.sqrt(mean_squared_error(history['SALES'], history['AI_PREDICTION']))
-                    r2 = r2_score(history['SALES'], history['AI_PREDICTION'])
+                    r2_h = r2_score(history['SALES'], history['AI_PREDICTION'])
                     err = np.mean(abs(history['SALES'] - history['AI_PREDICTION']) / history['SALES']) * 100
 
                     st.write(f"MAE: {mae:,.2f}")
                     st.write(f"RMSE: {rmse:,.2f}")
-                    st.write(f"R² Score: {r2*100:.2f}%")
+                    st.write(f"R² Score: {r2_h*100:.2f}%")
                     st.success(f"✅ The AI matches historical data with an average error of only {err:.2f}% for this selection.")
                 else:
                     st.warning("No historical data found for this specific combination.")
@@ -403,13 +397,13 @@ if uploaded_file is not None:
             st.plotly_chart(fig_forecast, use_container_width=True)
 
             st.divider()
-            c5, c6 = st.columns(2)
-            with c5:
+            c7, c8 = st.columns(2)
+            with c7:
                 st.markdown("#### 🌙 Seasonality Analysis")
                 season_df = df_master.groupby('MONTH_ID')['SALES'].mean().reset_index()
                 fig_season = px.bar(season_df, x='MONTH_ID', y='SALES', template="plotly_white", color='SALES', color_continuous_scale="YlGnBu")
                 st.plotly_chart(fig_season, use_container_width=True)
-            with c6:
+            with c8:
                 st.markdown("#### 📊 YoY Comparison")
                 yoy_comp = df_master.groupby(['YEAR', 'MONTH_ID'])['SALES'].sum().reset_index()
                 fig_yoy = px.line(yoy_comp, x='MONTH_ID', y='SALES', color='YEAR', markers=True, template="plotly_white")
@@ -418,7 +412,7 @@ if uploaded_file is not None:
         # --- TAB 5: CUSTOMER ANALYTICS ---
         with tabs[4]:
             st.header("👥 Customer Intelligence & Loyalty")
-            current_date = df['ORDERDATE'].max()
+            current_date_c = df['ORDERDATE'].max()
             cust_metrics = df.groupby('CUSTOMERNAME').agg({
                 'SALES': 'sum',
                 'ORDERNUMBER': 'nunique',
@@ -428,7 +422,7 @@ if uploaded_file is not None:
                 'DEALSIZE': lambda x: x.mode()[0] if not x.mode().empty else "N/A"
             }).reset_index()
             cust_metrics.columns = ['Customer', 'Revenue', 'Frequency', 'LastOrder', 'Country', 'Phone', 'Typical_Deal']
-            cust_metrics['Recency'] = (current_date - cust_metrics['LastOrder']).dt.days
+            cust_metrics['Recency'] = (current_date_c - cust_metrics['LastOrder']).dt.days
             cust_metrics['Deal size'] = pd.qcut(cust_metrics['Revenue'], q=3, labels=['Small', 'Medium', 'Large'])
             
             col_s1, col_s2 = st.columns([1, 1])
