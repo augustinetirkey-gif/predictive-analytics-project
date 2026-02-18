@@ -234,6 +234,7 @@ if uploaded_file is not None:
                 trend = df.groupby(['YEAR', 'MONTH_ID', 'MONTH_NAME'])['SALES'].sum().reset_index().sort_values(['YEAR', 'MONTH_ID'])
                 fig_trend = px.line(trend, x='MONTH_NAME', y='SALES', color='YEAR', markers=True, template="plotly")
                 st.plotly_chart(fig_trend, use_container_width=True)
+
             with c2:
                 st.markdown("#### Revenue by Product Line")
                 fig_pie = px.pie(df, values='SALES', names='PRODUCTLINE', hole=0.5, template="plotly")
