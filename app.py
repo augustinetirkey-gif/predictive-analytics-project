@@ -154,7 +154,7 @@ def train_models(data):
         "XGBoost": xgb.XGBRegressor(objective='reg:squarederror')
     }
 
-    trained_models = {}
+  trained_models = {}
 
     for name, model in models.items():
         pipe = Pipeline(steps=[('pre', preprocessor), ('model', model)])
@@ -164,7 +164,7 @@ def train_models(data):
 
     return trained_models
 
-   trained_models = train_models(df_master)
+  trained_models = train_models(df_master)
 
   
 
