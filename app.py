@@ -210,7 +210,7 @@ if uploaded_file is not None:
 
             st.markdown("#### 🔍 Sales Outlier Detection")
             fig_box = px.box(df, x='PRODUCTLINE', y='SALES', color='PRODUCTLINE', template="plotly")
-            st.plotly_chart(fig_box, use_container_width=True
+            st.plotly_chart(fig_box, use_container_width=True)
                            
 
         # --- TAB 2: REVENUE SIMULATOR ---
