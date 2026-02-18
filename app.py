@@ -166,7 +166,17 @@ if uploaded_file is not None:
             st.markdown("---")
             
             st.subheader("📊 Descriptive Statistics Summary")
-            st.dataframe(df.describe(), use_container_width=True)
+            desc = df.describe().T
+            st.dataframe(desc)
+
+            # Document insights
+            st.markdown(f"""
+           - Average SALES: ${desc.loc['SALES','mean']:.2f}  
+           - Min / Max SALES: ${desc.loc['SALES','min']:.2f} / ${desc.loc['SALES','max']:.2f}  
+           - Average QUANTITYORDERED: {desc.loc['QUANTITYORDERED','mean']:.2f}  
+           - Average MSRP: ${desc.loc['MSRP','mean']:.2f}  
+             """)
+
 
             st.subheader("🧠 Key EDA Insights")
 
@@ -182,15 +192,40 @@ if uploaded_file is not None:
           • Dataset contains multiple markets and product categories  
             """)
             st.subheader("🧹 Data Cleaning Summary")
+            # --- Detailed Data Cleaning ---
+            # Check duplicates
+            duplicates = df.duplicated().sum()
+            st.write(f"Duplicate records found: {duplicates}")
+            df = df.drop_duplicates()
 
-            missing = df.isnull().sum().sum()
+            # Handle outliers for numeric features
+            numeric_cols = ['SALES','QUANTITYORDERED','MSRP']
+            for col in numeric_cols:
+            q1 = df[col].quantile(0.25)
+            q3 = df[col].quantile(0.75)
+            iqr = q3 - q1
+            lower = q1 - 1.5 * iqr
+            upper = q3 + 1.5 * iqr
+            outliers = df[(df[col] < lower) | (df[col] > upper)]
+            st.write(f"Outliers removed in {col}: {len(outliers)}")
+            df = df[(df[col] >= lower) & (df[col] <= upper)]
 
+            # Handle missing values explicitly
+            st.write("Missing values per column:")
+            st.write(df.isnull().sum())
+            df = df.dropna()  # or fill with median if preferred
+
+            # Document summary
             st.markdown(f"""
-          • Total records: **{len(df)}**  
-          • Missing values handled: **{missing}**  
-          • Date converted to datetime  
-          • Feature engineering applied (Year extraction)  
-              """)
+            - Total initial records: {len(df_master)}
+            - Duplicates removed: {duplicates}
+            - Outliers removed: numeric features handled
+            - Missing values handled: {df.isnull().sum().sum()}
+             """)
+
+
+            
+        
             st.subheader("🔗 Correlation Analysis")
 
             corr = df[['SALES','QUANTITYORDERED','MSRP','MONTH_ID']].corr()
