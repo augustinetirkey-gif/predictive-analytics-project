@@ -176,9 +176,6 @@ st.markdown(f"""
 • Sales show seasonal monthly variation  
 • Dataset contains multiple markets and product categories  
 """)
-
-
-            
             c1, c2 = st.columns([2, 1])
             with c1:
                 st.markdown("#### Monthly Sales Trend")
