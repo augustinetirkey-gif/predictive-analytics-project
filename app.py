@@ -121,6 +121,8 @@ if uploaded_file is not None:
 
     @st.cache_resource
     def train_models(data):
+        data = data[MODEL_FEATURES + ['SALES']]
+
         X = data[MODEL_FEATURES]
         y = data['SALES']
 
