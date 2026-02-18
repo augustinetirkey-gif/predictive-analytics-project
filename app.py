@@ -128,8 +128,8 @@ if uploaded_file is not None:
         y = data['SALES']
 
         preprocessor = ColumnTransformer([
-         ('cat', OneHotEncoder(handle_unknown='ignore'), ['PRODUCTLINE', 'COUNTRY']),
-          ('num', StandardScaler(), ['MONTH_ID','QTR_ID','MSRP','QUANTITYORDERED'])
+            ('cat', OneHotEncoder(handle_unknown='ignore'), ['PRODUCTLINE', 'COUNTRY']),
+            ('num', StandardScaler(), ['MONTH_ID','QTR_ID','MSRP','QUANTITYORDERED'])
         ])
 
         models = {
@@ -177,7 +177,6 @@ if uploaded_file is not None:
            - Average MSRP: ${desc.loc['MSRP','mean']:.2f}  
              """)
 
-
             st.subheader("🧠 Key EDA Insights")
             st.markdown("""
             - **SALES**: Peaks in months 11 & 12, shows seasonal trends  
@@ -200,20 +199,20 @@ if uploaded_file is not None:
 
             # Handle outliers for numeric features
             numeric_cols = ['SALES','QUANTITYORDERED','MSRP']
-      for col in numeric_cols:
-            q1 = df[col].quantile(0.25)
-            q3 = df[col].quantile(0.75)
-            iqr = q3 - q1
-            lower = q1 - 1.5 * iqr
-            upper = q3 + 1.5 * iqr
-            outliers = df[(df[col] < lower) | (df[col] > upper)]
-            st.write(f"Outliers removed in {col}: {len(outliers)}")
-            df = df[(df[col] >= lower) & (df[col] <= upper)]
+            for col in numeric_cols:
+                q1 = df[col].quantile(0.25)
+                q3 = df[col].quantile(0.75)
+                iqr = q3 - iqr = q3 - q1
+                lower = q1 - 1.5 * iqr
+                upper = q3 + 1.5 * iqr
+                outliers = df[(df[col] < lower) | (df[col] > upper)]
+                st.write(f"Outliers removed in {col}: {len(outliers)}")
+                df = df[(df[col] >= lower) & (df[col] <= upper)]
 
             # Handle missing values explicitly
             st.write("Missing values per column:")
             st.write(df.isnull().sum())
-            df = df.dropna()  # or fill with median if preferred
+            df = df.dropna()
 
             # Document summary
             st.markdown(f"""
@@ -223,22 +222,17 @@ if uploaded_file is not None:
             - Missing values handled: {df.isnull().sum().sum()}
              """)
 
-
-            
-        
             st.subheader("🔗 Correlation Analysis")
-
             corr = df[['SALES','QUANTITYORDERED','MSRP','MONTH_ID']].corr()
             fig_corr = px.imshow(corr, text_auto=True, aspect="auto", title="Correlation Matrix")
             st.plotly_chart(fig_corr, use_container_width=True)
 
-           # Document interpretation
+            # Document interpretation
             st.markdown("""
            - **SALES vs QUANTITYORDERED** → strong positive correlation (more orders → higher revenue)  
            - **SALES vs MSRP** → moderate correlation (price has moderate impact)  
            - **SALES vs MONTH_ID** → seasonal trend visible (peak months generate more sales)
              """)
-
 
             c1, c2 = st.columns([2, 1])
             with c1:
@@ -259,7 +253,6 @@ if uploaded_file is not None:
             st.markdown("#### 🔍 Sales Outlier Detection")
             fig_box = px.box(df, x='PRODUCTLINE', y='SALES', color='PRODUCTLINE', template="plotly")
             st.plotly_chart(fig_box, use_container_width=True)
-                           
 
         # --- TAB 2: REVENUE SIMULATOR ---
         with tabs[1]:
@@ -304,7 +297,6 @@ if uploaded_file is not None:
                     grid = GridSearchCV(rf_pipe, param_grid, cv=3)
                     grid.fit(df_master[MODEL_FEATURES], df_master['SALES'])
                     st.success(f"Best Params: {grid.best_params_}")
-                    # Update selected model to tuned version
                     selected_model = grid.best_estimator_
 
             if st.button("RUN AI SIMULATION & REALITY CHECK", use_container_width=True, type="primary"):
@@ -336,23 +328,20 @@ if uploaded_file is not None:
                     fig_compare.add_trace(go.Scatter(x=history['ORDERDATE'], y=history['AI_PREDICTION'], name='AI Model Fit', line=dict(color='#ff7f0e', dash='dot')))
                     fig_compare.update_layout(title="AI vs Historical Reality", template="plotly_white", xaxis_title="Timeline", yaxis_title="Revenue ($)")
                     st.plotly_chart(fig_compare, use_container_width=True)
-                    err = np.mean(abs(history['SALES'] - history['AI_PREDICTION']) / history['SALES']) * 100
-                    from sklearn.metrics import mean_absolute_error, mean_squared_error
-
+                    
                     mae = mean_absolute_error(history['SALES'], history['AI_PREDICTION'])
                     rmse = np.sqrt(mean_squared_error(history['SALES'], history['AI_PREDICTION']))
                     r2 = r2_score(history['SALES'], history['AI_PREDICTION'])
+                    err = np.mean(abs(history['SALES'] - history['AI_PREDICTION']) / history['SALES']) * 100
 
                     st.write(f"MAE: {mae:,.2f}")
                     st.write(f"RMSE: {rmse:,.2f}")
                     st.write(f"R² Score: {r2*100:.2f}%")
-
                     st.success(f"✅ The AI matches historical data with an average error of only {err:.2f}% for this selection.")
                 else:
                     st.warning("No historical data found for this specific combination.")
 
         # --- TAB 3: STRATEGIC MARKET INSIGHTS ---
-        
         with tabs[2]:
             st.header("🌍 Strategic Market Insights")
             st.header("💡 Business Directives")
