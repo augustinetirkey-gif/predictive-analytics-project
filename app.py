@@ -233,7 +233,7 @@ for col in numeric_cols:
             st.plotly_chart(fig_corr, use_container_width=True)
 
            # Document interpretation
-           st.markdown("""
+               st.markdown("""
            - **SALES vs QUANTITYORDERED** → strong positive correlation (more orders → higher revenue)  
            - **SALES vs MSRP** → moderate correlation (price has moderate impact)  
            - **SALES vs MONTH_ID** → seasonal trend visible (peak months generate more sales)
