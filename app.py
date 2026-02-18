@@ -262,7 +262,7 @@ for col in numeric_cols:
                            
 
         # --- TAB 2: REVENUE SIMULATOR ---
-         with tabs[1]:
+        with tabs[1]:
             st.header("🔮 Strategic Scenario Simulator")
             col1, col2, col3 = st.columns(3)
             in_country = col1.selectbox("Target Market (Country)", sorted(df_master['COUNTRY'].unique()))
