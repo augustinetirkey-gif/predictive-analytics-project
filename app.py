@@ -309,6 +309,15 @@ if uploaded_file is not None:
                     st.success(f"✅ The AI matches historical data with an average error of only {err:.2f}% for this selection.")
                 else:
                     st.warning("No historical data found for this specific combination.")
+                    st.subheader("🤖 Advanced Algorithms Used")
+
+                    st.markdown("""
+                  • Gradient Boosting → Captures complex pattern
+                  • XGBoost → High performance boosting algorithm  
+                  • Random Forest → Ensemble learning for stability  
+                  • Linear Regression → Baseline model  
+                    """)
+
 
         # --- TAB 3: STRATEGIC MARKET INSIGHTS ---
         st.subheader("🤖 Advanced Algorithms Used")
