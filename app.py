@@ -228,9 +228,9 @@ for col in numeric_cols:
         
             st.subheader("🔗 Correlation Analysis")
 
-           corr = df[['SALES','QUANTITYORDERED','MSRP','MONTH_ID']].corr()
-           fig_corr = px.imshow(corr, text_auto=True, aspect="auto", title="Correlation Matrix")
-           st.plotly_chart(fig_corr, use_container_width=True)
+            corr = df[['SALES','QUANTITYORDERED','MSRP','MONTH_ID']].corr()
+            fig_corr = px.imshow(corr, text_auto=True, aspect="auto", title="Correlation Matrix")
+            st.plotly_chart(fig_corr, use_container_width=True)
 
            # Document interpretation
            st.markdown("""
