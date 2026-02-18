@@ -8,6 +8,13 @@ from sklearn.metrics import r2_score
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
+from sklearn.linear_model import LinearRegression
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.model_selection import GridSearchCV
+
+import xgboost as xgb
+
 import io
 
 # --- SYSTEM CONFIGURATION ---
@@ -129,17 +136,37 @@ if uploaded_file is not None:
         (df_master['PRODUCTLINE'].isin(st_product))
     ]
 
-    @st.cache_resource
-    def train_bi_model(data):
-        features = ['MONTH_ID', 'QTR_ID', 'MSRP', 'QUANTITYORDERED', 'PRODUCTLINE', 'COUNTRY']
-        X, y = data[features], data['SALES']
-        pipe = Pipeline(steps=[
-            ('pre', ColumnTransformer([('cat', OneHotEncoder(handle_unknown='ignore'), ['PRODUCTLINE', 'COUNTRY'])], remainder='passthrough')),
-            ('reg', RandomForestRegressor(n_estimators=100, random_state=42))
-        ]).fit(X, y)
-        return pipe, r2_score(y, pipe.predict(X)) * 100
+  @st.cache_resource
+def train_models(data):
+    features = ['MONTH_ID', 'QTR_ID', 'MSRP', 'QUANTITYORDERED', 'PRODUCTLINE', 'COUNTRY']
+    X = data[features]
+    y = data['SALES']
 
-    bi_pipe, ai_score = train_bi_model(df_master)
+    preprocessor = ColumnTransformer([
+        ('cat', OneHotEncoder(handle_unknown='ignore'), ['PRODUCTLINE', 'COUNTRY'])
+    ], remainder='passthrough')
+
+    models = {
+        "Linear Regression": LinearRegression(),
+        "Decision Tree": DecisionTreeRegressor(max_depth=5),
+        "Random Forest": RandomForestRegressor(n_estimators=100, random_state=42),
+        "Gradient Boosting": GradientBoostingRegressor(),
+        "XGBoost": xgb.XGBRegressor(objective='reg:squarederror')
+    }
+
+    trained_models = {}
+
+    for name, model in models.items():
+        pipe = Pipeline(steps=[('pre', preprocessor), ('model', model)])
+        pipe.fit(X, y)
+        score = r2_score(y, pipe.predict(X)) * 100
+        trained_models[name] = (pipe, score)
+
+    return trained_models
+
+   trained_models = train_models(df_master)
+
+  
 
     tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights", "📅 Demand Forecast", "👥 Customer Analytics"])
 
@@ -194,17 +221,51 @@ if uploaded_file is not None:
             in_qty = col1.slider("Quantity to Sell", 1, 1000, 50)
             in_msrp = col2.number_input("Unit Price ($)", value=float(avg_msrp), step=0.01, format="%.2f")
             in_month = col3.slider("Order Month", 1, 12, 12)
+###
+             st.subheader("🤖 Model Selection")
+
+model_choice = st.selectbox(
+    "Choose Prediction Model",
+    list(trained_models.keys())
+)
+
+selected_model, model_score = trained_models[model_choice]
+
+st.info(f"Model Accuracy (R²): {model_score:.2f}%")
+
+if st.checkbox("Run Hyperparameter Tuning (Random Forest)"):
+    param_grid = {
+        'model__n_estimators': [50, 100, 150],
+        'model__max_depth': [None, 5, 10]
+    }
+
+    rf_pipe = Pipeline([
+        ('pre', ColumnTransformer([
+            ('cat', OneHotEncoder(handle_unknown='ignore'), ['PRODUCTLINE', 'COUNTRY'])
+        ], remainder='passthrough')),
+        ('model', RandomForestRegressor(random_state=42))
+    ])
+
+    grid = GridSearchCV(rf_pipe, param_grid, cv=3)
+    grid.fit(df_master[features], df_master['SALES'])
+
+    st.success(f"Best Params: {grid.best_params_}")
+
+
+
             
             if st.button("RUN AI SIMULATION & REALITY CHECK", use_container_width=True, type="primary"):
                 inp = pd.DataFrame([{'MONTH_ID': in_month, 'QTR_ID': (in_month-1)//3+1, 'MSRP': in_msrp, 'QUANTITYORDERED': in_qty, 'PRODUCTLINE': in_prod, 'COUNTRY': in_country}])
-                pred = bi_pipe.predict(inp)[0]
+             pred = selected_model.predict(inp)[0]
+
                 st.markdown(f"""<div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;border: 2px solid #1f4e79;margin-bottom:25px;'><p style='color:#1f4e79; font-weight:bold; margin-bottom:0;'>PROJECTED REVENUE</p><h1 style='color:#1f4e79; font-size:48px; margin-top:0;'>${pred:,.2f}</h1></div>""", unsafe_allow_html=True)
                 st.divider()
                 st.subheader(f"📊 Historical Performance Review: {in_prod} in {in_country}")
                 history = df_master[(df_master['COUNTRY'] == in_country) & (df_master['PRODUCTLINE'] == in_prod)].copy()
                 if not history.empty:
                     hist_features = history[['MONTH_ID', 'QTR_ID', 'MSRP', 'QUANTITYORDERED', 'PRODUCTLINE', 'COUNTRY']]
-                    history['AI_PREDICTION'] = bi_pipe.predict(hist_features)
+                    history['AI_PREDICTION'] = selected_model.predict(hist_features)
+
                     history = history.sort_values('ORDERDATE')
                     fig_compare = go.Figure()
                     fig_compare.add_trace(go.Scatter(x=history['ORDERDATE'], y=history['SALES'], name='Actual Revenue', line=dict(color='#1f4e79', width=3)))
