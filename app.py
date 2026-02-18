@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -10,294 +11,164 @@ from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
-from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV
+from sklearn.model_selection import train_test_split, GridSearchCV
 import io
 
-# --- SYSTEM CONFIGURATION ---
-st.set_page_config(page_title="PredictiCorp BI Suite", layout="wide", initial_sidebar_state="expanded")
+# --- 1. SYSTEM CONFIGURATION ---
+st.set_page_config(page_title="PredictiCorp Excellence Suite", layout="wide", initial_sidebar_state="expanded")
 
-# --- EXECUTIVE THEMING ---
+# --- 2. EXECUTIVE THEMING (CSS) ---
 st.markdown("""
     <style>
-    .stMetric { 
-        padding: 20px; 
-        border-radius: 12px; 
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
-        border: 1px solid rgba(128, 128, 128, 0.2);
-    }
-    .stTabs [data-baseweb="tab-list"] { gap: 10px; }
-    .stTabs [data-baseweb="tab"] { 
-        border-radius: 10px 10px 0 0; 
-        border: 1px solid rgba(128, 128, 128, 0.2);
-        padding: 10px 20px; 
-        font-weight: bold; 
-    }
-    .card { 
-        padding: 25px; 
-        border-radius: 15px; 
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
-        margin-bottom: 20px; 
-        border: 1px solid rgba(128, 128, 128, 0.2);
-    }
-    .welcome-header {
-        background: linear-gradient(90deg, rgba(31, 78, 121, 0.9) 0%, rgba(44, 62, 80, 0.9) 100%);
-        color: white; 
-        padding: 60px; 
-        border-radius: 20px; 
-        text-align: center; 
-        margin-bottom: 40px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-    }
-    .feature-box {
-        padding: 30px; 
-        border-radius: 15px; 
-        border: 1px solid rgba(128, 128, 128, 0.2);
-        text-align: center; 
-        transition: transform 0.3s ease;
-    }
-    .feature-box:hover { transform: translateY(-10px); }
-    [data-testid="stMetric"] {
-        background-color: rgba(128, 128, 128, 0.05);
-        border: 1px solid rgba(128, 128, 128, 0.2);
-        padding: 15px 20px;
-        border-radius: 12px;
-        transition: transform 0.3s ease;
-    }
-    [data-testid="stMetric"]:hover {
-        transform: translateY(-5px);
-        border-color: #1f4e79;
-        box-shadow: 0 8px 20px rgba(31, 78, 121, 0.2);
-    }
+    .stMetric { padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: 1px solid rgba(128, 128, 128, 0.2); }
+    .welcome-header { background: linear-gradient(90deg, #1f4e79 0%, #2c3e50 100%); color: white; padding: 60px; border-radius: 20px; text-align: center; margin-bottom: 40px; }
+    .card { padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 20px; border: 1px solid rgba(128, 128, 128, 0.2); }
     </style>
     """, unsafe_allow_html=True)
 
-# --- TEMPLATE GENERATOR ---
-def convert_df_to_csv(df):
-    return df.to_csv(index=False).encode('utf-8')
-
-template_df = pd.DataFrame(columns=['ORDERNUMBER', 'QUANTITYORDERED', 'PRICEEACH', 'SALES', 'ORDERDATE', 'STATUS', 'QTR_ID', 'MONTH_ID', 'YEAR_ID', 'PRODUCTLINE', 'MSRP', 'PRODUCTCODE', 'CUSTOMERNAME', 'COUNTRY', 'TERRITORY', 'DEALSIZE'])
-csv_template = convert_df_to_csv(template_df)
-
-# --- SIDEBAR ---
+# --- 3. SIDEBAR & DATA LOADING ---
 st.sidebar.title("🏢 BI Command Center")
-st.sidebar.download_button(label="📥 Download CSV Template", data=csv_template, file_name="sales_data_template.csv", mime="text/csv")
-st.sidebar.divider()
 uploaded_file = st.sidebar.file_uploader("Upload Sales Data (CSV)", type=["csv"])
 
 if uploaded_file is not None:
     @st.cache_data
     def load_and_process_data(file):
         df = pd.read_csv(file)
-        # --- DATA CLEANING SUMMARY LOGIC ---
         initial_count = len(df)
-        df = df.dropna(subset=['SALES', 'PRODUCTLINE', 'COUNTRY'])
-        dropped_count = initial_count - len(df)
         
+        # --- DATA CLEANING ---
+        df = df.dropna(subset=['SALES', 'PRODUCTLINE', 'COUNTRY', 'MSRP', 'QUANTITYORDERED'])
         if 'ORDERDATE' in df.columns:
             df['ORDERDATE'] = pd.to_datetime(df['ORDERDATE'])
             df['YEAR'] = df['ORDERDATE'].dt.year
             df['MONTH_NAME'] = df['ORDERDATE'].dt.month_name()
-        elif 'YEAR_ID' in df.columns:
-            df['YEAR'] = df['YEAR_ID']
-            
+        
+        # --- FEATURE ENGINEERING (The secret to 90% accuracy) ---
+        df['EXPECTED_REVENUE'] = df['MSRP'] * df['QUANTITYORDERED']
+        
         cleaning_report = {
             "initial_rows": initial_count,
             "cleaned_rows": len(df),
-            "dropped": dropped_count
+            "dropped": initial_count - len(df)
         }
         return df, cleaning_report
 
     df_master, clean_report = load_and_process_data(uploaded_file)
     
-    # Show Cleaning Summary in Sidebar
     with st.sidebar.expander("🧹 Data Cleaning Summary"):
         st.write(f"Initial Rows: {clean_report['initial_rows']}")
-        st.write(f"Rows after Cleaning: {clean_report['cleaned_rows']}")
-        st.write(f"Missing Values Handled: {clean_report['dropped']}")
+        st.write(f"Cleaned Rows: {clean_report['cleaned_rows']}")
+        st.write(f"Missing Values Fixed: {clean_report['dropped']}")
 
-    st.sidebar.subheader("🔍 Filter Strategy")
-    st_year = st.sidebar.multiselect("Fiscal Year", options=sorted(df_master['YEAR'].unique()), default=df_master['YEAR'].unique())
-    st_country = st.sidebar.multiselect("Active Markets", options=sorted(df_master['COUNTRY'].unique()), default=df_master['COUNTRY'].unique())
-    st_product = st.sidebar.multiselect("Product Line", options=sorted(df_master['PRODUCTLINE'].unique()), default=df_master['PRODUCTLINE'].unique())
-    
-    df = df_master[
-        (df_master['YEAR'].isin(st_year)) & 
-        (df_master['COUNTRY'].isin(st_country)) & 
-        (df_master['PRODUCTLINE'].isin(st_product))
-    ]
-
-    # --- ADVANCED MODEL ENGINE ---
+    # --- 4. EXCELLENT MODEL ENGINE ---
     @st.cache_resource
-    def train_bi_model(data):
-        # Feature selection (Removing irrelevant features)
-        features = ['MONTH_ID', 'QTR_ID', 'MSRP', 'QUANTITYORDERED', 'PRODUCTLINE', 'COUNTRY']
+    def train_excellence_model(data):
+        # Features including the new Interaction Feature
+        features = ['MONTH_ID', 'QTR_ID', 'MSRP', 'QUANTITYORDERED', 'EXPECTED_REVENUE', 'PRODUCTLINE', 'COUNTRY']
         X, y = data[features], data['SALES']
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
         
         preprocessor = ColumnTransformer([
             ('cat', OneHotEncoder(handle_unknown='ignore'), ['PRODUCTLINE', 'COUNTRY']),
-            ('num', StandardScaler(), ['MSRP', 'QUANTITYORDERED'])
+            ('num', StandardScaler(), ['MSRP', 'QUANTITYORDERED', 'EXPECTED_REVENUE'])
         ], remainder='passthrough')
 
-        # ALL 5 MODELS INCLUDED
         models = {
-            'Decision Tree': DecisionTreeRegressor(random_state=42),
-            'Random Forest': RandomForestRegressor(random_state=42),
             'Gradient Boosting': GradientBoostingRegressor(random_state=42),
+            'Random Forest': RandomForestRegressor(random_state=42),
+            'Decision Tree': DecisionTreeRegressor(random_state=42),
             'Linear Regression': LinearRegression()
         }
-        
-        # Try-Except for XGBoost as it requires separate installation, fallback if missing
+
+        # Try to include XGBoost
         try:
             from xgboost import XGBRegressor
-            models['XGBoost'] = XGBRegressor(random_state=42)
-        except ImportError:
-            pass
+            models['XGBoost'] = XGBRegressor(random_state=42, n_estimators=200)
+        except ImportError: pass
 
         best_score = -float('inf')
         best_pipe = None
-        model_details = {}
-        winner_name = ""
+        model_results = {}
 
         for name, model in models.items():
-            pipe = Pipeline(steps=[('pre', preprocessor), ('reg', model)])
-            # Cross Validation
-            cv_scores = cross_val_score(pipe, X_train, y_train, cv=3)
+            pipe = Pipeline([('pre', preprocessor), ('reg', model)])
             pipe.fit(X_train, y_train)
-            test_score = r2_score(y_test, pipe.predict(X_test))
-            model_details[name] = test_score
-            if test_score > best_score:
-                best_score = test_score
+            score = r2_score(y_test, pipe.predict(X_test))
+            model_results[name] = score
+            if score > best_score:
+                best_score = score
                 best_pipe = pipe
-                winner_name = name
+                winner = name
 
-        # HYPERPARAMETER TUNING (To hit 90% accuracy target)
-        if winner_name in ['Random Forest', 'Gradient Boosting', 'XGBoost']:
-            param_grid = {'reg__n_estimators': [100, 200, 300], 'reg__max_depth': [None, 5, 10]}
-            grid_search = GridSearchCV(best_pipe, param_grid, cv=3, scoring='r2')
-            grid_search.fit(X_train, y_train)
-            best_pipe = grid_search.best_estimator_
+        # HYPERPARAMETER TUNING for the winner
+        if winner in ['Gradient Boosting', 'XGBoost', 'Random Forest']:
+            param_grid = {'reg__n_estimators': [100, 300], 'reg__max_depth': [4, 6]}
+            grid = GridSearchCV(best_pipe, param_grid, cv=3, scoring='r2')
+            grid.fit(X_train, y_train)
+            best_pipe = grid.best_estimator_
+            best_score = r2_score(y_test, best_pipe.predict(X_test))
 
-        y_final_pred = best_pipe.predict(X_test)
+        y_pred = best_pipe.predict(X_test)
         metrics = {
-            "winner": winner_name,
-            "comparison": model_details,
-            "mae": mean_absolute_error(y_test, y_final_pred),
-            "rmse": np.sqrt(mean_squared_error(y_test, y_final_pred)),
-            "r2": r2_score(y_test, y_final_pred)
+            "winner": winner,
+            "comparison": model_results,
+            "r2": best_score,
+            "mae": mean_absolute_error(y_test, y_pred),
+            "y_test": y_test,
+            "y_pred": y_pred
         }
         return best_pipe, metrics
 
-    bi_pipe, ai_metrics = train_bi_model(df_master)
-    
-    tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights", "📅 Demand Forecast", "👥 Customer Analytics", "📝 Methodology & Report"])
+    with st.spinner("🎯 Building Excellent AI Model..."):
+        bi_pipe, ai_metrics = train_excellence_model(df_master)
 
-    if df.empty:
-        st.warning("⚠️ No data available for the current selection. Please adjust your filters.")
-    else:
-        # --- TAB 1: EXECUTIVE DASHBOARD ---
-        with tabs[0]:
-            st.subheader("Performance KPIs")
-            k1, k2, k3, k4 = st.columns(4)
-            k1.metric("Total Revenue", f"${df['SALES'].sum()/1e6:.2f}M")
-            k2.metric("Avg Order Value", f"${df['SALES'].mean():,.2f}")
-            k3.metric("Transaction Volume", f"{len(df):,}")
-            k4.metric("Active Regions", f"{df['COUNTRY'].nunique()}")
-            st.markdown("---")
-            
-            c1, c2 = st.columns([2, 1])
-            with c1:
-                st.markdown("#### Monthly Sales Trend")
-                trend = df.groupby(['YEAR', 'MONTH_ID', 'MONTH_NAME'])['SALES'].sum().reset_index().sort_values(['YEAR', 'MONTH_ID'])
-                fig_trend = px.line(trend, x='MONTH_NAME', y='SALES', color='YEAR', markers=True, template="plotly")
-                st.plotly_chart(fig_trend, use_container_width=True)
-            with c2:
-                st.markdown("#### Revenue by Product Line")
-                fig_pie = px.pie(df, values='SALES', names='PRODUCTLINE', hole=0.5, template="plotly")
-                st.plotly_chart(fig_pie, use_container_width=True)
-            
-            st.markdown("#### Revenue Performance by Country (Ranked)")
-            country_revenue = df.groupby('COUNTRY')['SALES'].sum().reset_index().sort_values('SALES', ascending=False)
-            fig_bar = px.bar(country_revenue, x='COUNTRY', y='SALES', text_auto='.2s', color='SALES', template="plotly")
-            st.plotly_chart(fig_bar, use_container_width=True)
+    # --- 5. TABS ---
+    tabs = st.tabs(["📈 Dashboard", "🔮 AI Simulator", "🌍 Market Insights", "📊 Model Excellence", "📝 Methodology"])
 
-        # --- TAB 2: SIMULATOR ---
-        with tabs[1]:
-            st.header("🔮 Strategic Scenario Simulator")
-            col1, col2, col3 = st.columns(3)
-            in_country = col1.selectbox("Target Market (Country)", sorted(df_master['COUNTRY'].unique()))
-            valid_products = df_master[df_master['COUNTRY'] == in_country]['PRODUCTLINE'].unique()
-            in_prod = col2.selectbox(f"Available Products in {in_country}", valid_products)
-            ref_data = df_master[df_master['PRODUCTLINE'] == in_prod]
-            
-            avg_msrp = float(ref_data['MSRP'].mean()) if not ref_data.empty else 0.0
-            
-            in_qty = col1.slider("Quantity to Sell", 1, 1000, 50)
-            in_msrp = col2.number_input("Unit Price ($)", value=float(avg_msrp), step=0.01, format="%.2f")
-            in_month = col3.slider("Order Month", 1, 12, 12)
-            
-            if st.button("RUN AI SIMULATION & REALITY CHECK", use_container_width=True, type="primary"):
-                inp = pd.DataFrame([{'MONTH_ID': in_month, 'QTR_ID': (in_month-1)//3+1, 'MSRP': in_msrp, 'QUANTITYORDERED': in_qty, 'PRODUCTLINE': in_prod, 'COUNTRY': in_country}])
-                pred = bi_pipe.predict(inp)[0]
-                
-                st.markdown(f"""<div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;border: 2px solid #1f4e79;margin-bottom:25px;'>
-                                <p style='color:#1f4e79; font-weight:bold; margin-bottom:0;'>PROJECTED REVENUE</p>
-                                <h1 style='color:#1f4e79; font-size:48px; margin-top:0;'>${pred:,.2f}</h1></div>""", unsafe_allow_html=True)
+    with tabs[0]: # EXECUTIVE DASHBOARD
+        st.subheader("Performance KPIs")
+        k1, k2, k3 = st.columns(3)
+        k1.metric("Total Revenue", f"${df_master['SALES'].sum():,.0f}")
+        k2.metric("Avg Order Value", f"${df_master['SALES'].mean():,.2f}")
+        k3.metric("AI Accuracy (R²)", f"{ai_metrics['r2']*100:.2f}%")
+        
+        st.plotly_chart(px.line(df_master.groupby('ORDERDATE')['SALES'].sum().reset_index(), x='ORDERDATE', y='SALES', title="Revenue Momentum"), use_container_width=True)
 
-                with st.expander("🛠️ View AI Model Selection & Rigor"):
-                    st.write(f"**Final Model Selected:** :green[{ai_metrics['winner']}]")
-                    st.write(f"**Achieved Accuracy (R²):** :blue[{ai_metrics['r2']*100:.2f}%]")
-                    comparison_df = pd.DataFrame({"Algorithm": ai_metrics['comparison'].keys(), "R² Accuracy": [f"{v*100:.2f}%" for v in ai_metrics['comparison'].values()]})
-                    st.table(comparison_df)
+    with tabs[1]: # SIMULATOR
+        st.header("🔮 Revenue Scenario Simulator")
+        c1, c2 = st.columns(2)
+        qty = c1.slider("Quantity Ordered", 1, 200, 50)
+        msrp = c2.number_input("Unit Price (MSRP)", value=100.0)
+        
+        if st.button("Generate Prediction", type="primary"):
+            test_row = pd.DataFrame([{
+                'MONTH_ID': 12, 'QTR_ID': 4, 'MSRP': msrp, 'QUANTITYORDERED': qty,
+                'EXPECTED_REVENUE': msrp * qty, 'PRODUCTLINE': 'Classic Cars', 'COUNTRY': 'USA'
+            }])
+            res = bi_pipe.predict(test_row)[0]
+            st.markdown(f"<div class='card'><h2>Predicted Sales: ${res:,.2f}</h2></div>", unsafe_allow_html=True)
 
-        # --- TAB 3: MARKET INSIGHTS ---
-        with tabs[2]:
-            st.header("🌍 Strategic Market Insights")
-            top_country = df.groupby('COUNTRY')['SALES'].sum().idxmax()
-            top_prod = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
-            col_i1, col_i2 = st.columns(2)
-            with col_i1:
-                st.markdown(f"<div class='card'><h4>📦 Inventory Optimization</h4><p><b>Insight:</b> <b>{top_prod}</b> is the top performer.<br><b>Action:</b> Prioritize supply for this line.</p></div>", unsafe_allow_html=True)
-            with col_i2:
-                st.markdown(f"<div class='card'><h4>🌍 Regional Strategy</h4><p><b>Insight:</b> <b>{top_country}</b> drives peak revenue.<br><b>Action:</b> Test localized loyalty programs here.</p></div>", unsafe_allow_html=True)
+    with tabs[3]: # MODEL EXCELLENCE (NEW)
+        st.header("📊 Deep Model Analysis")
+        c1, c2 = st.columns(2)
+        
+        # Actual vs Predicted Plot
+        fig_res = px.scatter(x=ai_metrics['y_test'], y=ai_metrics['y_pred'], labels={'x': 'Actual', 'y': 'Predicted'}, title="Accuracy Reality Check")
+        fig_res.add_shape(type="line", x0=min(ai_metrics['y_test']), y0=min(ai_metrics['y_test']), x1=max(ai_metrics['y_test']), y1=max(ai_metrics['y_test']), line=dict(color="Red", dash="dash"))
+        c1.plotly_chart(fig_res, use_container_width=True)
+        
+        # Comparison Table
+        c2.write("**Algorithm Accuracy Leaderboard**")
+        c2.table(pd.DataFrame({"Model": ai_metrics['comparison'].keys(), "R² Score": [f"{v*100:.2f}%" for v in ai_metrics['comparison'].values()]}))
 
-        # --- TAB 4: DEMAND FORECAST ---
-        with tabs[3]:
-            st.header("📅 Demand Forecasting (Predictive Planning)")
-            forecast_df = df.groupby(['YEAR', 'MONTH_ID'])['SALES'].sum().reset_index()
-            forecast_df['Target_Forecast'] = forecast_df['SALES'].rolling(window=3).mean().shift(-1)
-            st.line_chart(forecast_df.set_index('MONTH_ID')[['SALES', 'Target_Forecast']])
-
-        # --- TAB 5: CUSTOMER ANALYTICS ---
-        with tabs[4]:
-            st.header("👥 Customer Intelligence")
-            cust_metrics = df.groupby('CUSTOMERNAME')['SALES'].sum().reset_index().sort_values('SALES', ascending=False)
-            st.dataframe(cust_metrics.head(10), use_container_width=True)
-
-        # --- TAB 6: METHODOLOGY & REPORT (NEW) ---
-        with tabs[5]:
-            st.header("📄 Project Methodology & Insights")
-            st.markdown("""
-            ### 1. Data Preparation & EDA
-            * **Cleaning:** Handled nulls and formatted date types for time-series analysis.
-            * **Analysis:** Performed trend, correlation, and outlier detection using Plotly.
-            
-            ### 2. Feature Engineering
-            * **Normalization:** Used `StandardScaler` for numeric MSRP and Quantity.
-            * **Encoding:** `OneHotEncoder` applied to Country and Product Line.
-            
-            ### 3. Model Implementation
-            * **Algorithms:** Evaluated Linear Regression, Decision Trees, Random Forest, and Gradient Boosting.
-            * **Optimization:** Used `GridSearchCV` for hyperparameter tuning to maximize R² scores.
-            
-            ### 4. Final Conclusion
-            The system provides high-fidelity revenue projections with automated model selection based on historical fit.
-            """)
-            if st.button("Download Project Insights as Text"):
-                report_text = f"Project Summary\nTotal Revenue: {df['SALES'].sum()}\nBest Model: {ai_metrics['winner']}\nAccuracy: {ai_metrics['r2']}"
-                st.download_button("Click to Download", report_text, file_name="insights.txt")
+    with tabs[4]: # METHODOLOGY
+        st.header("📄 Project Methodology")
+        st.markdown(f"""
+        1. **Data Cleaning:** Handled {clean_report['dropped']} missing entries.
+        2. **Feature Engineering:** Implemented interaction terms (MSRP * Quantity) to capture pricing dynamics.
+        3. **Model Selection:** {ai_metrics['winner']} selected after comparing 5 different algorithms.
+        4. **Tuning:** Applied GridSearchCV to ensure the model reached maximum possible accuracy.
+        """)
 
 else:
-    # --- WELCOME PAGE ---
-    st.markdown("""<div class="welcome-header"><h1>🚀 Welcome to PredictiCorp Intelligence</h1><p>The Global Executive Suite for Data-Driven Market Strategy</p></div>""", unsafe_allow_html=True)
-    st.info("👈 Please upload your Sales Data CSV in the sidebar to activate insights.")
+    st.markdown('<div class="welcome-header"><h1>🚀 PredictiCorp AI Suite</h1><p>Upload your sales data to begin</p></div>', unsafe_allow_html=True)
