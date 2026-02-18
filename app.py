@@ -125,9 +125,9 @@ if uploaded_file is not None:
         y = data['SALES']
 
       preprocessor = ColumnTransformer([
-    ('cat', OneHotEncoder(handle_unknown='ignore'), ['PRODUCTLINE', 'COUNTRY']),
-    ('num', StandardScaler(), ['MONTH_ID','QTR_ID','MSRP','QUANTITYORDERED'])
-     ])
+         ('cat', OneHotEncoder(handle_unknown='ignore'), ['PRODUCTLINE', 'COUNTRY']),
+          ('num', StandardScaler(), ['MONTH_ID','QTR_ID','MSRP','QUANTITYORDERED'])
+      ])
 
         models = {
             "Linear Regression": LinearRegression(),
