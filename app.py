@@ -12,6 +12,7 @@ from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import GridSearchCV
 from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import mean_absolute_error, mean_squared_error
 import xgboost as xgb
 import io
 
@@ -276,6 +277,16 @@ if uploaded_file is not None:
                     fig_compare.update_layout(title="AI vs Historical Reality", template="plotly_white", xaxis_title="Timeline", yaxis_title="Revenue ($)")
                     st.plotly_chart(fig_compare, use_container_width=True)
                     err = np.mean(abs(history['SALES'] - history['AI_PREDICTION']) / history['SALES']) * 100
+                    from sklearn.metrics import mean_absolute_error, mean_squared_error
+
+                    mae = mean_absolute_error(history['SALES'], history['AI_PREDICTION'])
+                    rmse = np.sqrt(mean_squared_error(history['SALES'], history['AI_PREDICTION']))
+                    r2 = r2_score(history['SALES'], history['AI_PREDICTION'])
+
+                    st.write(f"MAE: {mae:,.2f}")
+                    st.write(f"RMSE: {rmse:,.2f}")
+                    st.write(f"R² Score: {r2*100:.2f}%")
+
                     st.success(f"✅ The AI matches historical data with an average error of only {err:.2f}% for this selection.")
                 else:
                     st.warning("No historical data found for this specific combination.")
