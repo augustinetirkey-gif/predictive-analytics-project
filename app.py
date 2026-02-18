@@ -207,7 +207,7 @@ if uploaded_file is not None:
                 st.plotly_chart(fig_trend, use_container_width=True)
             with c2:
                 st.markdown("#### Revenue by Product Line")
-                fig_pie = px.pie(df, values='SALES', names='PRODUCTLINE', hole=0.5, template="plotly")
+                fig_pie = px.pie(df, values='SALES', names='PRODUCTLINE', hole=0.5, color_discrete_sequence=px.colors.qualitative.Prism)
                 st.plotly_chart(fig_pie, use_container_width=True)
             
             st.markdown("#### Revenue Performance by Country (Ranked)")
