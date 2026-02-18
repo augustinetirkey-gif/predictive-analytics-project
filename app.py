@@ -11,6 +11,7 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import GridSearchCV
+from sklearn.preprocessing import StandardScaler
 import xgboost as xgb
 import io
 
@@ -123,9 +124,10 @@ if uploaded_file is not None:
         X = data[MODEL_FEATURES]
         y = data['SALES']
 
-        preprocessor = ColumnTransformer([
-            ('cat', OneHotEncoder(handle_unknown='ignore'), ['PRODUCTLINE', 'COUNTRY'])
-        ], remainder='passthrough')
+      preprocessor = ColumnTransformer([
+    ('cat', OneHotEncoder(handle_unknown='ignore'), ['PRODUCTLINE', 'COUNTRY']),
+    ('num', StandardScaler(), ['MONTH_ID','QTR_ID','MSRP','QUANTITYORDERED'])
+])
 
         models = {
             "Linear Regression": LinearRegression(),
