@@ -13,25 +13,81 @@ import io
 # --- SYSTEM CONFIGURATION ---
 st.set_page_config(page_title="PredictiCorp BI Suite", layout="wide", initial_sidebar_state="expanded")
 
-# --- EXECUTIVE THEMING ---
+# --- EXECUTIVE THEMING (Refactored for Theme Support) ---
 st.markdown("""
     <style>
-    .main { background-color: #f4f7f9; }
-    .stMetric { background-color: #ffffff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-top: 5px solid #1f4e79; }
-    .stTabs [data-baseweb="tab-list"] { gap: 10px; background-color: #f4f7f9; }
-    .stTabs [data-baseweb="tab"] { background-color: #ffffff; border-radius: 10px 10px 0 0; border: 1px solid #e1e4e8; padding: 10px 20px; font-weight: bold; color: #5c6c7b; }
-    .stTabs [aria-selected="true"] { background-color: #1f4e79 !important; color: white !important; }
-    .card { background-color: #ffffff; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; border-left: 8px solid #1f4e79; }
+    /* Use transparent borders and adaptive shadows for theme compatibility */
+    .stMetric { 
+        padding: 20px; 
+        border-radius: 12px; 
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
+        border: 1px solid rgba(128, 128, 128, 0.2);
+    }
+    
+    .stTabs [data-baseweb="tab-list"] { gap: 10px; }
+    
+    .stTabs [data-baseweb="tab"] { 
+        border-radius: 10px 10px 0 0; 
+        border: 1px solid rgba(128, 128, 128, 0.2);
+        padding: 10px 20px; 
+        font-weight: bold; 
+    }
+
+    .card { 
+        padding: 25px; 
+        border-radius: 15px; 
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
+        margin-bottom: 20px; 
+        border: 1px solid rgba(128, 128, 128, 0.2);
+    }
     
     .welcome-header {
-        background: linear-gradient(90deg, #1f4e79 0%, #2c3e50 100%);
-        color: white; padding: 60px; border-radius: 20px; text-align: center; margin-bottom: 40px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        background: linear-gradient(90deg, rgba(31, 78, 121, 0.9) 0%, rgba(44, 62, 80, 0.9) 100%);
+        color: white; 
+        padding: 60px; 
+        border-radius: 20px; 
+        text-align: center; 
+        margin-bottom: 40px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
     }
+    
     .feature-box {
-        background: white; padding: 30px; border-radius: 15px; border-bottom: 4px solid #1f4e79; text-align: center; transition: transform 0.3s ease;
+        padding: 30px; 
+        border-radius: 15px; 
+        border: 1px solid rgba(128, 128, 128, 0.2);
+        text-align: center; 
+        transition: transform 0.3s ease;
     }
     .feature-box:hover { transform: translateY(-10px); }
+    /* Use dynamic variables for the KPI Box */
+    [data-testid="stMetric"] {
+        background-color: rgba(128, 128, 128, 0.05); /* Light translucent grey */
+        border: 1px solid rgba(128, 128, 128, 0.2);
+        padding: 15px 20px;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease;
+    }
+
+    /* Add a nice hover effect to make it 'Attractive' */
+    [data-testid="stMetric"]:hover {
+        transform: translateY(-5px);
+        border-color: #1f4e79;
+        box-shadow: 0 8px 20px rgba(31, 78, 121, 0.2);
+    }
+
+    /* Fix the Label (Small text) visibility */
+    [data-testid="stMetricLabel"] p {
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    /* Fix the Value (Big number) visibility */
+    [data-testid="stMetricValue"] div {
+        font-weight: 700;
+        font-size: 2rem;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -62,13 +118,11 @@ if uploaded_file is not None:
 
     df_master = load_and_process_data(uploaded_file)
     
-    # --- UPDATED SIDEBAR FILTERS (INCLUDES PRODUCT LINE) ---
     st.sidebar.subheader("🔍 Filter Strategy")
     st_year = st.sidebar.multiselect("Fiscal Year", options=sorted(df_master['YEAR'].unique()), default=df_master['YEAR'].unique())
     st_country = st.sidebar.multiselect("Active Markets", options=sorted(df_master['COUNTRY'].unique()), default=df_master['COUNTRY'].unique())
     st_product = st.sidebar.multiselect("Product Line", options=sorted(df_master['PRODUCTLINE'].unique()), default=df_master['PRODUCTLINE'].unique())
     
-    # Global Data Filtering
     df = df_master[
         (df_master['YEAR'].isin(st_year)) & 
         (df_master['COUNTRY'].isin(st_country)) & 
@@ -106,26 +160,23 @@ if uploaded_file is not None:
             with c1:
                 st.markdown("#### Monthly Sales Trend")
                 trend = df.groupby(['YEAR', 'MONTH_ID', 'MONTH_NAME'])['SALES'].sum().reset_index().sort_values(['YEAR', 'MONTH_ID'])
-                fig_trend = px.line(trend, x='MONTH_NAME', y='SALES', color='YEAR', markers=True, template="plotly_white")
+                fig_trend = px.line(trend, x='MONTH_NAME', y='SALES', color='YEAR', markers=True, template="plotly")
                 st.plotly_chart(fig_trend, use_container_width=True)
             with c2:
-                # --- PIE CHART OF REVENUE ---
                 st.markdown("#### Revenue by Product Line")
-                fig_pie = px.pie(df, values='SALES', names='PRODUCTLINE', hole=0.5, color_discrete_sequence=px.colors.qualitative.Prism)
+                fig_pie = px.pie(df, values='SALES', names='PRODUCTLINE', hole=0.5, template="plotly")
                 st.plotly_chart(fig_pie, use_container_width=True)
             
-            # --- HIGHEST TO LOWEST REVENUE BY COUNTRY BAR CHART ---
             st.markdown("#### Revenue Performance by Country (Ranked)")
             country_revenue = df.groupby('COUNTRY')['SALES'].sum().reset_index().sort_values('SALES', ascending=False)
-            fig_bar = px.bar(country_revenue, x='COUNTRY', y='SALES', text_auto='.2s', color='SALES', color_continuous_scale='Blues', template="plotly_white")
+            fig_bar = px.bar(country_revenue, x='COUNTRY', y='SALES', text_auto='.2s', color='SALES', template="plotly")
             st.plotly_chart(fig_bar, use_container_width=True)
 
-            # OUTLIER DETECTION
             st.markdown("#### 🔍 Sales Outlier Detection")
-            fig_box = px.box(df, x='PRODUCTLINE', y='SALES', color='PRODUCTLINE', template="plotly_white")
+            fig_box = px.box(df, x='PRODUCTLINE', y='SALES', color='PRODUCTLINE', template="plotly")
             st.plotly_chart(fig_box, use_container_width=True)
 
-        # TAB 2: Simulator (Grounded in Historical Data)
+    # TAB 2: Simulator (Grounded in Historical Data)
         with tabs[1]:
             st.header("🔮 Strategic Scenario Simulator")
             col1, col2, col3 = st.columns(3)
@@ -133,14 +184,17 @@ if uploaded_file is not None:
             valid_products = df_master[df_master['COUNTRY'] == in_country]['PRODUCTLINE'].unique()
             in_prod = col2.selectbox(f"Available Products in {in_country}", valid_products)
             ref_data = df_master[df_master['PRODUCTLINE'] == in_prod]
-            avg_msrp = float(ref_data['MSRP'].mean())
-            min_msrp = float(ref_data['MSRP'].min())
-            max_msrp = float(ref_data['MSRP'].max())
-            st.info(f"💡 **Historical Price Context for {in_prod}:** Avg: ${avg_msrp:.2f} | Range: ${min_msrp:.2f} - ${max_msrp:.2f}")
+            
+            avg_msrp = float(ref_data['MSRP'].mean()) if not ref_data.empty else 0.0
+            min_msrp = float(ref_data['MSRP'].min()) if not ref_data.empty else 0.0
+            max_msrp = float(ref_data['MSRP'].max()) if not ref_data.empty else 0.0
+            
+            st.info(f"💡 *Historical Price Context for {in_prod}:* Avg: ${avg_msrp:.2f} | Range: ${min_msrp:.2f} - ${max_msrp:.2f}")
+            
             in_qty = col1.slider("Quantity to Sell", 1, 1000, 50)
-          in_msrp = col2.number_input("Unit Price ($)", value=float(avg_msrp), step=0.01, format="%.2f")
-
+            in_msrp = col2.number_input("Unit Price ($)", value=float(avg_msrp), step=0.01, format="%.2f")
             in_month = col3.slider("Order Month", 1, 12, 12)
+            
             if st.button("RUN AI SIMULATION & REALITY CHECK", use_container_width=True, type="primary"):
                 inp = pd.DataFrame([{'MONTH_ID': in_month, 'QTR_ID': (in_month-1)//3+1, 'MSRP': in_msrp, 'QUANTITYORDERED': in_qty, 'PRODUCTLINE': in_prod, 'COUNTRY': in_country}])
                 pred = bi_pipe.predict(inp)[0]
@@ -160,9 +214,11 @@ if uploaded_file is not None:
                     err = np.mean(abs(history['SALES'] - history['AI_PREDICTION']) / history['SALES']) * 100
                     st.success(f"✅ The AI matches historical data with an average error of only {err:.2f}% for this selection.")
                 else:
-                    st.warning("No historical data found for this specific combination to show a comparison.")
-
-        # TAB 3: Market Insights
+                    st.warning("No historical data found for this specific combination to show a comparison.")      
+        # TAB 3: Strategic Market Insights (UPGRADED VERSION)
+        with tabs[2]:
+            st.header("🌍 Strategic Market Insights")
+                    # TAB 3: Market Insights
         with tabs[2]:
             st.header("💡 Business Directives")
             top_country = df.groupby('COUNTRY')['SALES'].sum().idxmax()
@@ -176,36 +232,223 @@ if uploaded_file is not None:
             fig_map = px.choropleth(geo_df, locations="COUNTRY", locationmode='country names', color="COUNTRY", hover_name="COUNTRY", template="plotly_white")
             fig_map.update_geos(projection_type="mercator")
             st.plotly_chart(fig_map, use_container_width=True)
+            
+           
 
-        # TAB 4: DEMAND FORECASTING
+            # --- 1. Heatmap and Top/Bottom Tables ---
+            c3, c4 = st.columns([2, 1])
+            with c3:
+                st.markdown("#### Revenue Heatmap: Country × Product Line")
+                heat_df = df.pivot_table(index='COUNTRY', columns='PRODUCTLINE', values='SALES', aggfunc='sum').fillna(0)
+                # Spectral_r uses a distinct multi-color spectrum for high visibility
+                fig_heat = px.imshow(heat_df, text_auto='.2s', aspect="auto", 
+                                     color_continuous_scale="Spectral_r", 
+                                     template="plotly_white")
+                st.plotly_chart(fig_heat, use_container_width=True)
+            
+            with c4:
+                st.markdown("#### Top 5 vs Bottom 5 Markets")
+                m_sorted = df.groupby('COUNTRY')['SALES'].sum().sort_values(ascending=False).reset_index()
+                st.write("*Top 5 Markets*")
+                st.dataframe(m_sorted.head(5), hide_index=True, use_container_width=True)
+                st.write("*Bottom 5 Markets*")
+                st.dataframe(m_sorted.tail(5), hide_index=True, use_container_width=True)
+
+            # --- 2. Growth Trend and Contribution Donut ---
+            c5, c6 = st.columns(2)
+            with c5:
+                st.markdown("#### YoY Revenue Performance")
+                growth_trend = df.groupby(['YEAR', 'MONTH_ID'])['SALES'].sum().reset_index()
+                fig_growth = px.bar(growth_trend, x='MONTH_ID', y='SALES', color='YEAR', 
+                                    barmode='group', template="plotly_white")
+                st.plotly_chart(fig_growth, use_container_width=True)
+            
+            with c6:
+                st.markdown("#### Product Revenue Contribution (%)")
+                fig_don = px.pie(df, values='SALES', names='PRODUCTLINE', hole=0.5, 
+                                 template="plotly_white", color_discrete_sequence=px.colors.qualitative.Pastel)
+                st.plotly_chart(fig_don, use_container_width=True)
+
+        # TAB 4: Demand Forecast (Advanced Strategic Planning)
         with tabs[3]:
             st.header("📅 Demand Forecasting (Predictive Planning)")
-            st.write("Predicting revenue momentum to help with inventory and budgeting.")
+            
+            # --- 1. DATA PREPARATION & FORECAST LOGIC ---
             forecast_df = df.groupby(['YEAR', 'MONTH_ID'])['SALES'].sum().reset_index()
+            
+            # Calculate simple AI Forecast (Rolling Mean)
             forecast_df['Target_Forecast'] = forecast_df['SALES'].rolling(window=3).mean().shift(-1)
-            fig_forecast = px.line(forecast_df, x='MONTH_ID', y=['SALES', 'Target_Forecast'], markers=True, template="plotly_white", title="3-Month Sales Momentum Forecast")
+            
+            # Add Uncertainty (Confidence Intervals: +/- 20% range)
+            forecast_df['Upper'] = forecast_df['Target_Forecast'] * 1.2
+            forecast_df['Lower'] = forecast_df['Target_Forecast'] * 0.8
+
+            # --- 2. FORECAST VISUALIZATION WITH CONFIDENCE BANDS ---
+            fig_forecast = go.Figure()
+
+            # Confidence Range Area (Shaded Background)
+            fig_forecast.add_trace(go.Scatter(
+                x=forecast_df.index, y=forecast_df['Upper'], 
+                line=dict(width=0), showlegend=False, name='Upper Bound'
+            ))
+            fig_forecast.add_trace(go.Scatter(
+                x=forecast_df.index, y=forecast_df['Lower'], 
+                fill='tonexty', fillcolor='rgba(31, 78, 121, 0.1)', 
+                line=dict(width=0), name='95% Confidence Interval'
+            ))
+            
+            # Actual Sales Line
+            fig_forecast.add_trace(go.Scatter(
+                x=forecast_df.index, y=forecast_df['SALES'], 
+                name='Actual Sales', line=dict(color='#1f4e79', width=3)
+            ))
+            
+            # AI Forecast Line
+            fig_forecast.add_trace(go.Scatter(
+                x=forecast_df.index, y=forecast_df['Target_Forecast'], 
+                name='AI Forecast', line=dict(color='#ff7f0e', dash='dot', width=2)
+            ))
+
+            fig_forecast.update_layout(
+                title="Sales Momentum Forecast with Predictive Confidence Range", 
+                template="plotly_white", 
+                xaxis_title="Timeline Step (Months)", 
+                yaxis_title="Revenue ($)",
+                hovermode="x unified"
+            )
             st.plotly_chart(fig_forecast, use_container_width=True)
-            st.info("Strategy: Use the predicted trend line to adjust stock levels for the upcoming quarter.")
 
-        # TAB 5: CUSTOMER ANALYTICS
+            # --- 3. SEASONALITY & YoY COMPARISON ---
+            st.divider()
+            c5, c6 = st.columns(2)
+            
+            with c5:
+                st.markdown("#### 🌙 Seasonality Analysis (Monthly Trends)")
+                # Average performance per month across all historical years
+                season_df = df_master.groupby('MONTH_ID')['SALES'].mean().reset_index()
+                fig_season = px.bar(
+                    season_df, x='MONTH_ID', y='SALES', 
+                    template="plotly_white", color='SALES', 
+                    color_continuous_scale="YlGnBu",
+                    labels={'MONTH_ID': 'Month Index', 'SALES': 'Avg Revenue'}
+                )
+                st.plotly_chart(fig_season, use_container_width=True)
+            
+            with c6:
+                st.markdown("#### 📊 Year-over-Year (YoY) Performance")
+                # Compare trends across different years
+                yoy_comp = df_master.groupby(['YEAR', 'MONTH_ID'])['SALES'].sum().reset_index()
+                fig_yoy = px.line(
+                    yoy_comp, x='MONTH_ID', y='SALES', color='YEAR', 
+                    markers=True, template="plotly_white",
+                    labels={'MONTH_ID': 'Month Index'}
+                )
+                st.plotly_chart(fig_yoy, use_container_width=True)
+
+            # --- 4. DATA INTELLIGENCE TABLE ---
+            st.divider()
+            st.markdown("#### 📥 Forecast Data Intelligence")
+            st.dataframe(
+                forecast_df[['YEAR', 'MONTH_ID', 'SALES', 'Target_Forecast', 'Upper', 'Lower']].dropna().round(2), 
+                use_container_width=True,
+                hide_index=True
+            )
+# --- TAB 5: CUSTOMER ANALYTICS (CORRECTED SECTION) ---
         with tabs[4]:
-            st.header("👥 Customer Lifetime Value & Loyalty")
-            cust_val = df.groupby('CUSTOMERNAME')['SALES'].sum().reset_index().sort_values('SALES', ascending=False).head(10)
-            col_c1, col_c2 = st.columns(2)
-            with col_c1:
-                st.subheader("Top 10 High-Value Customers")
-                st.plotly_chart(px.bar(cust_val, x='SALES', y='CUSTOMERNAME', orientation='h', template="plotly_white"), use_container_width=True)
-            with col_c2:
-                st.subheader("Deal Size Analysis")
-                st.plotly_chart(px.histogram(df, x='DEALSIZE', color='DEALSIZE', template="plotly_white"), use_container_width=True)
-            st.success("Marketing Action: Assign VIP account managers to the top 10 customers identified above.")
+            st.header("👥 Customer Intelligence & Loyalty")
+            
+            # 1. Data Preparation
+            current_date = df['ORDERDATE'].max()
+            cust_metrics = df.groupby('CUSTOMERNAME').agg({
+                'SALES': 'sum',
+                'ORDERNUMBER': 'nunique',
+                'ORDERDATE': 'max',
+                'COUNTRY': 'first',
+                'PHONE': 'first',
+                'DEALSIZE': lambda x: x.mode()[0]
+            }).reset_index()
+            
+            cust_metrics.columns = ['Customer', 'Revenue', 'Frequency', 'LastOrder', 'Country', 'Phone', 'Typical_Deal']
+            cust_metrics['Recency'] = (current_date - cust_metrics['LastOrder']).dt.days
+            
+            # 2. Customer Segmentation
+            st.subheader("📊 Strategic Customer Segmentation")
+            # Create the 'Deal size' column
+            cust_metrics['Deal size'] = pd.qcut(cust_metrics['Revenue'], q=3, labels=['Small', 'Medium', 'Large'])
+            
+            col_s1, col_s2 = st.columns([1, 1])
+            with col_s1:
+                fig_seg = px.pie(cust_metrics, names='Deal size', hole=0.4, 
+                                 color_discrete_sequence=px.colors.qualitative.Pastel,
+                                 title="Customer Base Share")
+                st.plotly_chart(fig_seg, use_container_width=True)
+                
+            with col_s2:
+                # Bar Chart explaining average revenue per deal size tier
+                deal_summary = cust_metrics.groupby('Deal size')['Revenue'].mean().reset_index()
+                fig_deal_bar = px.bar(deal_summary, x='Deal size', y='Revenue',
+                                      color='Deal size',
+                                      color_discrete_sequence=px.colors.qualitative.Pastel,
+                                      title="Avg. Revenue per Deal Tier",
+                                      labels={'Revenue': 'Average Spend ($)'},
+                                      text_auto='.2s')
+                # Force the layout to be clean for executive viewing
+                fig_deal_bar.update_layout(showlegend=False, template="plotly")
+                st.plotly_chart(fig_deal_bar, use_container_width=True)
 
+            # 3. Geographic Distribution
+            st.divider()
+            st.subheader("🌍 Customer Geographic Footprint")
+            fig_geo = px.scatter_geo(cust_metrics, locations="Country", locationmode='country names',
+                                     size="Revenue", color="Deal size", hover_name="Customer",
+                                     template="plotly", projection="natural earth")
+            st.plotly_chart(fig_geo, use_container_width=True)
+
+            # 4. Revenue Concentration (80/20 Rule)
+            st.divider()
+            st.subheader("🎯 Revenue Concentration Analysis")
+            pareto_df = cust_metrics.sort_values('Revenue', ascending=False).copy()
+            pareto_df['Revenue_Share'] = (pareto_df['Revenue'].cumsum() / pareto_df['Revenue'].sum()) * 100
+            pareto_df['Customer_Count_Pct'] = np.arange(1, len(pareto_df) + 1) / len(pareto_df) * 100
+
+            fig_pareto = px.area(pareto_df, x='Customer_Count_Pct', y='Revenue_Share',
+                                 title="The Pareto Curve", template="plotly")
+            fig_pareto.add_hline(y=80, line_dash="dash", line_color="red", annotation_text="80% Mark")
+            st.plotly_chart(fig_pareto, use_container_width=True)
+
+            # 5. Dossier & Churn
+            st.divider()
+            col_g1, col_g2 = st.columns(2)
+            with col_g1:
+                st.subheader("🏆 Top 10 High-Value Clients")
+                top_10 = cust_metrics.sort_values('Revenue', ascending=False).head(10)
+                st.dataframe(top_10[['Customer', 'Revenue', 'Recency', 'Country', 'Phone', 'Typical_Deal']], 
+                             use_container_width=True, hide_index=True)
+
+            with col_g2:
+                st.subheader("🚩 Churn Risk Analysis")
+                churn_df = cust_metrics[cust_metrics['Recency'] > 120].sort_values('Revenue', ascending=False)
+                st.write(f"*Found {len(churn_df)} customers at risk*")
+                st.dataframe(churn_df[['Customer', 'Revenue', 'Recency', 'Country', 'Phone']].head(10), 
+                             use_container_width=True, hide_index=True)
+
+            # 6. Heatmap
+            st.divider()
+            st.subheader("🧩 Product Affinity Heatmap")
+            top_custs = cust_metrics.nlargest(25, 'Revenue')['Customer']
+            heat_data = df[df['CUSTOMERNAME'].isin(top_custs)].pivot_table(index='CUSTOMERNAME', columns='PRODUCTLINE', values='SALES', aggfunc='sum').fillna(0)
+            st.plotly_chart(px.imshow(heat_data, text_auto='.2s', aspect="auto", 
+                                     color_continuous_scale='RdYlBu_r', template="plotly"), use_container_width=True)
 else:
     # --- WELCOME PAGE ---
     st.markdown("""<div class="welcome-header"><h1>🚀 Welcome to PredictiCorp Intelligence</h1><p>The Global Executive Suite for Data-Driven Market Strategy</p></div>""", unsafe_allow_html=True)
+    
+    
+    
     st.markdown("### 🛠️ Get Started in 3 Simple Steps")
     s1, s2, s3 = st.columns(3)
     with s1: st.markdown("""<div class="feature-box"><h2>📋</h2><h3>Step 1</h3><p>Download the CSV template.</p></div>""", unsafe_allow_html=True)
     with s2: st.markdown("""<div class="feature-box"><h2>📥</h2><h3>Step 2</h3><p>Upload your sales data.</p></div>""", unsafe_allow_html=True)
     with s3: st.markdown("""<div class="feature-box"><h2>💡</h2><h3>Step 3</h3><p>Explore analytical tabs.</p></div>""", unsafe_allow_html=True)
+    st.markdown("---")
     st.info("👈 Please upload your Sales Data CSV in the sidebar to activate insights.")
