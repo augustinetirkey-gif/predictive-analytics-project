@@ -160,6 +160,10 @@ if uploaded_file is not None:
             k4.metric("Active Regions", f"{df['COUNTRY'].nunique()}")
             st.markdown("---")
             
+            st.subheader("📊 Descriptive Statistics Summary")
+            st.dataframe(df.describe(), use_container_width=True)
+
+            
             c1, c2 = st.columns([2, 1])
             with c1:
                 st.markdown("#### Monthly Sales Trend")
