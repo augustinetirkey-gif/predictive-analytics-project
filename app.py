@@ -215,31 +215,39 @@ if uploaded_file is not None:
             st.plotly_chart(fig_box, use_container_width=True)
                            
 
-       # --- TAB 2: REVENUE SIMULATOR ---
+       # --- TAB 2: REVENUE SIMULATOR (EXTRAPOLATION ENABLED) ---
         with tabs[1]:
             st.header("🔮 Strategic Scenario Simulator")
             col1, col2, col3 = st.columns(3)
+            
+            # Selection Logic
             in_country = col1.selectbox("Target Market (Country)", sorted(df_master['COUNTRY'].unique()))
             valid_products = df_master[df_master['COUNTRY'] == in_country]['PRODUCTLINE'].unique()
             in_prod = col2.selectbox(f"Available Products in {in_country}", valid_products)
+            
+            # Reference data for context
             ref_data = df_master[df_master['PRODUCTLINE'] == in_prod]
-            
             avg_msrp = float(ref_data['MSRP'].mean()) if not ref_data.empty else 0.0
-            min_msrp = float(ref_data['MSRP'].min()) if not ref_data.empty else 0.0
-            max_msrp = float(ref_data['MSRP'].max()) if not ref_data.empty else 0.0
             
-            st.info(f"💡 *Historical Price Context for {in_prod}:* Avg: ${avg_msrp:.2f} | Range: ${min_msrp:.2f} - ${max_msrp:.2f}")
-            
-            in_qty = col1.slider("Quantity to Sell", 1, 1000, 50)
-            in_msrp = col2.number_input("Unit Price ($)", value=float(avg_msrp), step=0.01, format="%.2f")
+            # --- UPDATED INPUTS TO ALLOW BEYOND-RANGE VALUES ---
+            # Using number_input with high max_values allows for "What-If" testing at scale
+            in_qty = col1.number_input("Quantity to Sell (Simulation)", min_value=1, max_value=1000000, value=50)
+            in_msrp = col2.number_input("Unit Price ($) (Simulation)", min_value=0.01, max_value=1000000.0, value=float(avg_msrp), step=0.01, format="%.2f")
             in_month = col3.slider("Order Month", 1, 12, 12)
+            
+            st.info(f"💡 *Historical Price Context:* Avg: ${avg_msrp:.2f} | Testing: {in_qty} units @ ${in_msrp:.2f}")
 
             st.divider()
             st.subheader("🤖 Model Selection")
+            
+            # GUIDANCE: Explain that Linear Regression is best for extrapolation
+            st.caption("Note: For predicting values far outside historical ranges (e.g. huge quantities), 'Linear Regression' is recommended.")
+            
             model_choice = st.selectbox("Choose Prediction Model", list(trained_models.keys()))
             selected_model, model_score = trained_models[model_choice]
             st.info(f"Model Accuracy (R²): {model_score:.2f}%")
 
+            # --- HYPERPARAMETER TUNING BLOCK (UNCHANGED) ---
             if st.checkbox(f"Run Hyperparameter Tuning ({model_choice})"):
                 tuning_grids = {
                     "Random Forest": {'model__n_estimators': [50, 100, 150], 'model__max_depth': [None, 5, 10]},
@@ -248,7 +256,6 @@ if uploaded_file is not None:
                     "XGBoost": {'model__n_estimators': [50, 100], 'model__learning_rate': [0.01, 0.1], 'model__max_depth': [3, 5]},
                     "Linear Regression": {} 
                 }
-
                 param_grid = tuning_grids.get(model_choice, {})
                 
                 if not param_grid and model_choice != "Linear Regression":
@@ -260,7 +267,6 @@ if uploaded_file is not None:
                         ('cat', OneHotEncoder(handle_unknown='ignore'), ['PRODUCTLINE', 'COUNTRY']),
                         ('num', StandardScaler(), ['MONTH_ID','QTR_ID','MSRP','QUANTITYORDERED'])
                     ])
-                    
                     base_models = {
                         "Linear Regression": LinearRegression(),
                         "Decision Tree": DecisionTreeRegressor(random_state=42),
@@ -268,15 +274,14 @@ if uploaded_file is not None:
                         "Gradient Boosting": GradientBoostingRegressor(random_state=42),
                         "XGBoost": xgb.XGBRegressor(objective='reg:squarederror', random_state=42)
                     }
-                    
                     tune_pipe = Pipeline([('pre', preprocessor), ('model', base_models[model_choice])])
-
                     with st.spinner(f"Tuning {model_choice} in progress..."):
                         grid = GridSearchCV(tune_pipe, param_grid, cv=3)
                         grid.fit(df_master[MODEL_FEATURES], df_master['SALES'])
-                        st.success(f"Best Params for {model_choice}: {grid.best_params_}")
+                        st.success(f"Best Params: {grid.best_params_}")
                         selected_model = grid.best_estimator_
 
+            # --- RUN SIMULATION ---
             if st.button("RUN AI SIMULATION & REALITY CHECK", use_container_width=True, type="primary"):
                 inp = pd.DataFrame([{
                     'MONTH_ID': in_month, 
@@ -286,6 +291,7 @@ if uploaded_file is not None:
                     'PRODUCTLINE': in_prod, 
                     'COUNTRY': in_country
                 }])
+                
                 pred = selected_model.predict(inp)[0]
 
                 st.markdown(f"""
@@ -298,6 +304,7 @@ if uploaded_file is not None:
                 st.divider()
                 st.subheader(f"📊 Historical Performance Review: {in_prod} in {in_country}")
                 history = df_master[(df_master['COUNTRY'] == in_country) & (df_master['PRODUCTLINE'] == in_prod)].copy()
+                
                 if not history.empty:
                     history['AI_PREDICTION'] = selected_model.predict(history[MODEL_FEATURES])
                     history = history.sort_values('ORDERDATE')
@@ -306,8 +313,9 @@ if uploaded_file is not None:
                     fig_compare.add_trace(go.Scatter(x=history['ORDERDATE'], y=history['AI_PREDICTION'], name='AI Model Fit', line=dict(color='#ff7f0e', dash='dot')))
                     fig_compare.update_layout(title="AI vs Historical Reality", template="plotly_white", xaxis_title="Timeline", yaxis_title="Revenue ($)")
                     st.plotly_chart(fig_compare, use_container_width=True)
-                    err = np.mean(abs(history['SALES'] - history['AI_PREDICTION']) / history['SALES']) * 100
                     
+                    # Metrics
+                    err = np.mean(abs(history['SALES'] - history['AI_PREDICTION']) / history['SALES']) * 100
                     mae = mean_absolute_error(history['SALES'], history['AI_PREDICTION'])
                     rmse = np.sqrt(mean_squared_error(history['SALES'], history['AI_PREDICTION']))
                     r2 = r2_score(history['SALES'], history['AI_PREDICTION'])
@@ -315,7 +323,6 @@ if uploaded_file is not None:
                     st.write(f"MAE: {mae:,.2f}")
                     st.write(f"RMSE: {rmse:,.2f}")
                     st.write(f"R² Score: {r2*100:.2f}%")
-
                     st.success(f"✅ The AI matches historical data with an average error of only {err:.2f}% for this selection.")
                 else:
                     st.warning("No historical data found for this specific combination.")
