@@ -122,7 +122,7 @@ if uploaded_file is not None:
 
     @st.cache_resource
     def train_models(data):
-        data = data[MODEL_FEATURES + ['SALES']]
+        data = data[MODEL_FEATURES + ['SALES']].dropna()
 
         X = data[MODEL_FEATURES]
         y = data['SALES']
@@ -175,10 +175,7 @@ if uploaded_file is not None:
             top_product = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
 
             st.markdown(f"""
-          • Total revenue generated is **${total_rev:,.2f}**  
-          • Highest revenue comes from **{top_country}**  
-          • Best performing product line is **{top_product}**  
-          • Sales show seasonal monthly variation  
+          • Total revenue generated is **${total_rev:,.2f}** • Highest revenue comes from **{top_country}** • Best performing product line is **{top_product}** • Sales show seasonal monthly variation  
           • Dataset contains multiple markets and product categories  
             """)
             st.subheader("🧹 Data Cleaning Summary")
@@ -186,9 +183,7 @@ if uploaded_file is not None:
             missing = df.isnull().sum().sum()
 
             st.markdown(f"""
-          • Total records: **{len(df)}**  
-          • Missing values handled: **{missing}**  
-          • Date converted to datetime  
+          • Total records: **{len(df)}** • Missing values handled: **{missing}** • Date converted to datetime  
           • Feature engineering applied (Year extraction)  
               """)
             st.subheader("🔗 Correlation Analysis")
@@ -220,136 +215,113 @@ if uploaded_file is not None:
             st.plotly_chart(fig_box, use_container_width=True)
                            
 
-    # --- TAB 2: REVENUE SIMULATOR ---
-with tabs[1]:
-    st.header("🔮 Strategic Scenario Simulator")
-    col1, col2, col3 = st.columns(3)
-    in_country = col1.selectbox("Target Market (Country)", sorted(df_master['COUNTRY'].unique()))
-    valid_products = df_master[df_master['COUNTRY'] == in_country]['PRODUCTLINE'].unique()
-    in_prod = col2.selectbox(f"Available Products in {in_country}", valid_products)
-    ref_data = df_master[df_master['PRODUCTLINE'] == in_prod]
-    
-    avg_msrp = float(ref_data['MSRP'].mean()) if not ref_data.empty else 0.0
-    min_msrp = float(ref_data['MSRP'].min()) if not ref_data.empty else 0.0
-    max_msrp = float(ref_data['MSRP'].max()) if not ref_data.empty else 0.0
-    
-    st.info(f"💡 *Historical Price Context for {in_prod}:* Avg: ${avg_msrp:.2f} | Range: ${min_msrp:.2f} - ${max_msrp:.2f}")
-    
-    in_qty = col1.slider("Quantity to Sell", 1, 1000, 50)
-    # UPDATED: No upper limit enforced, allowing values like 200+
-    in_msrp = col2.number_input("Unit Price ($)", value=float(avg_msrp), step=0.01, format="%.2f")
-    in_month = col3.slider("Order Month", 1, 12, 12)
-
-    st.divider()
-    st.subheader("🤖 Model Selection")
-    model_choice = st.selectbox("Choose Prediction Model", list(trained_models.keys()))
-    selected_model, model_score = trained_models[model_choice]
-    st.info(f"Model Accuracy (R²): {model_score:.2f}%")
-
-    # UPDATED: Hyperparameter tuning now works for the selected model
-    if st.checkbox(f"Run Hyperparameter Tuning ({model_choice})"):
-        # Define parameter grids for all possible models
-        tuning_grids = {
-            "Random Forest": {
-                'model__n_estimators': [50, 100, 150],
-                'model__max_depth': [None, 5, 10]
-            },
-            "Decision Tree": {
-                'model__max_depth': [None, 5, 10, 20],
-                'model__min_samples_split': [2, 5, 10]
-            },
-            "Gradient Boosting": {
-                'model__n_estimators': [50, 100],
-                'model__learning_rate': [0.01, 0.1],
-                'model__max_depth': [3, 5]
-            },
-            "XGBoost": {
-                'model__n_estimators': [50, 100],
-                'model__learning_rate': [0.01, 0.1],
-                'model__max_depth': [3, 5]
-            },
-            "Linear Regression": {} # No hyperparameters to tune for basic LR
-        }
-
-        param_grid = tuning_grids.get(model_choice, {})
-        
-        if not param_grid and model_choice != "Linear Regression":
-            st.warning(f"No tuning grid defined for {model_choice}.")
-        elif model_choice == "Linear Regression":
-            st.info("Linear Regression does not require hyperparameter tuning.")
-        else:
-            preprocessor = ColumnTransformer([
-                ('cat', OneHotEncoder(handle_unknown='ignore'), ['PRODUCTLINE', 'COUNTRY']),
-                ('num', StandardScaler(), ['MONTH_ID','QTR_ID','MSRP','QUANTITYORDERED'])
-            ])
+        # --- TAB 2: REVENUE SIMULATOR ---
+        with tabs[1]:
+            st.header("🔮 Strategic Scenario Simulator")
+            col1, col2, col3 = st.columns(3)
+            in_country = col1.selectbox("Target Market (Country)", sorted(df_master['COUNTRY'].unique()))
+            valid_products = df_master[df_master['COUNTRY'] == in_country]['PRODUCTLINE'].unique()
+            in_prod = col2.selectbox(f"Available Products in {in_country}", valid_products)
+            ref_data = df_master[df_master['PRODUCTLINE'] == in_prod]
             
-            # Re-instantiate the base model for tuning
-            base_models = {
-                "Linear Regression": LinearRegression(),
-                "Decision Tree": DecisionTreeRegressor(random_state=42),
-                "Random Forest": RandomForestRegressor(random_state=42),
-                "Gradient Boosting": GradientBoostingRegressor(random_state=42),
-                "XGBoost": xgb.XGBRegressor(objective='reg:squarederror', random_state=42)
-            }
+            avg_msrp = float(ref_data['MSRP'].mean()) if not ref_data.empty else 0.0
+            min_msrp = float(ref_data['MSRP'].min()) if not ref_data.empty else 0.0
+            max_msrp = float(ref_data['MSRP'].max()) if not ref_data.empty else 0.0
             
-            tune_pipe = Pipeline([
-                ('pre', preprocessor),
-                ('model', base_models[model_choice])
-            ])
-
-            with st.spinner(f"Tuning {model_choice} in progress..."):
-                grid = GridSearchCV(tune_pipe, param_grid, cv=3)
-                grid.fit(df_master[MODEL_FEATURES], df_master['SALES'])
-                st.success(f"Best Params for {model_choice}: {grid.best_params_}")
-                selected_model = grid.best_estimator_
-
-    if st.button("RUN AI SIMULATION & REALITY CHECK", use_container_width=True, type="primary"):
-        # The dataframe uses the exact 'in_msrp' input from the user
-        inp = pd.DataFrame([{
-            'MONTH_ID': in_month, 
-            'QTR_ID': (in_month-1)//3+1, 
-            'MSRP': in_msrp, 
-            'QUANTITYORDERED': in_qty, 
-            'PRODUCTLINE': in_prod, 
-            'COUNTRY': in_country
-        }])
-        pred = selected_model.predict(inp)[0]
-
-        st.markdown(f"""
-            <div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;border: 2px solid #1f4e79;margin-bottom:25px;'>
-                <p style='color:#1f4e79; font-weight:bold; margin-bottom:0;'>PROJECTED REVENUE</p>
-                <h1 style='color:#1f4e79; font-size:48px; margin-top:0;'>${pred:,.2f}</h1>
-            </div>
-        """, unsafe_allow_html=True)
-        
-        st.divider()
-        st.subheader(f"📊 Historical Performance Review: {in_prod} in {in_country}")
-        history = df_master[(df_master['COUNTRY'] == in_country) & (df_master['PRODUCTLINE'] == in_prod)].copy()
-        if not history.empty:
-            history['AI_PREDICTION'] = selected_model.predict(history[MODEL_FEATURES])
-            history = history.sort_values('ORDERDATE')
-            fig_compare = go.Figure()
-            fig_compare.add_trace(go.Scatter(x=history['ORDERDATE'], y=history['SALES'], name='Actual Revenue', line=dict(color='#1f4e79', width=3)))
-            fig_compare.add_trace(go.Scatter(x=history['ORDERDATE'], y=history['AI_PREDICTION'], name='AI Model Fit', line=dict(color='#ff7f0e', dash='dot')))
-            fig_compare.update_layout(title="AI vs Historical Reality", template="plotly_white", xaxis_title="Timeline", yaxis_title="Revenue ($)")
-            st.plotly_chart(fig_compare, use_container_width=True)
-            err = np.mean(abs(history['SALES'] - history['AI_PREDICTION']) / history['SALES']) * 100
+            st.info(f"💡 *Historical Price Context for {in_prod}:* Avg: ${avg_msrp:.2f} | Range: ${min_msrp:.2f} - ${max_msrp:.2f}")
             
-            mae = mean_absolute_error(history['SALES'], history['AI_PREDICTION'])
-            rmse = np.sqrt(mean_squared_error(history['SALES'], history['AI_PREDICTION']))
-            r2 = r2_score(history['SALES'], history['AI_PREDICTION'])
+            in_qty = col1.slider("Quantity to Sell", 1, 1000, 50)
+            in_msrp = col2.number_input("Unit Price ($)", value=float(avg_msrp), step=0.01, format="%.2f")
+            in_month = col3.slider("Order Month", 1, 12, 12)
 
-            st.write(f"MAE: {mae:,.2f}")
-            st.write(f"RMSE: {rmse:,.2f}")
-            st.write(f"R² Score: {r2*100:.2f}%")
+            st.divider()
+            st.subheader("🤖 Model Selection")
+            model_choice = st.selectbox("Choose Prediction Model", list(trained_models.keys()))
+            selected_model, model_score = trained_models[model_choice]
+            st.info(f"Model Accuracy (R²): {model_score:.2f}%")
 
-            st.success(f"✅ The AI matches historical data with an average error of only {err:.2f}% for this selection.")
-        else:
-            st.warning("No historical data found for this specific combination.")
+            if st.checkbox(f"Run Hyperparameter Tuning ({model_choice})"):
+                tuning_grids = {
+                    "Random Forest": {'model__n_estimators': [50, 100, 150], 'model__max_depth': [None, 5, 10]},
+                    "Decision Tree": {'model__max_depth': [None, 5, 10, 20], 'model__min_samples_split': [2, 5, 10]},
+                    "Gradient Boosting": {'model__n_estimators': [50, 100], 'model__learning_rate': [0.01, 0.1], 'model__max_depth': [3, 5]},
+                    "XGBoost": {'model__n_estimators': [50, 100], 'model__learning_rate': [0.01, 0.1], 'model__max_depth': [3, 5]},
+                    "Linear Regression": {} 
+                }
+
+                param_grid = tuning_grids.get(model_choice, {})
+                
+                if not param_grid and model_choice != "Linear Regression":
+                    st.warning(f"No tuning grid defined for {model_choice}.")
+                elif model_choice == "Linear Regression":
+                    st.info("Linear Regression does not require hyperparameter tuning.")
+                else:
+                    preprocessor = ColumnTransformer([
+                        ('cat', OneHotEncoder(handle_unknown='ignore'), ['PRODUCTLINE', 'COUNTRY']),
+                        ('num', StandardScaler(), ['MONTH_ID','QTR_ID','MSRP','QUANTITYORDERED'])
+                    ])
+                    
+                    base_models = {
+                        "Linear Regression": LinearRegression(),
+                        "Decision Tree": DecisionTreeRegressor(random_state=42),
+                        "Random Forest": RandomForestRegressor(random_state=42),
+                        "Gradient Boosting": GradientBoostingRegressor(random_state=42),
+                        "XGBoost": xgb.XGBRegressor(objective='reg:squarederror', random_state=42)
+                    }
+                    
+                    tune_pipe = Pipeline([('pre', preprocessor), ('model', base_models[model_choice])])
+
+                    with st.spinner(f"Tuning {model_choice} in progress..."):
+                        grid = GridSearchCV(tune_pipe, param_grid, cv=3)
+                        grid.fit(df_master[MODEL_FEATURES], df_master['SALES'])
+                        st.success(f"Best Params for {model_choice}: {grid.best_params_}")
+                        selected_model = grid.best_estimator_
+
+            if st.button("RUN AI SIMULATION & REALITY CHECK", use_container_width=True, type="primary"):
+                inp = pd.DataFrame([{
+                    'MONTH_ID': in_month, 
+                    'QTR_ID': (in_month-1)//3+1, 
+                    'MSRP': in_msrp, 
+                    'QUANTITYORDERED': in_qty, 
+                    'PRODUCTLINE': in_prod, 
+                    'COUNTRY': in_country
+                }])
+                pred = selected_model.predict(inp)[0]
+
+                st.markdown(f"""
+                    <div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;border: 2px solid #1f4e79;margin-bottom:25px;'>
+                        <p style='color:#1f4e79; font-weight:bold; margin-bottom:0;'>PROJECTED REVENUE</p>
+                        <h1 style='color:#1f4e79; font-size:48px; margin-top:0;'>${pred:,.2f}</h1>
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                st.divider()
+                st.subheader(f"📊 Historical Performance Review: {in_prod} in {in_country}")
+                history = df_master[(df_master['COUNTRY'] == in_country) & (df_master['PRODUCTLINE'] == in_prod)].copy()
+                if not history.empty:
+                    history['AI_PREDICTION'] = selected_model.predict(history[MODEL_FEATURES])
+                    history = history.sort_values('ORDERDATE')
+                    fig_compare = go.Figure()
+                    fig_compare.add_trace(go.Scatter(x=history['ORDERDATE'], y=history['SALES'], name='Actual Revenue', line=dict(color='#1f4e79', width=3)))
+                    fig_compare.add_trace(go.Scatter(x=history['ORDERDATE'], y=history['AI_PREDICTION'], name='AI Model Fit', line=dict(color='#ff7f0e', dash='dot')))
+                    fig_compare.update_layout(title="AI vs Historical Reality", template="plotly_white", xaxis_title="Timeline", yaxis_title="Revenue ($)")
+                    st.plotly_chart(fig_compare, use_container_width=True)
+                    err = np.mean(abs(history['SALES'] - history['AI_PREDICTION']) / history['SALES']) * 100
+                    
+                    mae = mean_absolute_error(history['SALES'], history['AI_PREDICTION'])
+                    rmse = np.sqrt(mean_squared_error(history['SALES'], history['AI_PREDICTION']))
+                    r2 = r2_score(history['SALES'], history['AI_PREDICTION'])
+
+                    st.write(f"MAE: {mae:,.2f}")
+                    st.write(f"RMSE: {rmse:,.2f}")
+                    st.write(f"R² Score: {r2*100:.2f}%")
+
+                    st.success(f"✅ The AI matches historical data with an average error of only {err:.2f}% for this selection.")
+                else:
+                    st.warning("No historical data found for this specific combination.")
 
 
         # --- TAB 3: STRATEGIC MARKET INSIGHTS ---
-       
         with tabs[2]:
             st.header("🌍 Strategic Market Insights")
             st.header("💡 Business Directives")
@@ -478,7 +450,7 @@ with tabs[1]:
             heat_data = df[df['CUSTOMERNAME'].isin(top_custs)].pivot_table(index='CUSTOMERNAME', columns='PRODUCTLINE', values='SALES', aggfunc='sum').fillna(0)
             st.plotly_chart(px.imshow(heat_data, text_auto='.2s', aspect="auto", color_continuous_scale='RdYlBu_r', template="plotly"), use_container_width=True)
 
-      else:
+else:
     # --- WELCOME PAGE ---
     st.markdown("""<div class="welcome-header"><h1>🚀 Welcome to PredictiCorp Intelligence</h1><p>The Global Executive Suite for Data-Driven Market Strategy</p></div>""", unsafe_allow_html=True)
     st.markdown("### 🛠️ Get Started in 3 Simple Steps")
