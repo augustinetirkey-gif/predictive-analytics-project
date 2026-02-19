@@ -221,143 +221,187 @@ if uploaded_file is not None:
                            
 
         # --- TAB 2: REVENUE SIMULATOR ---
-        with tabs[1]:
-            st.header("🔮 Strategic Scenario Simulator")
-            col1, col2, col3 = st.columns(3)
-            in_country = col1.selectbox("Target Market (Country)", sorted(df_master['COUNTRY'].unique()))
-            valid_products = df_master[df_master['COUNTRY'] == in_country]['PRODUCTLINE'].unique()
-            in_prod = col2.selectbox(f"Available Products in {in_country}", valid_products)
-            ref_data = df_master[df_master['PRODUCTLINE'] == in_prod]
-            
-            avg_msrp = float(ref_data['MSRP'].mean()) if not ref_data.empty else 0.0
-            min_msrp = float(ref_data['MSRP'].min()) if not ref_data.empty else 0.0
-            max_msrp = float(ref_data['MSRP'].max()) if not ref_data.empty else 0.0
-            
-            st.info(f"💡 *Historical Price Context for {in_prod}:* Avg: ${avg_msrp:.2f} | Range: ${min_msrp:.2f} - ${max_msrp:.2f}")
-            
-            in_qty = col1.slider("Quantity to Sell", 1, 1000, 50)
-            in_msrp = col2.number_input("Unit Price ($)", value=float(avg_msrp), step=0.01, format="%.2f")
-            in_month = col3.slider("Order Month", 1, 12, 12)
+        # --- TAB 2: REVENUE SIMULATOR ---
+with tabs[1]:
+    st.header("🔮 Strategic Scenario Simulator")
 
-            st.divider()
-            st.subheader("🤖 Model Selection")
-            model_choice = st.selectbox("Choose Prediction Model", list(trained_models.keys()))
-            selected_model, model_score = trained_models[model_choice]
-            st.info(f"Model Accuracy (R²): {model_score:.2f}%")
+    col1, col2, col3 = st.columns(3)
 
-            if st.checkbox("Run Hyperparameter Tuning (Random Forest)"):
-                param_grid = {
-                    'model__n_estimators': [50, 100, 150],
-                    'model__max_depth': [None, 5, 10]
-                }
-                preprocessor = ColumnTransformer([
-                    ('cat', OneHotEncoder(handle_unknown='ignore'), ['PRODUCTLINE', 'COUNTRY'])
-                ], remainder='passthrough')
-                
-                rf_pipe = Pipeline([
-                    ('pre', preprocessor),
-                    ('model', RandomForestRegressor(random_state=42))
-                ])
+    in_country = col1.selectbox("Target Market (Country)", sorted(df_master['COUNTRY'].unique()))
+    valid_products = df_master[df_master['COUNTRY'] == in_country]['PRODUCTLINE'].unique()
+    in_prod = col2.selectbox(f"Available Products in {in_country}", valid_products)
 
-                with st.spinner("Tuning in progress..."):
-                    grid = GridSearchCV(rf_pipe, param_grid, cv=3)
-                    grid.fit(df_master[MODEL_FEATURES], df_master['SALES'])
-                    st.success(f"Best Params: {grid.best_params_}")
-                    # Update selected model to tuned version
-                    selected_model = grid.best_estimator_
+    ref_data = df_master[df_master['PRODUCTLINE'] == in_prod]
 
-            if st.button("RUN AI SIMULATION & REALITY CHECK", use_container_width=True, type="primary"):
-                inp = pd.DataFrame([{
-                    'MONTH_ID': in_month, 
-                    'QTR_ID': (in_month-1)//3+1, 
-                    'MSRP': in_msrp, 
-                    'QUANTITYORDERED': in_qty, 
-                    'PRODUCTLINE': in_prod, 
-                    'COUNTRY': in_country
-                }])
-                pred = selected_model.predict(inp)[0]
+    avg_msrp = float(ref_data['MSRP'].mean()) if not ref_data.empty else 0.0
+    min_msrp = float(ref_data['MSRP'].min()) if not ref_data.empty else 0.0
+    max_msrp = float(ref_data['MSRP'].max()) if not ref_data.empty else 0.0
 
-                st.markdown(f"""
-                    <div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;border: 2px solid #1f4e79;margin-bottom:25px;'>
-                        <p style='color:#1f4e79; font-weight:bold; margin-bottom:0;'>PROJECTED REVENUE</p>
-                        <h1 style='color:#1f4e79; font-size:48px; margin-top:0;'>${pred:,.2f}</h1>
-                    </div>
-                """, unsafe_allow_html=True)
-                
-                st.divider()
-                st.subheader(f"📊 Historical Performance Review: {in_prod} in {in_country}")
-                history = df_master[(df_master['COUNTRY'] == in_country) & (df_master['PRODUCTLINE'] == in_prod)].copy()
-                if not history.empty:
-                    history['AI_PREDICTION'] = selected_model.predict(history[MODEL_FEATURES])
-                    history = history.sort_values('ORDERDATE')
-                    fig_compare = go.Figure()
-                    fig_compare.add_trace(go.Scatter(x=history['ORDERDATE'], y=history['SALES'], name='Actual Revenue', line=dict(color='#1f4e79', width=3)))
-                    fig_compare.add_trace(go.Scatter(x=history['ORDERDATE'], y=history['AI_PREDICTION'], name='AI Model Fit', line=dict(color='#ff7f0e', dash='dot')))
-                    fig_compare.update_layout(title="AI vs Historical Reality", template="plotly_white", xaxis_title="Timeline", yaxis_title="Revenue ($)")
-                    st.plotly_chart(fig_compare, use_container_width=True)
-                    err = np.mean(abs(history['SALES'] - history['AI_PREDICTION']) / history['SALES']) * 100
-                    from sklearn.metrics import mean_absolute_error, mean_squared_error
+    st.info(f"💡 Historical Price Context → Avg: ${avg_msrp:.2f} | Range: ${min_msrp:.2f} - ${max_msrp:.2f}")
 
-                    mae = mean_absolute_error(history['SALES'], history['AI_PREDICTION'])
-                    rmse = np.sqrt(mean_squared_error(history['SALES'], history['AI_PREDICTION']))
-                    r2 = r2_score(history['SALES'], history['AI_PREDICTION'])
+    in_qty = col1.slider("Quantity to Sell", 1, 1000, 50)
+    in_msrp = col2.number_input("Unit Price ($)", value=float(avg_msrp), step=0.01, format="%.2f")
+    in_month = col3.slider("Order Month", 1, 12, 12)
 
-                    st.write(f"MAE: {mae:,.2f}")
-                    st.write(f"RMSE: {rmse:,.2f}")
-                    st.write(f"R² Score: {r2*100:.2f}%")
+    st.divider()
+    st.subheader("🤖 Model Selection")
 
-                    st.success(f"✅ The AI matches historical data with an average error of only {err:.2f}% for this selection.")
-                else:
-                    st.warning("No historical data found for this specific combination.")
+    model_choice = st.selectbox("Choose Prediction Model", list(trained_models.keys()))
+    selected_model, model_score = trained_models[model_choice]
+
+    st.info(f"Model Accuracy (R²): {model_score:.2f}%")
+
+    if st.button("RUN AI SIMULATION", use_container_width=True):
+
+        inp = pd.DataFrame([{
+            'MONTH_ID': in_month,
+            'QTR_ID': (in_month-1)//3+1,
+            'MSRP': in_msrp,
+            'QUANTITYORDERED': in_qty,
+            'PRODUCTLINE': in_prod,
+            'COUNTRY': in_country
+        }])
+
+        pred = selected_model.predict(inp)[0]
+
+        st.success(f"Projected Revenue: ${pred:,.2f}")
+
+        history = df_master[
+            (df_master['COUNTRY'] == in_country) &
+            (df_master['PRODUCTLINE'] == in_prod)
+        ].copy()
+
+        if not history.empty:
+
+            history['AI_PREDICTION'] = selected_model.predict(history[MODEL_FEATURES])
+            history = history.sort_values('ORDERDATE')
+
+            import plotly.graph_objects as go
+
+            fig = go.Figure()
+
+            fig.add_trace(go.Scatter(
+                x=history['ORDERDATE'],
+                y=history['SALES'],
+                name='Actual'
+            ))
+
+            fig.add_trace(go.Scatter(
+                x=history['ORDERDATE'],
+                y=history['AI_PREDICTION'],
+                name='Predicted',
+                line=dict(dash='dot')
+            ))
+
+            fig.update_layout(title="AI vs Historical Performance")
+            st.plotly_chart(fig, use_container_width=True)
+
+        else:
+            st.warning("No historical data found.")
+
+# ================= FORECAST SECTION =================
+
 st.divider()
-st.header("📈 Revenue Forecast (Time Series Projection)")
+st.header("📈 Advanced Revenue Forecast")
 
-# Prepare monthly revenue data
+colA, colB = st.columns(2)
+
+forecast_years = colA.slider("Forecast Horizon (Years)", 1, 10, 3)
+growth_rate = colB.slider("Expected Growth (%)", -10, 30, 5)
+
 df_master['ORDERDATE'] = pd.to_datetime(df_master['ORDERDATE'])
-monthly_rev = df_master.groupby(pd.Grouper(key='ORDERDATE', freq='M'))['SALES'].sum().reset_index()
 
-# Create time index
+monthly_rev = df_master.groupby(
+    pd.Grouper(key='ORDERDATE', freq='M')
+)['SALES'].sum().reset_index()
+
+monthly_rev.rename(columns={'SALES': 'Revenue'}, inplace=True)
+
 monthly_rev['t'] = np.arange(len(monthly_rev))
 
-# Train simple regression model for trend
 from sklearn.linear_model import LinearRegression
 trend_model = LinearRegression()
-trend_model.fit(monthly_rev[['t']], monthly_rev['SALES'])
+trend_model.fit(monthly_rev[['t']], monthly_rev['Revenue'])
 
-# Forecast next 36 months (3 years)
-future_months = 36
+future_months = forecast_years * 12
 last_t = monthly_rev['t'].iloc[-1]
 
 future_t = np.arange(last_t + 1, last_t + 1 + future_months)
-future_dates = pd.date_range(start=monthly_rev['ORDERDATE'].iloc[-1] + pd.offsets.MonthBegin(),
-                             periods=future_months, freq='M')
+
+future_dates = pd.date_range(
+    start=monthly_rev['ORDERDATE'].iloc[-1] + pd.offsets.MonthBegin(),
+    periods=future_months,
+    freq='M'
+)
 
 future_pred = trend_model.predict(future_t.reshape(-1, 1))
 
+growth_multiplier = 1 + (growth_rate / 100)
+future_pred = future_pred * growth_multiplier
+
+std_dev = monthly_rev['Revenue'].std()
+
+upper_band = future_pred + std_dev
+lower_band = future_pred - std_dev
+
 forecast_df = pd.DataFrame({
     'ORDERDATE': future_dates,
-    'Forecast_Revenue': future_pred
+    'Forecast_Revenue': future_pred,
+    'Upper': upper_band,
+    'Lower': lower_band
 })
 
-# Combine for plotting
-plot_df = pd.concat([
-    monthly_rev[['ORDERDATE', 'SALES']].rename(columns={'SALES':'Revenue'}),
-    forecast_df.rename(columns={'Forecast_Revenue':'Revenue'})
-])
+import plotly.graph_objects as go
 
-plot_df['Type'] = ['Historical']*len(monthly_rev) + ['Forecast']*len(forecast_df)
+fig = go.Figure()
 
-# Plot
-fig_forecast = px.line(plot_df, x='ORDERDATE', y='Revenue', color='Type',
-                       title="Revenue Forecast for Next 3 Years")
-st.plotly_chart(fig_forecast, use_container_width=True)
+fig.add_trace(go.Scatter(
+    x=monthly_rev['ORDERDATE'],
+    y=monthly_rev['Revenue'],
+    name='Historical'
+))
 
-# Year summary
+fig.add_trace(go.Scatter(
+    x=forecast_df['ORDERDATE'],
+    y=forecast_df['Forecast_Revenue'],
+    name='Forecast',
+    line=dict(dash='dash')
+))
+
+fig.add_trace(go.Scatter(
+    x=forecast_df['ORDERDATE'],
+    y=forecast_df['Upper'],
+    line=dict(width=0),
+    showlegend=False
+))
+
+fig.add_trace(go.Scatter(
+    x=forecast_df['ORDERDATE'],
+    y=forecast_df['Lower'],
+    fill='tonexty',
+    name='Confidence Range',
+    line=dict(width=0)
+))
+
+fig.update_layout(
+    title="Revenue Forecast with Confidence Interval",
+    template="plotly_white",
+    xaxis_title="Date",
+    yaxis_title="Revenue ($)"
+)
+
+st.plotly_chart(fig, use_container_width=True)
+
 forecast_df['Year'] = forecast_df['ORDERDATE'].dt.year
+
 year_summary = forecast_df.groupby('Year')['Forecast_Revenue'].sum().reset_index()
 
 st.subheader("📊 Forecasted Annual Revenue")
-st.dataframe(year_summary.style.format({'Forecast_Revenue':'${:,.2f}'}))
+st.dataframe(year_summary.style.format({'Forecast_Revenue': '${:,.2f}'}))
+
+avg_forecast = forecast_df['Forecast_Revenue'].mean()
+
+st.success(f"Average Monthly Forecast Revenue: ${avg_forecast:,.2f}")
 
 
         # --- TAB 3: STRATEGIC MARKET INSIGHTS ---
