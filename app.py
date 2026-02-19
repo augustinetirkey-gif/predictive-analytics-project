@@ -374,36 +374,90 @@ if uploaded_file is not None:
                 fig_don = px.pie(df, values='SALES', names='PRODUCTLINE', hole=0.5, template="plotly_white", color_discrete_sequence=px.colors.qualitative.Pastel)
                 st.plotly_chart(fig_don, use_container_width=True)
 
-        # --- TAB 4: DEMAND FORECAST ---
+              # TAB 4: Demand Forecast (Advanced Strategic Planning)
         with tabs[3]:
             st.header("📅 Demand Forecasting (Predictive Planning)")
+            
+            # --- 1. DATA PREPARATION & FORECAST LOGIC ---
             forecast_df = df.groupby(['YEAR', 'MONTH_ID'])['SALES'].sum().reset_index()
+            
+            # Calculate simple AI Forecast (Rolling Mean)
             forecast_df['Target_Forecast'] = forecast_df['SALES'].rolling(window=3).mean().shift(-1)
+            
+            # Add Uncertainty (Confidence Intervals: +/- 20% range)
             forecast_df['Upper'] = forecast_df['Target_Forecast'] * 1.2
             forecast_df['Lower'] = forecast_df['Target_Forecast'] * 0.8
 
+            # --- 2. FORECAST VISUALIZATION WITH CONFIDENCE BANDS ---
             fig_forecast = go.Figure()
-            fig_forecast.add_trace(go.Scatter(x=forecast_df.index, y=forecast_df['Upper'], line=dict(width=0), showlegend=False))
-            fig_forecast.add_trace(go.Scatter(x=forecast_df.index, y=forecast_df['Lower'], fill='tonexty', fillcolor='rgba(31, 78, 121, 0.1)', line=dict(width=0), name='Confidence Interval'))
-            fig_forecast.add_trace(go.Scatter(x=forecast_df.index, y=forecast_df['SALES'], name='Actual Sales', line=dict(color='#1f4e79', width=3)))
-            fig_forecast.add_trace(go.Scatter(x=forecast_df.index, y=forecast_df['Target_Forecast'], name='AI Forecast', line=dict(color='#ff7f0e', dash='dot', width=2)))
 
-            fig_forecast.update_layout(title="Sales Momentum Forecast", template="plotly_white", xaxis_title="Time Steps", yaxis_title="Revenue ($)", hovermode="x unified")
+            # Confidence Range Area (Shaded Background)
+            fig_forecast.add_trace(go.Scatter(
+                x=forecast_df.index, y=forecast_df['Upper'], 
+                line=dict(width=0), showlegend=False, name='Upper Bound'
+            ))
+            fig_forecast.add_trace(go.Scatter(
+                x=forecast_df.index, y=forecast_df['Lower'], 
+                fill='tonexty', fillcolor='rgba(31, 78, 121, 0.1)', 
+                line=dict(width=0), name='95% Confidence Interval'
+            ))
+            
+            # Actual Sales Line
+            fig_forecast.add_trace(go.Scatter(
+                x=forecast_df.index, y=forecast_df['SALES'], 
+                name='Actual Sales', line=dict(color='#1f4e79', width=3)
+            ))
+            
+            # AI Forecast Line
+            fig_forecast.add_trace(go.Scatter(
+                x=forecast_df.index, y=forecast_df['Target_Forecast'], 
+                name='AI Forecast', line=dict(color='#ff7f0e', dash='dot', width=2)
+            ))
+
+            fig_forecast.update_layout(
+                title="Sales Momentum Forecast with Predictive Confidence Range", 
+                template="plotly_white", 
+                xaxis_title="Timeline Step (Months)", 
+                yaxis_title="Revenue ($)",
+                hovermode="x unified"
+            )
             st.plotly_chart(fig_forecast, use_container_width=True)
 
+            # --- 3. SEASONALITY & YoY COMPARISON ---
             st.divider()
             c5, c6 = st.columns(2)
+            
             with c5:
-                st.markdown("#### 🌙 Seasonality Analysis")
+                st.markdown("#### 🌙 Seasonality Analysis (Monthly Trends)")
+                # Average performance per month across all historical years
                 season_df = df_master.groupby('MONTH_ID')['SALES'].mean().reset_index()
-                fig_season = px.bar(season_df, x='MONTH_ID', y='SALES', template="plotly_white", color='SALES', color_continuous_scale="YlGnBu")
+                fig_season = px.bar(
+                    season_df, x='MONTH_ID', y='SALES', 
+                    template="plotly_white", color='SALES', 
+                    color_continuous_scale="YlGnBu",
+                    labels={'MONTH_ID': 'Month Index', 'SALES': 'Avg Revenue'}
+                )
                 st.plotly_chart(fig_season, use_container_width=True)
+            
             with c6:
-                st.markdown("#### 📊 YoY Comparison")
+                st.markdown("#### 📊 Year-over-Year (YoY) Performance")
+                # Compare trends across different years
                 yoy_comp = df_master.groupby(['YEAR', 'MONTH_ID'])['SALES'].sum().reset_index()
-                fig_yoy = px.line(yoy_comp, x='MONTH_ID', y='SALES', color='YEAR', markers=True, template="plotly_white")
+                fig_yoy = px.line(
+                    yoy_comp, x='MONTH_ID', y='SALES', color='YEAR', 
+                    markers=True, template="plotly_white",
+                    labels={'MONTH_ID': 'Month Index'}
+                )
                 st.plotly_chart(fig_yoy, use_container_width=True)
 
+            # --- 4. DATA INTELLIGENCE TABLE ---
+            st.divider()
+            st.markdown("#### 📥 Forecast Data Intelligence")
+            st.dataframe(
+                forecast_df[['YEAR', 'MONTH_ID', 'SALES', 'Target_Forecast', 'Upper', 'Lower']].dropna().round(2), 
+                use_container_width=True,
+                hide_index=True
+            )
         # --- TAB 5: CUSTOMER ANALYTICS ---
         with tabs[4]:
             st.header("👥 Customer Intelligence & Loyalty")
