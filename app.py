@@ -309,14 +309,55 @@ if uploaded_file is not None:
                     st.success(f"✅ The AI matches historical data with an average error of only {err:.2f}% for this selection.")
                 else:
                     st.warning("No historical data found for this specific combination.")
-                    st.subheader("🤖 Advanced Algorithms Used")
+st.divider()
+st.header("📈 Revenue Forecast (Time Series Projection)")
 
-                    st.markdown("""
-                  • Gradient Boosting → Captures complex pattern
-                  • XGBoost → High performance boosting algorithm  
-                  • Random Forest → Ensemble learning for stability  
-                  • Linear Regression → Baseline model  
-                    """)
+# Prepare monthly revenue data
+df_master['ORDERDATE'] = pd.to_datetime(df_master['ORDERDATE'])
+monthly_rev = df_master.groupby(pd.Grouper(key='ORDERDATE', freq='M'))['SALES'].sum().reset_index()
+
+# Create time index
+monthly_rev['t'] = np.arange(len(monthly_rev))
+
+# Train simple regression model for trend
+from sklearn.linear_model import LinearRegression
+trend_model = LinearRegression()
+trend_model.fit(monthly_rev[['t']], monthly_rev['SALES'])
+
+# Forecast next 36 months (3 years)
+future_months = 36
+last_t = monthly_rev['t'].iloc[-1]
+
+future_t = np.arange(last_t + 1, last_t + 1 + future_months)
+future_dates = pd.date_range(start=monthly_rev['ORDERDATE'].iloc[-1] + pd.offsets.MonthBegin(),
+                             periods=future_months, freq='M')
+
+future_pred = trend_model.predict(future_t.reshape(-1, 1))
+
+forecast_df = pd.DataFrame({
+    'ORDERDATE': future_dates,
+    'Forecast_Revenue': future_pred
+})
+
+# Combine for plotting
+plot_df = pd.concat([
+    monthly_rev[['ORDERDATE', 'SALES']].rename(columns={'SALES':'Revenue'}),
+    forecast_df.rename(columns={'Forecast_Revenue':'Revenue'})
+])
+
+plot_df['Type'] = ['Historical']*len(monthly_rev) + ['Forecast']*len(forecast_df)
+
+# Plot
+fig_forecast = px.line(plot_df, x='ORDERDATE', y='Revenue', color='Type',
+                       title="Revenue Forecast for Next 3 Years")
+st.plotly_chart(fig_forecast, use_container_width=True)
+
+# Year summary
+forecast_df['Year'] = forecast_df['ORDERDATE'].dt.year
+year_summary = forecast_df.groupby('Year')['Forecast_Revenue'].sum().reset_index()
+
+st.subheader("📊 Forecasted Annual Revenue")
+st.dataframe(year_summary.style.format({'Forecast_Revenue':'${:,.2f}'}))
 
 
         # --- TAB 3: STRATEGIC MARKET INSIGHTS ---
