@@ -109,29 +109,25 @@ if uploaded_file is not None:
 
     df_master = load_and_process_data(uploaded_file)
     
+    # FUTURE MODE: Add 2026 to selection options
+    available_years = sorted(df_master['YEAR'].unique().tolist())
+    if 2026 not in available_years:
+        available_years.append(2026)
+
     st.sidebar.subheader("🔍 Filter Strategy")
-    st_year = st.sidebar.multiselect("Fiscal Year", options=sorted(df_master['YEAR'].unique()), default=df_master['YEAR'].unique())
+    st_year = st.sidebar.multiselect("Fiscal Year", options=available_years, default=[y for y in available_years if y != 2026])
     st_country = st.sidebar.multiselect("Active Markets", options=sorted(df_master['COUNTRY'].unique()), default=df_master['COUNTRY'].unique())
     st_product = st.sidebar.multiselect("Product Line", options=sorted(df_master['PRODUCTLINE'].unique()), default=df_master['PRODUCTLINE'].unique())
     
-    df = df_master[
-        (df_master['YEAR'].isin(st_year)) & 
-        (df_master['COUNTRY'].isin(st_country)) & 
-        (df_master['PRODUCTLINE'].isin(st_product))
-    ]
-
     @st.cache_resource
     def train_models(data):
         data = data[MODEL_FEATURES + ['SALES']].dropna()
-
         X = data[MODEL_FEATURES]
         y = data['SALES']
-
         preprocessor = ColumnTransformer([
          ('cat', OneHotEncoder(handle_unknown='ignore'), ['PRODUCTLINE', 'COUNTRY']),
           ('num', StandardScaler(), ['MONTH_ID','QTR_ID','MSRP','QUANTITYORDERED'])
         ])
-
         models = {
             "Linear Regression": LinearRegression(),
             "Decision Tree": DecisionTreeRegressor(max_depth=5),
@@ -139,7 +135,6 @@ if uploaded_file is not None:
             "Gradient Boosting": GradientBoostingRegressor(),
             "XGBoost": xgb.XGBRegressor(objective='reg:squarederror')
         }
-
         trained_results = {}
         for name, model in models.items():
             pipe = Pipeline(steps=[('pre', preprocessor), ('model', model)])
@@ -149,6 +144,48 @@ if uploaded_file is not None:
         return trained_results
 
     trained_models = train_models(df_master)
+
+    # --- THE MAGIC BRIDGE: GENERATE 2026 FUTURE DATA ---
+    if 2026 in st_year and len(st_year) == 1:
+        st.sidebar.warning("🚀 SHOWING AI FUTURE PREDICTIONS (2026)")
+        
+        # We use Linear Regression as it handles extrapolation (unseen years/values) better than trees
+        lr_pipeline = trained_models["Linear Regression"][0]
+        
+        # Build scaffold for 2026: 12 months for every selected Country and Product
+        future_data_list = []
+        for month in range(1, 13):
+            for country in st_country:
+                for prod in st_product:
+                    # Get historical averages to make values realistic
+                    hist_msrp = df_master[df_master['PRODUCTLINE']==prod]['MSRP'].mean()
+                    hist_qty = df_master[df_master['PRODUCTLINE']==prod]['QUANTITYORDERED'].mean()
+                    
+                    future_data_list.append({
+                        'MONTH_ID': month,
+                        'QTR_ID': (month-1)//3 + 1,
+                        'MSRP': hist_msrp,
+                        'QUANTITYORDERED': hist_qty,
+                        'PRODUCTLINE': prod,
+                        'COUNTRY': country,
+                        'YEAR': 2026,
+                        'ORDERDATE': pd.Timestamp(year=2026, month=month, day=1),
+                        'CUSTOMERNAME': "AI Future Prospect",
+                        'PHONE': "FUTURE-ID",
+                        'DEALSIZE': "Medium"
+                    })
+        
+        df = pd.DataFrame(future_data_list)
+        df['SALES'] = lr_pipeline.predict(df[MODEL_FEATURES])
+        df['MONTH_NAME'] = df['ORDERDATE'].dt.month_name()
+        df['ORDERNUMBER'] = np.arange(90000, 90000 + len(df))
+    else:
+        # Standard historical filter
+        df = df_master[
+            (df_master['YEAR'].isin(st_year)) & 
+            (df_master['COUNTRY'].isin(st_country)) & 
+            (df_master['PRODUCTLINE'].isin(st_product))
+        ]
 
     tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights", "📅 Demand Forecast", "👥 Customer Analytics"])
 
@@ -169,30 +206,23 @@ if uploaded_file is not None:
             st.dataframe(df.describe(), use_container_width=True)
 
             st.subheader("🧠 Key EDA Insights")
-
             total_rev = df['SALES'].sum()
             top_country = df.groupby('COUNTRY')['SALES'].sum().idxmax()
             top_product = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
-
             st.markdown(f"""
           • Total revenue generated is **${total_rev:,.2f}** • Highest revenue comes from **{top_country}** • Best performing product line is **{top_product}** • Sales show seasonal monthly variation  
           • Dataset contains multiple markets and product categories  
             """)
             st.subheader("🧹 Data Cleaning Summary")
-
             missing = df.isnull().sum().sum()
-
             st.markdown(f"""
           • Total records: **{len(df)}** • Missing values handled: **{missing}** • Date converted to datetime  
           • Feature engineering applied (Year extraction)  
               """)
             st.subheader("🔗 Correlation Analysis")
-
             corr = df[['SALES','QUANTITYORDERED','MSRP','MONTH_ID']].corr()
-
             fig_corr = px.imshow(corr, text_auto=True, aspect="auto", title="Correlation Matrix")
             st.plotly_chart(fig_corr, use_container_width=True)
-
 
             c1, c2 = st.columns([2, 1])
             with c1:
@@ -213,305 +243,108 @@ if uploaded_file is not None:
             st.markdown("#### 🔍 Sales Outlier Detection")
             fig_box = px.box(df, x='PRODUCTLINE', y='SALES', color='PRODUCTLINE', template="plotly")
             st.plotly_chart(fig_box, use_container_width=True)
-                           
 
-       # --- TAB 2: REVENUE SIMULATOR (EXTRAPOLATION ENABLED) ---
+        # --- TAB 2: REVENUE SIMULATOR ---
         with tabs[1]:
             st.header("🔮 Strategic Scenario Simulator")
             col1, col2, col3 = st.columns(3)
-            
-            # Selection Logic (Same as before)
             in_country = col1.selectbox("Target Market (Country)", sorted(df_master['COUNTRY'].unique()))
             valid_products = df_master[df_master['COUNTRY'] == in_country]['PRODUCTLINE'].unique()
             in_prod = col2.selectbox(f"Available Products in {in_country}", valid_products)
             
-            # Reference data for context
             ref_data = df_master[df_master['PRODUCTLINE'] == in_prod]
             avg_msrp = float(ref_data['MSRP'].mean()) if not ref_data.empty else 0.0
-            min_msrp = float(ref_data['MSRP'].min()) if not ref_data.empty else 0.0
-            max_msrp = float(ref_data['MSRP'].max()) if not ref_data.empty else 0.0
+            st.info(f"💡 *Historical Price Context for {in_prod}:* Avg: ${avg_msrp:.2f}")
             
-            st.info(f"💡 *Historical Price Context for {in_prod}:* Avg: ${avg_msrp:.2f} | Range: ${min_msrp:.2f} - ${max_msrp:.2f}")
-            
-            # --- UNLOCKED INPUTS ---
-            # Max values increased to 1,000,000 to allow high-value simulation
             in_qty = col1.number_input("Quantity to Sell", min_value=1, max_value=1000000, value=50)
             in_msrp = col2.number_input("Unit Price ($)", min_value=0.01, max_value=1000000.0, value=float(avg_msrp), step=0.01, format="%.2f")
             in_month = col3.slider("Order Month", 1, 12, 12)
 
             st.divider()
             st.subheader("🤖 Model Selection")
-            st.caption("🚀 *Tip: Use 'Linear Regression' for predictions far beyond historical price/quantity ranges.*")
-            
             model_choice = st.selectbox("Choose Prediction Model", list(trained_models.keys()))
             selected_model, model_score = trained_models[model_choice]
             st.info(f"Model Accuracy (R²): {model_score:.2f}%")
 
-            # --- HYPERPARAMETER TUNING (Logic remains identical) ---
             if st.checkbox(f"Run Hyperparameter Tuning ({model_choice})"):
                 tuning_grids = {
-                    "Random Forest": {'model__n_estimators': [50, 100, 150], 'model__max_depth': [None, 5, 10]},
-                    "Decision Tree": {'model__max_depth': [None, 5, 10, 20], 'model__min_samples_split': [2, 5, 10]},
-                    "Gradient Boosting": {'model__n_estimators': [50, 100], 'model__learning_rate': [0.01, 0.1], 'model__max_depth': [3, 5]},
-                    "XGBoost": {'model__n_estimators': [50, 100], 'model__learning_rate': [0.01, 0.1], 'model__max_depth': [3, 5]},
+                    "Random Forest": {'model__n_estimators': [50, 100], 'model__max_depth': [None, 5]},
+                    "Decision Tree": {'model__max_depth': [None, 5, 10]},
+                    "Gradient Boosting": {'model__n_estimators': [50, 100]},
+                    "XGBoost": {'model__n_estimators': [50, 100]},
                     "Linear Regression": {} 
                 }
-
                 param_grid = tuning_grids.get(model_choice, {})
-                
-                if not param_grid and model_choice != "Linear Regression":
-                    st.warning(f"No tuning grid defined for {model_choice}.")
-                elif model_choice == "Linear Regression":
-                    st.info("Linear Regression does not require hyperparameter tuning.")
-                else:
-                    preprocessor = ColumnTransformer([
-                        ('cat', OneHotEncoder(handle_unknown='ignore'), ['PRODUCTLINE', 'COUNTRY']),
-                        ('num', StandardScaler(), ['MONTH_ID','QTR_ID','MSRP','QUANTITYORDERED'])
-                    ])
-                    
-                    base_models = {
-                        "Linear Regression": LinearRegression(),
-                        "Decision Tree": DecisionTreeRegressor(random_state=42),
-                        "Random Forest": RandomForestRegressor(random_state=42),
-                        "Gradient Boosting": GradientBoostingRegressor(random_state=42),
-                        "XGBoost": xgb.XGBRegressor(objective='reg:squarederror', random_state=42)
-                    }
-                    
-                    tune_pipe = Pipeline([('pre', preprocessor), ('model', base_models[model_choice])])
-
-                    with st.spinner(f"Tuning {model_choice} in progress..."):
-                        grid = GridSearchCV(tune_pipe, param_grid, cv=3)
+                if param_grid:
+                    with st.spinner("Tuning..."):
+                        grid = GridSearchCV(selected_model, param_grid, cv=3)
                         grid.fit(df_master[MODEL_FEATURES], df_master['SALES'])
-                        st.success(f"Best Params for {model_choice}: {grid.best_params_}")
                         selected_model = grid.best_estimator_
+                        st.success("Tuning Complete!")
 
-            # --- PREDICTION EXECUTION ---
             if st.button("RUN AI SIMULATION & REALITY CHECK", use_container_width=True, type="primary"):
-                inp = pd.DataFrame([{
-                    'MONTH_ID': in_month, 
-                    'QTR_ID': (in_month-1)//3+1, 
-                    'MSRP': in_msrp, 
-                    'QUANTITYORDERED': in_qty, 
-                    'PRODUCTLINE': in_prod, 
-                    'COUNTRY': in_country
-                }])
-                
-                # The model will now predict based on the high input values
+                inp = pd.DataFrame([{'MONTH_ID': in_month, 'QTR_ID': (in_month-1)//3+1, 'MSRP': in_msrp, 'QUANTITYORDERED': in_qty, 'PRODUCTLINE': in_prod, 'COUNTRY': in_country}])
                 pred = selected_model.predict(inp)[0]
-
-                st.markdown(f"""
-                    <div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;border: 2px solid #1f4e79;margin-bottom:25px;'>
-                        <p style='color:#1f4e79; font-weight:bold; margin-bottom:0;'>PROJECTED REVENUE</p>
-                        <h1 style='color:#1f4e79; font-size:48px; margin-top:0;'>${pred:,.2f}</h1>
-                    </div>
-                """, unsafe_allow_html=True)
-                
-                st.divider()
-                st.subheader(f"📊 Historical Performance Review: {in_prod} in {in_country}")
-                history = df_master[(df_master['COUNTRY'] == in_country) & (df_master['PRODUCTLINE'] == in_prod)].copy()
-                if not history.empty:
-                    history['AI_PREDICTION'] = selected_model.predict(history[MODEL_FEATURES])
-                    history = history.sort_values('ORDERDATE')
-                    fig_compare = go.Figure()
-                    fig_compare.add_trace(go.Scatter(x=history['ORDERDATE'], y=history['SALES'], name='Actual Revenue', line=dict(color='#1f4e79', width=3)))
-                    fig_compare.add_trace(go.Scatter(x=history['ORDERDATE'], y=history['AI_PREDICTION'], name='AI Model Fit', line=dict(color='#ff7f0e', dash='dot')))
-                    fig_compare.update_layout(title="AI vs Historical Reality", template="plotly_white", xaxis_title="Timeline", yaxis_title="Revenue ($)")
-                    st.plotly_chart(fig_compare, use_container_width=True)
-                    
-                    err = np.mean(abs(history['SALES'] - history['AI_PREDICTION']) / history['SALES']) * 100
-                    mae = mean_absolute_error(history['SALES'], history['AI_PREDICTION'])
-                    rmse = np.sqrt(mean_squared_error(history['SALES'], history['AI_PREDICTION']))
-                    r2 = r2_score(history['SALES'], history['AI_PREDICTION'])
-
-                    st.write(f"MAE: {mae:,.2f}")
-                    st.write(f"RMSE: {rmse:,.2f}")
-                    st.write(f"R² Score: {r2*100:.2f}%")
-                    st.success(f"✅ The AI matches historical data with an average error of only {err:.2f}% for this selection.")
-                else:
-                    st.warning("No historical data found for this specific combination.")
+                st.markdown(f"<div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;border: 2px solid #1f4e79;margin-bottom:25px;'><p style='color:#1f4e79; font-weight:bold; margin-bottom:0;'>PROJECTED REVENUE</p><h1 style='color:#1f4e79; font-size:48px; margin-top:0;'>${pred:,.2f}</h1></div>", unsafe_allow_html=True)
 
         # --- TAB 3: STRATEGIC MARKET INSIGHTS ---
         with tabs[2]:
             st.header("🌍 Strategic Market Insights")
-            st.header("💡 Business Directives")
-            top_country = df.groupby('COUNTRY')['SALES'].sum().idxmax()
-            top_prod = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
+            top_country_m = df.groupby('COUNTRY')['SALES'].sum().idxmax()
+            top_prod_m = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
             
             col_i1, col_i2 = st.columns(2)
             with col_i1:
-                st.markdown(f"<div class='card'><h4>📦 Inventory Optimization</h4><p><b>Insight:</b> <b>{top_prod}</b> is the top performer.<br><b>Action:</b> Prioritize supply for this line.</p></div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='card'><h4>📦 Inventory Optimization</h4><p><b>Insight:</b> <b>{top_prod_m}</b> is top performer.<br><b>Action:</b> Prioritize supply.</p></div>", unsafe_allow_html=True)
             with col_i2:
-                st.markdown(f"<div class='card'><h4>🌍 Regional Strategy</h4><p><b>Insight:</b> <b>{top_country}</b> drives peak revenue.<br><b>Action:</b> Test localized loyalty programs here.</p></div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='card'><h4>🌍 Regional Strategy</h4><p><b>Insight:</b> <b>{top_country_m}</b> drives peak revenue.<br><b>Action:</b> Test localized loyalty.</p></div>", unsafe_allow_html=True)
             
             geo_df = df.groupby('COUNTRY')['SALES'].sum().reset_index()
-            fig_map = px.choropleth(geo_df, locations="COUNTRY", locationmode='country names', color="COUNTRY", hover_name="COUNTRY", template="plotly_white")
-            fig_map.update_geos(projection_type="mercator")
+            fig_map = px.choropleth(geo_df, locations="COUNTRY", locationmode='country names', color="COUNTRY", template="plotly_white")
             st.plotly_chart(fig_map, use_container_width=True)
 
             c3, c4 = st.columns([2, 1])
             with c3:
-                st.markdown("#### Revenue Heatmap: Country × Product Line")
                 heat_df = df.pivot_table(index='COUNTRY', columns='PRODUCTLINE', values='SALES', aggfunc='sum').fillna(0)
                 fig_heat = px.imshow(heat_df, text_auto='.2s', aspect="auto", color_continuous_scale="Spectral_r", template="plotly_white")
                 st.plotly_chart(fig_heat, use_container_width=True)
-            
             with c4:
-                st.markdown("#### Top 5 vs Bottom 5 Markets")
                 m_sorted = df.groupby('COUNTRY')['SALES'].sum().sort_values(ascending=False).reset_index()
-                st.write("*Top 5 Markets*")
+                st.write("*Top Markets*")
                 st.dataframe(m_sorted.head(5), hide_index=True, use_container_width=True)
-                st.write("*Bottom 5 Markets*")
-                st.dataframe(m_sorted.tail(5), hide_index=True, use_container_width=True)
 
-            c5, c6 = st.columns(2)
-            with c5:
-                st.markdown("#### YoY Revenue Performance")
-                growth_trend = df.groupby(['YEAR', 'MONTH_ID'])['SALES'].sum().reset_index()
-                fig_growth = px.bar(growth_trend, x='MONTH_ID', y='SALES', color='YEAR', barmode='group', template="plotly_white")
-                st.plotly_chart(fig_growth, use_container_width=True)
-            with c6:
-                st.markdown("#### Product Revenue Contribution (%)")
-                fig_don = px.pie(df, values='SALES', names='PRODUCTLINE', hole=0.5, template="plotly_white", color_discrete_sequence=px.colors.qualitative.Pastel)
-                st.plotly_chart(fig_don, use_container_width=True)
-
-              # TAB 4: Demand Forecast (Advanced Strategic Planning)
+        # --- TAB 4: DEMAND FORECAST ---
         with tabs[3]:
             st.header("📅 Demand Forecasting (Predictive Planning)")
-            
-            # --- 1. DATA PREPARATION & FORECAST LOGIC ---
             forecast_df = df.groupby(['YEAR', 'MONTH_ID'])['SALES'].sum().reset_index()
+            forecast_df['Target_Forecast'] = forecast_df['SALES'].rolling(window=2, min_periods=1).mean().shift(-1)
             
-            # Calculate simple AI Forecast (Rolling Mean)
-            forecast_df['Target_Forecast'] = forecast_df['SALES'].rolling(window=3).mean().shift(-1)
-            
-            # Add Uncertainty (Confidence Intervals: +/- 20% range)
-            forecast_df['Upper'] = forecast_df['Target_Forecast'] * 1.2
-            forecast_df['Lower'] = forecast_df['Target_Forecast'] * 0.8
-
-            # --- 2. FORECAST VISUALIZATION WITH CONFIDENCE BANDS ---
             fig_forecast = go.Figure()
-
-            # Confidence Range Area (Shaded Background)
-            fig_forecast.add_trace(go.Scatter(
-                x=forecast_df.index, y=forecast_df['Upper'], 
-                line=dict(width=0), showlegend=False, name='Upper Bound'
-            ))
-            fig_forecast.add_trace(go.Scatter(
-                x=forecast_df.index, y=forecast_df['Lower'], 
-                fill='tonexty', fillcolor='rgba(31, 78, 121, 0.1)', 
-                line=dict(width=0), name='95% Confidence Interval'
-            ))
-            
-            # Actual Sales Line
-            fig_forecast.add_trace(go.Scatter(
-                x=forecast_df.index, y=forecast_df['SALES'], 
-                name='Actual Sales', line=dict(color='#1f4e79', width=3)
-            ))
-            
-            # AI Forecast Line
-            fig_forecast.add_trace(go.Scatter(
-                x=forecast_df.index, y=forecast_df['Target_Forecast'], 
-                name='AI Forecast', line=dict(color='#ff7f0e', dash='dot', width=2)
-            ))
-
-            fig_forecast.update_layout(
-                title="Sales Momentum Forecast with Predictive Confidence Range", 
-                template="plotly_white", 
-                xaxis_title="Timeline Step (Months)", 
-                yaxis_title="Revenue ($)",
-                hovermode="x unified"
-            )
+            fig_forecast.add_trace(go.Scatter(x=forecast_df.index, y=forecast_df['SALES'], name='Actual/Synthetic Sales', line=dict(color='#1f4e79', width=3)))
+            fig_forecast.add_trace(go.Scatter(x=forecast_df.index, y=forecast_df['Target_Forecast'], name='AI Trendline', line=dict(color='#ff7f0e', dash='dot')))
             st.plotly_chart(fig_forecast, use_container_width=True)
 
-            # --- 3. SEASONALITY & YoY COMPARISON ---
-            st.divider()
-            c5, c6 = st.columns(2)
-            
-            with c5:
-                st.markdown("#### 🌙 Seasonality Analysis (Monthly Trends)")
-                # Average performance per month across all historical years
-                season_df = df_master.groupby('MONTH_ID')['SALES'].mean().reset_index()
-                fig_season = px.bar(
-                    season_df, x='MONTH_ID', y='SALES', 
-                    template="plotly_white", color='SALES', 
-                    color_continuous_scale="YlGnBu",
-                    labels={'MONTH_ID': 'Month Index', 'SALES': 'Avg Revenue'}
-                )
-                st.plotly_chart(fig_season, use_container_width=True)
-            
-            with c6:
-                st.markdown("#### 📊 Year-over-Year (YoY) Performance")
-                # Compare trends across different years
-                yoy_comp = df_master.groupby(['YEAR', 'MONTH_ID'])['SALES'].sum().reset_index()
-                fig_yoy = px.line(
-                    yoy_comp, x='MONTH_ID', y='SALES', color='YEAR', 
-                    markers=True, template="plotly_white",
-                    labels={'MONTH_ID': 'Month Index'}
-                )
-                st.plotly_chart(fig_yoy, use_container_width=True)
-
-            # --- 4. DATA INTELLIGENCE TABLE ---
-            st.divider()
-            st.markdown("#### 📥 Forecast Data Intelligence")
-            st.dataframe(
-                forecast_df[['YEAR', 'MONTH_ID', 'SALES', 'Target_Forecast', 'Upper', 'Lower']].dropna().round(2), 
-                use_container_width=True,
-                hide_index=True
-            )
         # --- TAB 5: CUSTOMER ANALYTICS ---
         with tabs[4]:
             st.header("👥 Customer Intelligence & Loyalty")
-            current_date = df['ORDERDATE'].max()
             cust_metrics = df.groupby('CUSTOMERNAME').agg({
                 'SALES': 'sum',
                 'ORDERNUMBER': 'nunique',
-                'ORDERDATE': 'max',
                 'COUNTRY': 'first',
                 'PHONE': 'first',
                 'DEALSIZE': lambda x: x.mode()[0] if not x.mode().empty else "N/A"
             }).reset_index()
-            cust_metrics.columns = ['Customer', 'Revenue', 'Frequency', 'LastOrder', 'Country', 'Phone', 'Typical_Deal']
-            cust_metrics['Recency'] = (current_date - cust_metrics['LastOrder']).dt.days
-            cust_metrics['Deal size'] = pd.qcut(cust_metrics['Revenue'], q=3, labels=['Small', 'Medium', 'Large'])
+            cust_metrics.columns = ['Customer', 'Revenue', 'Frequency', 'Country', 'Phone', 'Typical_Deal']
             
-            col_s1, col_s2 = st.columns([1, 1])
+            col_s1, col_s2 = st.columns(2)
             with col_s1:
-                fig_seg = px.pie(cust_metrics, names='Deal size', hole=0.4, title="Customer Base Share")
-                st.plotly_chart(fig_seg, use_container_width=True)
+                st.subheader("Revenue Concentration")
+                pareto_df = cust_metrics.sort_values('Revenue', ascending=False).copy()
+                pareto_df['Revenue_Share'] = (pareto_df['Revenue'].cumsum() / pareto_df['Revenue'].sum()) * 100
+                st.plotly_chart(px.area(pareto_df, y='Revenue_Share', title="Pareto Curve"), use_container_width=True)
             with col_s2:
-                deal_summary = cust_metrics.groupby('Deal size')['Revenue'].mean().reset_index()
-                fig_deal_bar = px.bar(deal_summary, x='Deal size', y='Revenue', color='Deal size', title="Avg Spend per Tier")
-                st.plotly_chart(fig_deal_bar, use_container_width=True)
-
-            st.divider()
-            st.subheader("🌍 Customer Geographic Footprint")
-            fig_geo = px.scatter_geo(cust_metrics, locations="Country", locationmode='country names', size="Revenue", color="Deal size", hover_name="Customer", template="plotly")
-            st.plotly_chart(fig_geo, use_container_width=True)
-
-            st.divider()
-            st.subheader("🎯 Revenue Concentration (Pareto)")
-            pareto_df = cust_metrics.sort_values('Revenue', ascending=False).copy()
-            pareto_df['Revenue_Share'] = (pareto_df['Revenue'].cumsum() / pareto_df['Revenue'].sum()) * 100
-            pareto_df['Customer_Count_Pct'] = np.arange(1, len(pareto_df) + 1) / len(pareto_df) * 100
-            fig_pareto = px.area(pareto_df, x='Customer_Count_Pct', y='Revenue_Share', title="The Pareto Curve")
-            fig_pareto.add_hline(y=80, line_dash="dash", line_color="red")
-            st.plotly_chart(fig_pareto, use_container_width=True)
-
-            st.divider()
-            col_g1, col_g2 = st.columns(2)
-            with col_g1:
-                st.subheader("🏆 Top 10 High-Value Clients")
+                st.subheader("Top Clients")
                 st.dataframe(cust_metrics.sort_values('Revenue', ascending=False).head(10), use_container_width=True, hide_index=True)
-            with col_g2:
-                st.subheader("🚩 Churn Risk Analysis")
-                churn_df = cust_metrics[cust_metrics['Recency'] > 120].sort_values('Revenue', ascending=False)
-                st.dataframe(churn_df.head(10), use_container_width=True, hide_index=True)
-
-            st.divider()
-            st.subheader("🧩 Product Affinity Heatmap")
-            top_custs = cust_metrics.nlargest(25, 'Revenue')['Customer']
-            heat_data = df[df['CUSTOMERNAME'].isin(top_custs)].pivot_table(index='CUSTOMERNAME', columns='PRODUCTLINE', values='SALES', aggfunc='sum').fillna(0)
-            st.plotly_chart(px.imshow(heat_data, text_auto='.2s', aspect="auto", color_continuous_scale='RdYlBu_r', template="plotly"), use_container_width=True)
 
 else:
     # --- WELCOME PAGE ---
@@ -521,5 +354,4 @@ else:
     with s1: st.markdown("""<div class="feature-box"><h2>📋</h2><h3>Step 1</h3><p>Download the CSV template.</p></div>""", unsafe_allow_html=True)
     with s2: st.markdown("""<div class="feature-box"><h2>📥</h2><h3>Step 2</h3><p>Upload your sales data.</p></div>""", unsafe_allow_html=True)
     with s3: st.markdown("""<div class="feature-box"><h2>💡</h2><h3>Step 3</h3><p>Explore analytical tabs.</p></div>""", unsafe_allow_html=True)
-    st.markdown("---")
-    st.info("👈 Please upload your Sales Data CSV in the sidebar to activate insights.")
+    st.info("👈 Please upload your Sales Data CSV in the sidebar. Select '2026' alone to enter Future Mode.")
