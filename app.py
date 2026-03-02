@@ -473,14 +473,16 @@ if uploaded_file is not None:
             cust_metrics.columns = ['Customer', 'Revenue', 'Frequency', 'LastOrder', 'Country', 'Phone', 'Typical_Deal']
             cust_metrics['Recency'] = (current_date - cust_metrics['LastOrder']).dt.days
             try:
-    cust_metrics['Deal size'] = pd.qcut(
-        cust_metrics['Revenue'],
-        q=3,
-        labels=['Small', 'Medium', 'Large'],
-        duplicates='drop'
-    )
-except ValueError:
-    cust_metrics['Deal size'] = "Single Tier"
+            cust_metrics['Deal size'] = pd.qcut(
+            cust_metrics['Revenue'],
+            q=3,
+            labels=['Small', 'Medium', 'Large'],
+            duplicates='drop'
+            )
+            except ValueError:
+            cust_metrics['Deal size'] = "Single Tier"
+
+           
 
             
             col_s1, col_s2 = st.columns([1, 1])
