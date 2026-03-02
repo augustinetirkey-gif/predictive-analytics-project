@@ -177,7 +177,7 @@ if uploaded_file is not None:
     
     else:
      
-        # --- TAB 1: EXECUTIVE DASHBOARD ---
+       # --- TAB 1: EXECUTIVE DASHBOARD ---
         with tabs[0]:
             st.subheader("Performance KPIs")
             k1, k2, k3, k4 = st.columns(4)
