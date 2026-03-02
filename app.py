@@ -110,8 +110,8 @@ if uploaded_file is not None:
     future_rows = []
     for yr in range(last_year + 1, last_year + 6):
         for m in range(1, 13):
-            for country in df_historical['COUNTRY'].unique()[:2]: 
-                for prod in df_historical['PRODUCTLINE'].unique()[:2]:
+            for country in df_historical['COUNTRY'].unique(): 
+                for prod in df_historical['PRODUCTLINE'].unique():
                     future_rows.append({
                         'YEAR': yr, 'MONTH_ID': m, 'QTR_ID': (m-1)//3+1, 
                         'MSRP': df_historical['MSRP'].mean(),
