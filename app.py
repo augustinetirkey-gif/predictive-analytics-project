@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -92,7 +93,7 @@ st.sidebar.download_button(label="📥 Download CSV Template", data=csv_template
 st.sidebar.divider()
 uploaded_file = st.sidebar.file_uploader("Upload Sales Data (CSV)", type=["csv"])
 
-# Define prediction features globally for use in functions and tuning
+# Define prediction features globally
 MODEL_FEATURES = ['MONTH_ID', 'QTR_ID', 'MSRP', 'QUANTITYORDERED', 'PRODUCTLINE', 'COUNTRY']
 
 if uploaded_file is not None:
@@ -105,10 +106,65 @@ if uploaded_file is not None:
             df['MONTH_NAME'] = df['ORDERDATE'].dt.month_name()
         elif 'YEAR_ID' in df.columns:
             df['YEAR'] = df['YEAR_ID']
+            df['MONTH_NAME'] = pd.to_datetime(df['MONTH_ID'], format='%m').dt.month_name()
         return df
 
-    df_master = load_and_process_data(uploaded_file)
+    df_base = load_and_process_data(uploaded_file)
+
+    # --- 🤖 AUTO-GENERATION ENGINE (THE NEW LOGIC) ---
+    @st.cache_resource
+    def train_internal_predictor(data):
+        X = data[MODEL_FEATURES]
+        y = data['SALES']
+        preprocessor = ColumnTransformer([
+            ('cat', OneHotEncoder(handle_unknown='ignore'), ['PRODUCTLINE', 'COUNTRY']),
+            ('num', StandardScaler(), ['MONTH_ID','QTR_ID','MSRP','QUANTITYORDERED'])
+        ])
+        # Using XGBoost as the engine for auto-generation
+        model = Pipeline(steps=[('pre', preprocessor), ('model', xgb.XGBRegressor(objective='reg:squarederror'))])
+        model.fit(X, y)
+        return model
+
+    # 1. Detect last year
+    last_year = int(df_base['YEAR'].max())
     
+    # 2. Generate Next 5 Years Data automatically
+    future_rows = []
+    engine = train_internal_predictor(df_base)
+    
+    # We simulate data based on historical averages to make it realistic
+    avg_msrp = df_base['MSRP'].mean()
+    avg_qty = df_base['QUANTITYORDERED'].mean()
+    countries = df_base['COUNTRY'].unique()
+    products = df_base['PRODUCTLINE'].unique()
+
+    for yr in range(last_year + 1, last_year + 6):
+        for m in range(1, 13):
+            # Create a representative entry for each month/product/country combo to fill the dataset
+            # To keep it performant, we'll pick top 3 countries/products for the future "ghost" data
+            for country in countries[:2]: 
+                for prod in products[:2]:
+                    future_rows.append({
+                        'YEAR': yr,
+                        'MONTH_ID': m,
+                        'QTR_ID': (m-1)//3+1,
+                        'MSRP': avg_msrp,
+                        'QUANTITYORDERED': avg_qty,
+                        'PRODUCTLINE': prod,
+                        'COUNTRY': country,
+                        'ORDERDATE': pd.to_datetime(f"{yr}-{m}-01"),
+                        'STATUS': 'Predicted',
+                        'MONTH_NAME': pd.to_datetime(m, format='%m').month_name()
+                    })
+    
+    df_future = pd.DataFrame(future_rows)
+    # 3. Predict Sales for the future years using AI
+    df_future['SALES'] = engine.predict(df_future[MODEL_FEATURES])
+    
+    # 4. Append to dataset - SYSTEM CREATES FUTURE DATA ITSELF
+    df_master = pd.concat([df_base, df_future], ignore_index=True)
+
+    # --- SIDEBAR FILTERS ---
     st.sidebar.subheader("🔍 Filter Strategy")
     st_year = st.sidebar.multiselect("Fiscal Year", options=sorted(df_master['YEAR'].unique()), default=df_master['YEAR'].unique())
     st_country = st.sidebar.multiselect("Active Markets", options=sorted(df_master['COUNTRY'].unique()), default=df_master['COUNTRY'].unique())
@@ -123,15 +179,12 @@ if uploaded_file is not None:
     @st.cache_resource
     def train_models(data):
         data = data[MODEL_FEATURES + ['SALES']].dropna()
-
         X = data[MODEL_FEATURES]
         y = data['SALES']
-
         preprocessor = ColumnTransformer([
          ('cat', OneHotEncoder(handle_unknown='ignore'), ['PRODUCTLINE', 'COUNTRY']),
           ('num', StandardScaler(), ['MONTH_ID','QTR_ID','MSRP','QUANTITYORDERED'])
         ])
-
         models = {
             "Linear Regression": LinearRegression(),
             "Decision Tree": DecisionTreeRegressor(max_depth=5),
@@ -139,7 +192,6 @@ if uploaded_file is not None:
             "Gradient Boosting": GradientBoostingRegressor(),
             "XGBoost": xgb.XGBRegressor(objective='reg:squarederror')
         }
-
         trained_results = {}
         for name, model in models.items():
             pipe = Pipeline(steps=[('pre', preprocessor), ('model', model)])
@@ -148,13 +200,14 @@ if uploaded_file is not None:
             trained_results[name] = (pipe, score)
         return trained_results
 
-    trained_models = train_models(df_master)
+    trained_models = train_models(df_base) # Train on actual data only for pure model accuracy
 
     tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights", "📅 Demand Forecast", "👥 Customer Analytics"])
 
     if df.empty:
         st.warning("⚠️ No data available for the current selection. Please adjust your filters.")
     else:
+    
         # --- TAB 1: EXECUTIVE DASHBOARD ---
         with tabs[0]:
             st.subheader("Performance KPIs")
