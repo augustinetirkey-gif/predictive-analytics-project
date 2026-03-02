@@ -172,7 +172,7 @@ if uploaded_file is not None:
         (df_master['COUNTRY'].isin(st_country)) & 
         (df_master['PRODUCTLINE'].isin(st_product))
     ]
-    ]
+    
 
     @st.cache_resource
     def train_models(data):
