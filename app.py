@@ -150,7 +150,7 @@ if uploaded_file is not None:
 
     trained_models = train_models(df_master)
 
-    tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights", "📅 Demand Forecast", "👥 Customer Analytics"])
+    tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights", "📅 Demand Forecast", "👥 Customer Analytics","📑 Executive Report"])
 
     if df.empty:
         st.warning("⚠️ No data available for the current selection. Please adjust your filters.")
@@ -524,6 +524,53 @@ if uploaded_file is not None:
             top_custs = cust_metrics.nlargest(25, 'Revenue')['Customer']
             heat_data = df[df['CUSTOMERNAME'].isin(top_custs)].pivot_table(index='CUSTOMERNAME', columns='PRODUCTLINE', values='SALES', aggfunc='sum').fillna(0)
             st.plotly_chart(px.imshow(heat_data, text_auto='.2s', aspect="auto", color_continuous_scale='RdYlBu_r', template="plotly"), use_container_width=True)
+
+        
+            # --- TAB 6: EXECUTIVE REPORT (NEW STRUCTURED SUMMARY) ---
+        with tabs[5]:
+            st.header("📑 Executive Business Summary")
+            st.markdown("This tab provides a high-level structured overview of all analytical modules.")
+            
+            # KPI Cards for the Report
+            rep_col1, rep_col2, rep_col3, rep_col4 = st.columns(4)
+            rep_col1.metric("Total Ecosystem Value", f"${df_master['SALES'].sum()/1e6:.2f}M")
+            rep_col2.metric("Historical Revenue", f"${df_raw['SALES'].sum()/1e6:.2f}M")
+            rep_col3.metric("AI-Generated Forecast", f"${df_gen['SALES'].sum()/1e6:.2f}M")
+            rep_col4.metric("Avg Annual Revenue", f"${df_master.groupby('YEAR')['SALES'].sum().mean()/1e6:.2f}M")
+            
+            st.divider()
+            
+            # Structured Summary Sections
+            col_left, col_right = st.columns(2)
+            
+            with col_left:
+                st.subheader("🏁 Market Performance")
+                top_mkt = df.groupby('COUNTRY')['SALES'].sum().nlargest(5).reset_index()
+                st.table(top_mkt.style.format({'SALES': '${:,.2f}'}))
+                
+                st.subheader("📦 Product Distribution")
+                top_prd = df.groupby('PRODUCTLINE')['SALES'].sum().nlargest(5).reset_index()
+                st.table(top_prd.style.format({'SALES': '${:,.2f}'}))
+                
+            with col_right:
+                st.subheader("📈 Growth & Forecasting")
+                growth_summary = df_master.groupby('YEAR')['SALES'].sum().reset_index()
+                growth_summary.columns = ['Fiscal Year', 'Revenue']
+                st.table(growth_summary.style.format({'Revenue': '${:,.2f}'}))
+                
+                st.subheader("🤖 AI Model Accuracy")
+                st.info(f"The system currently utilizes an optimized XGBoost engine for automatic future data population.")
+            
+            st.divider()
+            
+            # Export Capabilities
+            st.subheader("📥 Data Export Center")
+            c_exp1, c_exp2 = st.columns(2)
+            with c_exp1:
+                st.write("**Full Integrated Dataset**")
+                st.download_button("Download Complete Report (CSV)", data=convert_df_to_csv(df_master), file_name="executive_summary_full.csv", mime="text/csv", use_container_width=True)
+            with c_exp2:
+                st.write("**Future Predictions Only**")
 
 else:
     # --- WELCOME PAGE ---
