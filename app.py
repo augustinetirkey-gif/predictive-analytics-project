@@ -108,43 +108,6 @@ if uploaded_file is not None:
         return df
 
     df_master = load_and_process_data(uploaded_file)
-    # --- 🤖 AUTO-GENERATION ENGINE ---
-    @st.cache_resource
-    def train_auto_gen_engine(data):
-        X = data[MODEL_FEATURES]
-        y = data['SALES']
-        preprocessor = ColumnTransformer([
-            ('cat', OneHotEncoder(handle_unknown='ignore'), ['PRODUCTLINE', 'COUNTRY']),
-            ('num', StandardScaler(), ['MONTH_ID','QTR_ID','MSRP','QUANTITYORDERED'])
-        ])
-        engine = Pipeline(steps=[('pre', preprocessor), ('model', xgb.XGBRegressor(objective='reg:squarederror'))])
-        engine.fit(X, y)
-        return engine
-
-    # Detect Last Year and Generate Next 5
-    df_historical = df_master.copy() # Your original uploaded data
-    last_year = int(df_historical['YEAR'].max())
-    gen_model = train_auto_gen_engine(df_historical)
-    
-    future_rows = []
-    for yr in range(last_year + 1, last_year + 6):
-        for m in range(1, 13):
-            # Create dummy rows for top categories
-            for country in df_historical['COUNTRY'].unique()[:2]: 
-                for prod in df_historical['PRODUCTLINE'].unique()[:2]:
-                    future_rows.append({
-                        'YEAR': yr, 'MONTH_ID': m, 'QTR_ID': (m-1)//3+1, 
-                        'MSRP': df_historical['MSRP'].mean(),
-                        'QUANTITYORDERED': df_historical['QUANTITYORDERED'].mean(),
-                        'PRODUCTLINE': prod, 'COUNTRY': country,
-                        'ORDERDATE': pd.to_datetime(f"{yr}-{m}-01"), 'STATUS': 'AI Forecast'
-                    })
-    
-    df_future = pd.DataFrame(future_rows)
-    df_future['SALES'] = gen_model.predict(df_future[MODEL_FEATURES])
-    
-    # Update df_master to include everything
-    df_master = pd.concat([df_historical, df_future], ignore_index=True)
     
     st.sidebar.subheader("🔍 Filter Strategy")
     st_year = st.sidebar.multiselect("Fiscal Year", options=sorted(df_master['YEAR'].unique()), default=df_master['YEAR'].unique())
@@ -187,7 +150,7 @@ if uploaded_file is not None:
 
     trained_models = train_models(df_master)
 
-    tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights", "📅 Demand Forecast", "👥 Customer Analytics","📑 Executive Report"])
+    tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights", "📅 Demand Forecast", "👥 Customer Analytics"])
 
     if df.empty:
         st.warning("⚠️ No data available for the current selection. Please adjust your filters.")
@@ -561,36 +524,6 @@ if uploaded_file is not None:
             top_custs = cust_metrics.nlargest(25, 'Revenue')['Customer']
             heat_data = df[df['CUSTOMERNAME'].isin(top_custs)].pivot_table(index='CUSTOMERNAME', columns='PRODUCTLINE', values='SALES', aggfunc='sum').fillna(0)
             st.plotly_chart(px.imshow(heat_data, text_auto='.2s', aspect="auto", color_continuous_scale='RdYlBu_r', template="plotly"), use_container_width=True)
-
-        
-            # --- TAB 6: EXECUTIVE REPORT (NEW STRUCTURED SUMMARY) ---
-      # --- TAB 6: EXECUTIVE REPORT ---
-        with tabs[5]:
-            st.header("📑 Executive Business Summary")
-            st.markdown("Structured overview of historical performance and AI-generated forecasts.")
-            
-            # KPI Cards
-            rep_col1, rep_col2, rep_col3 = st.columns(3)
-            rep_col1.metric("Historical Revenue", f"${df_historical['SALES'].sum()/1e6:.2f}M")
-            rep_col2.metric("AI Forecasted Value", f"${df_future['SALES'].sum()/1e6:.2f}M")
-            rep_col3.metric("Total Ecosystem Value", f"${df_master['SALES'].sum()/1e6:.2f}M")
-            
-            st.divider()
-            
-            col_left, col_right = st.columns(2)
-            with col_left:
-                st.subheader("🏁 Market Leaders")
-                st.table(df.groupby('COUNTRY')['SALES'].sum().nlargest(5).reset_index())
-            with col_right:
-                st.subheader("📈 Yearly Growth")
-                st.table(df_master.groupby('YEAR')['SALES'].sum().reset_index())
-            
-            st.divider()
-            st.subheader("📥 Export Center")
-            st.download_button("Download Full CSV Report", 
-                               data=convert_df_to_csv(df_master), 
-                               file_name="full_executive_report.csv", 
-                               mime="text/csv", use_container_width=True)
 
 else:
     # --- WELCOME PAGE ---
