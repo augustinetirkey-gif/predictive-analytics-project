@@ -15,7 +15,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 import xgboost as xgb
 import io
-from fpdf import FPDF
+
 # --- SYSTEM CONFIGURATION ---
 st.set_page_config(page_title="PredictiCorp BI Suite", layout="wide", initial_sidebar_state="expanded")
 
@@ -96,27 +96,11 @@ uploaded_file = st.sidebar.file_uploader("Upload Sales Data (CSV)", type=["csv"]
 MODEL_FEATURES = ['MONTH_ID', 'QTR_ID', 'MSRP', 'QUANTITYORDERED', 'PRODUCTLINE', 'COUNTRY']
 
 if uploaded_file is not None:
-    # --- FILE VALIDATION LOGIC ---
-    df_check = pd.read_csv(uploaded_file)
-    
-    # Check if the uploaded file has the columns defined in your template_df
-    required_columns = list(template_df.columns)
-    uploaded_columns = list(df_check.columns)
-    
-    # Validation: Check if all required columns exist
-    is_valid = all(col in uploaded_columns for col in required_columns)
-    
-    if not is_valid:
-        st.error("⚠️ **Incorrect File Format Detected**")
-        st.info("The uploaded CSV does not match the required system schema. Please **download the CSV Template** from the sidebar and ensure your data matches those column headers exactly.")
-        st.stop() # Prevents the rest of the app from running with bad data
-
     @st.cache_data
     def load_and_process_data(file):
-        # Using the already read df_check to save memory
-        df = df_check.copy()
+        df = pd.read_csv(file)
         if 'ORDERDATE' in df.columns:
-            df['ORDERDATE'] = pd.to_datetime(df['ORDERDATE'], errors='coerce')
+            df['ORDERDATE'] = pd.to_datetime(df['ORDERDATE'])
             df['YEAR'] = df['ORDERDATE'].dt.year
             df['MONTH_NAME'] = df['ORDERDATE'].dt.month_name()
         elif 'YEAR_ID' in df.columns:
@@ -166,7 +150,7 @@ if uploaded_file is not None:
 
     trained_models = train_models(df_master)
 
-    tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights", "📅 Demand Forecast", "👥 Customer Analytics","📄 Report Generation"])
+    tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights", "📅 Demand Forecast", "👥 Customer Analytics"])
 
     if df.empty:
         st.warning("⚠️ No data available for the current selection. Please adjust your filters.")
@@ -538,10 +522,8 @@ if uploaded_file is not None:
             st.divider()
             st.subheader("🧩 Product Affinity Heatmap")
             top_custs = cust_metrics.nlargest(25, 'Revenue')['Customer']
-            heat_data = df[df['CUSTOMERNAME'].isin(top_custs)].pivot_table(index='CUSTOMERNAME', columns='PRODUCTLINE', values='SALES', aggfunc='sum').fil  lna(0)
+            heat_data = df[df['CUSTOMERNAME'].isin(top_custs)].pivot_table(index='CUSTOMERNAME', columns='PRODUCTLINE', values='SALES', aggfunc='sum').fillna(0)
             st.plotly_chart(px.imshow(heat_data, text_auto='.2s', aspect="auto", color_continuous_scale='RdYlBu_r', template="plotly"), use_container_width=True)
-
-
 
 else:
     # --- WELCOME PAGE ---
