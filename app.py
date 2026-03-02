@@ -472,15 +472,16 @@ if uploaded_file is not None:
             }).reset_index()
             cust_metrics.columns = ['Customer', 'Revenue', 'Frequency', 'LastOrder', 'Country', 'Phone', 'Typical_Deal']
             cust_metrics['Recency'] = (current_date - cust_metrics['LastOrder']).dt.days
+            # ✅ SAFE SEGMENTATION (No Crash Version)
             try:
-            cust_metrics['Deal size'] = pd.qcut(
-            cust_metrics['Revenue'],
-            q=3,
-            labels=['Small', 'Medium', 'Large'],
-            duplicates='drop'
-            )
+                cust_metrics['Deal size'] = pd.qcut(
+                    cust_metrics['Revenue'],
+                    q=3,
+                    labels=['Small', 'Medium', 'Large'],
+                    duplicates='drop'
+                )
             except ValueError:
-            cust_metrics['Deal size'] = "Single Tier"
+                cust_metrics['Deal size'] = "Single Tier"
 
            
 
