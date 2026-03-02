@@ -146,15 +146,32 @@ if uploaded_file is not None:
     # Update df_master to include everything
     df_master = pd.concat([df_historical, df_future], ignore_index=True)
     
-    st.sidebar.subheader("🔍 Filter Strategy")
-    st_year = st.sidebar.multiselect("Fiscal Year", options=sorted(df_master['YEAR'].unique()), default=df_master['YEAR'].unique())
+   # --- NEW TWO-COLUMN SIDEBAR ---
+    st.sidebar.subheader("🔍 Selection Strategy")
+    
+    col_past, col_future = st.sidebar.columns(2)
+    
+    with col_past:
+        st.markdown("**📅 Historical**")
+        hist_years = sorted(df_historical['YEAR'].unique())
+        st_year_hist = [yr for yr in hist_years if st.sidebar.checkbox(str(int(yr)), value=True, key=f"h_{yr}")]
+    
+    with col_future:
+        st.markdown("**🔮 Prediction**")
+        fut_years = sorted(df_future['YEAR'].unique())
+        st_year_fut = [yr for yr in fut_years if st.sidebar.checkbox(str(int(yr)), value=True, key=f"f_{yr}")]
+    
+    selected_years = st_year_hist + st_year_fut
+    
+    st.sidebar.divider()
     st_country = st.sidebar.multiselect("Active Markets", options=sorted(df_master['COUNTRY'].unique()), default=df_master['COUNTRY'].unique())
     st_product = st.sidebar.multiselect("Product Line", options=sorted(df_master['PRODUCTLINE'].unique()), default=df_master['PRODUCTLINE'].unique())
     
     df = df_master[
-        (df_master['YEAR'].isin(st_year)) & 
+        (df_master['YEAR'].isin(selected_years)) & 
         (df_master['COUNTRY'].isin(st_country)) & 
         (df_master['PRODUCTLINE'].isin(st_product))
+    ]
     ]
 
     @st.cache_resource
