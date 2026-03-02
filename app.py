@@ -96,11 +96,27 @@ uploaded_file = st.sidebar.file_uploader("Upload Sales Data (CSV)", type=["csv"]
 MODEL_FEATURES = ['MONTH_ID', 'QTR_ID', 'MSRP', 'QUANTITYORDERED', 'PRODUCTLINE', 'COUNTRY']
 
 if uploaded_file is not None:
+    # --- FILE VALIDATION LOGIC ---
+    df_check = pd.read_csv(uploaded_file)
+    
+    # Check if the uploaded file has the columns defined in your template_df
+    required_columns = list(template_df.columns)
+    uploaded_columns = list(df_check.columns)
+    
+    # Validation: Check if all required columns exist
+    is_valid = all(col in uploaded_columns for col in required_columns)
+    
+    if not is_valid:
+        st.error("⚠️ **Incorrect File Format Detected**")
+        st.info("The uploaded CSV does not match the required system schema. Please **download the CSV Template** from the sidebar and ensure your data matches those column headers exactly.")
+        st.stop() # Prevents the rest of the app from running with bad data
+
     @st.cache_data
     def load_and_process_data(file):
-        df = pd.read_csv(file)
+        # Using the already read df_check to save memory
+        df = df_check.copy()
         if 'ORDERDATE' in df.columns:
-            df['ORDERDATE'] = pd.to_datetime(df['ORDERDATE'])
+            df['ORDERDATE'] = pd.to_datetime(df['ORDERDATE'], errors='coerce')
             df['YEAR'] = df['ORDERDATE'].dt.year
             df['MONTH_NAME'] = df['ORDERDATE'].dt.month_name()
         elif 'YEAR_ID' in df.columns:
@@ -150,7 +166,7 @@ if uploaded_file is not None:
 
     trained_models = train_models(df_master)
 
-    tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights", "📅 Demand Forecast", "👥 Customer Analytics"])
+    tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights", "📅 Demand Forecast", "👥 Customer Analytics","📄 Report Generation"])
 
     if df.empty:
         st.warning("⚠️ No data available for the current selection. Please adjust your filters.")
@@ -524,6 +540,58 @@ if uploaded_file is not None:
             top_custs = cust_metrics.nlargest(25, 'Revenue')['Customer']
             heat_data = df[df['CUSTOMERNAME'].isin(top_custs)].pivot_table(index='CUSTOMERNAME', columns='PRODUCTLINE', values='SALES', aggfunc='sum').fillna(0)
             st.plotly_chart(px.imshow(heat_data, text_auto='.2s', aspect="auto", color_continuous_scale='RdYlBu_r', template="plotly"), use_container_width=True)
+           
+        # --- TAB 6: REPORT GENERATION ---
+        with tabs[5]:
+            st.header("📄 Executive Summary Report")
+            st.subheader("Data-Driven Strategic Brief")
+            
+            # Auto-calculate metrics for the report
+            total_rev = df['SALES'].sum()
+            avg_order = df['SALES'].mean()
+            top_market = df.groupby('COUNTRY')['SALES'].sum().idxmax()
+            top_prod = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
+            
+            # Construct the Report Text
+            report_content = f"""
+            PREDICTICORP BI SUITE - EXECUTIVE REPORT
+            Date: {pd.Timestamp.now().strftime('%Y-%m-%d')}
+            ------------------------------------------------
+            OVERALL PERFORMANCE:
+            - Total Revenue: ${total_rev:,.2f}
+            - Average Order Value: ${avg_order:,.2f}
+            - Total Transaction Volume: {len(df):,}
+            
+            STRATEGIC MARKET DATA:
+            - Primary Revenue Market: {top_market}
+            - Leading Product Line: {top_prod}
+            
+            AI & FORECASTING INSIGHTS:
+            - Selected Predictive Model: {model_choice}
+            - Current Model Confidence (R²): {model_score:.2f}%
+            
+            CUSTOMER INTELLIGENCE:
+            - High-Value Clients Identified: {len(cust_metrics[cust_metrics['Deal size'] == 'Large'])}
+            - At-Risk Customers (Churn): {len(churn_df)}
+            
+            ------------------------------------------------
+            CONFIDENTIAL: FOR INTERNAL STRATEGIC USE ONLY
+            """
+
+            # Display the report preview in a clean box
+            st.markdown("#### Report Preview")
+            st.code(report_content, language='text')
+            
+            # Download functionality
+            st.download_button(
+                label="📥 Export Report as TXT",
+                data=report_content,
+                file_name=f"PredictiCorp_Report_{pd.Timestamp.now().strftime('%Y%m%d')}.txt",
+                mime="text/plain",
+                use_container_width=True
+            )
+            
+            st.success("The report summarizes findings based on your current sidebar filters.")
 
 else:
     # --- WELCOME PAGE ---
