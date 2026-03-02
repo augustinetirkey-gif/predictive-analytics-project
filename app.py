@@ -176,6 +176,7 @@ if uploaded_file is not None:
         st.warning("⚠️ No data available. Please select at least one year from the sidebar.")
     
     else:
+     
         # --- TAB 1: EXECUTIVE DASHBOARD ---
         with tabs[0]:
             st.subheader("Performance KPIs")
@@ -545,6 +546,36 @@ if uploaded_file is not None:
             top_custs = cust_metrics.nlargest(25, 'Revenue')['Customer']
             heat_data = df[df['CUSTOMERNAME'].isin(top_custs)].pivot_table(index='CUSTOMERNAME', columns='PRODUCTLINE', values='SALES', aggfunc='sum').fillna(0)
             st.plotly_chart(px.imshow(heat_data, text_auto='.2s', aspect="auto", color_continuous_scale='RdYlBu_r', template="plotly"), use_container_width=True)
+
+        
+            # --- TAB 6: EXECUTIVE REPORT (NEW STRUCTURED SUMMARY) ---
+      # --- TAB 6: EXECUTIVE REPORT ---
+        with tabs[5]:
+            st.header("📑 Executive Business Summary")
+            st.markdown("Structured overview of historical performance and AI-generated forecasts.")
+            
+            # KPI Cards
+            rep_col1, rep_col2, rep_col3 = st.columns(3)
+            rep_col1.metric("Historical Revenue", f"${df_historical['SALES'].sum()/1e6:.2f}M")
+            rep_col2.metric("AI Forecasted Value", f"${df_future['SALES'].sum()/1e6:.2f}M")
+            rep_col3.metric("Total Ecosystem Value", f"${df_master['SALES'].sum()/1e6:.2f}M")
+            
+            st.divider()
+            
+            col_left, col_right = st.columns(2)
+            with col_left:
+                st.subheader("🏁 Market Leaders")
+                st.table(df.groupby('COUNTRY')['SALES'].sum().nlargest(5).reset_index())
+            with col_right:
+                st.subheader("📈 Yearly Growth")
+                st.table(df_master.groupby('YEAR')['SALES'].sum().reset_index())
+            
+            st.divider()
+            st.subheader("📥 Export Center")
+            st.download_button("Download Full CSV Report", 
+                               data=convert_df_to_csv(df_master), 
+                               file_name="full_executive_report.csv", 
+                               mime="text/csv", use_container_width=True)
 
 else:
     # --- WELCOME PAGE ---
