@@ -541,87 +541,117 @@ if uploaded_file is not None:
             heat_data = df[df['CUSTOMERNAME'].isin(top_custs)].pivot_table(index='CUSTOMERNAME', columns='PRODUCTLINE', values='SALES', aggfunc='sum').fillna(0)
             st.plotly_chart(px.imshow(heat_data, text_auto='.2s', aspect="auto", color_continuous_scale='RdYlBu_r', template="plotly"), use_container_width=True)
            
-       # --- TAB 6: EXECUTIVE REPORT (DETAILED PDF) ---
+       # --- TAB 6: EXECUTIVE REPORT (ENHANCED PDF) ---
         with tabs[5]:
-            st.header("📄 Professional Executive Reporting")
-            st.markdown("Generate a high-fidelity PDF brief for stakeholders.")
+            st.header("📄 Strategic Executive Briefing")
+            st.markdown("Generate a comprehensive PDF including market rankings and AI diagnostics.")
 
-            # 1. Prepare Data for the Report
+            # 1. Data Preparation for Tables
             total_rev = df['SALES'].sum()
             avg_order = df['SALES'].mean()
             top_market = df.groupby('COUNTRY')['SALES'].sum().idxmax()
             top_prod = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
             
-            # 2. PDF Class Definition
+            # Get Top 5 Products for a table
+            top_5_prods = df.groupby('PRODUCTLINE')['SALES'].sum().nlargest(5).reset_index()
+            # Get Top 5 Markets for a table
+            top_5_countries = df.groupby('COUNTRY')['SALES'].sum().nlargest(5).reset_index()
+
+            # 2. Advanced PDF Class
             class PDF(FPDF):
                 def header(self):
-                    self.set_font('Arial', 'B', 15)
-                    self.set_text_color(31, 78, 121) # Matches your UI Blue
-                    self.cell(0, 10, 'PREDICTICORP STRATEGIC INTELLIGENCE REPORT', 0, 1, 'C')
-                    self.ln(5)
+                    # Branding Bar
+                    self.set_fill_color(31, 78, 121) 
+                    self.rect(0, 0, 210, 35, 'F')
+                    self.set_text_color(255, 255, 255)
+                    self.set_font('Arial', 'B', 22)
+                    self.cell(0, 15, 'PREDICTICORP INTELLIGENCE', 0, 1, 'C')
+                    self.set_font('Arial', 'I', 10)
+                    self.cell(0, 5, 'Data-Driven Strategic Analysis & Forecasting', 0, 1, 'C')
+                    self.ln(20)
 
                 def footer(self):
                     self.set_y(-15)
                     self.set_font('Arial', 'I', 8)
-                    self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
+                    self.set_text_color(150, 150, 150)
+                    self.cell(0, 10, f'Internal Use Only | Page {self.page_no()}', 0, 0, 'C')
+
+                def create_table(self, header, data, col_widths):
+                    self.set_font('Arial', 'B', 10)
+                    self.set_fill_color(230, 235, 245)
+                    # Header
+                    for i, h in enumerate(header):
+                        self.cell(col_widths[i], 10, h, 1, 0, 'C', fill=True)
+                    self.ln()
+                    # Data
+                    self.set_font('Arial', '', 10)
+                    for row in data.itertuples(index=False):
+                        self.cell(col_widths[0], 8, str(row[0]), 1)
+                        self.cell(col_widths[1], 8, f"${row[1]:,.2f}", 1, 1, 'R')
+                    self.ln(5)
 
             # 3. Create PDF Instance
             pdf = PDF()
             pdf.add_page()
-            pdf.set_font("Arial", size=12)
+            pdf.set_text_color(40, 40, 40)
 
-            # --- REPORT CONTENT ---
-            pdf.set_font("Arial", 'B', 12)
-            pdf.cell(0, 10, f"Report Generated: {pd.Timestamp.now().strftime('%Y-%m-%d')}", 0, 1)
+            # --- SECTION 1: CORE METRICS ---
+            pdf.set_font("Arial", 'B', 14)
+            pdf.cell(0, 10, "1. Executive Performance KPIs", 0, 1)
+            pdf.set_draw_color(31, 78, 121)
+            pdf.line(10, pdf.get_y(), 200, pdf.get_y())
             pdf.ln(5)
 
-            # Section: Key Performance Indicators
-            pdf.set_fill_color(240, 240, 240)
-            pdf.set_font("Arial", 'B', 11)
-            pdf.cell(0, 10, " 1. FINANCIAL PERFORMANCE SUMMARY", 1, 1, 'L', fill=True)
-            pdf.set_font("Arial", size=10)
-            pdf.cell(0, 8, f" - Total Aggregate Revenue: ${total_rev:,.2f}", 0, 1)
-            pdf.cell(0, 8, f" - Average Transaction Value: ${avg_order:,.2f}", 0, 1)
-            pdf.cell(0, 8, f" - Total Processed Orders: {len(df):,}", 0, 1)
-            pdf.ln(5)
-
-            # Section: Market Analysis
-            pdf.set_font("Arial", 'B', 11)
-            pdf.cell(0, 10, " 2. STRATEGIC MARKET INSIGHTS", 1, 1, 'L', fill=True)
-            pdf.set_font("Arial", size=10)
-            pdf.cell(0, 8, f" - Top Performing Territory: {top_market}", 0, 1)
-            pdf.cell(0, 8, f" - Primary Product Category: {top_prod}", 0, 1)
-            pdf.cell(0, 8, f" - Active International Markets: {df['COUNTRY'].nunique()}", 0, 1)
-            pdf.ln(5)
-
-            # Section: AI Model Diagnostics
-            pdf.set_font("Arial", 'B', 11)
-            pdf.cell(0, 10, " 3. AI & PREDICTIVE DIAGNOSTICS", 1, 1, 'L', fill=True)
-            pdf.set_font("Arial", size=10)
-            pdf.cell(0, 8, f" - Simulation Engine: {model_choice}", 0, 1)
-            pdf.cell(0, 8, f" - Statistical Confidence (R-Squared): {model_score:.2f}%", 0, 1)
+            pdf.set_font("Arial", '', 11)
+            pdf.cell(95, 8, f"Total Revenue: ${total_rev:,.2f}", 0, 0)
+            pdf.cell(95, 8, f"Avg Order Value: ${avg_order:,.2f}", 0, 1)
+            pdf.cell(95, 8, f"Transaction Vol: {len(df):,}", 0, 0)
+            pdf.cell(95, 8, f"Global Regions: {df['COUNTRY'].nunique()}", 0, 1)
             pdf.ln(10)
 
-            # Disclaimer
-            pdf.set_font("Arial", 'I', 9)
-            pdf.multi_cell(0, 5, "DISCLAIMER: This report is generated by the PredictiCorp AI Suite using historical data. Predictions are based on statistical probability and should be used as decision-support tools, not financial guarantees.")
+            # --- SECTION 2: TOP PERFORMANCE TABLES ---
+            pdf.set_font("Arial", 'B', 14)
+            pdf.cell(0, 10, "2. Market & Product Leaderboard", 0, 1)
+            pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+            pdf.ln(5)
 
-            # 4. Output PDF to Buffer
-            pdf_output = pdf.output(dest='S') # Output as string/bytes
-
-            # 5. UI Layout
-            col_left, col_right = st.columns(2)
-            with col_left:
-                st.info("### Detailed Report Ready\nThe PDF includes:\n- Financial KPIs\n- Market Breakdown\n- AI Confidence Scoring\n- Strategic Disclaimers")
+            # Two-column layout logic for tables
+            pdf.set_font("Arial", 'B', 11)
+            pdf.cell(95, 8, "Top 5 Product Lines", 0, 0)
+            pdf.cell(95, 8, "Top 5 Global Markets", 0, 1)
             
-            with col_right:
+            # Simple manual table drawing
+            pdf.create_table(["Product Line", "Revenue"], top_5_prods, [60, 35])
+            # (Note: For a 2-column layout in FPDF, we'd adjust Y, but here we stack for clarity)
+            pdf.create_table(["Country", "Revenue"], top_5_countries, [60, 35])
+
+            # --- SECTION 3: AI DIAGNOSTICS ---
+            pdf.set_font("Arial", 'B', 14)
+            pdf.cell(0, 10, "3. AI Forecast Diagnostics", 0, 1)
+            pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+            pdf.ln(5)
+            
+            pdf.set_font("Arial", '', 11)
+            pdf.multi_cell(0, 8, f"The predictive model '{model_choice}' was utilized to simulate revenue outcomes. "
+                                 f"The model demonstrates a statistical confidence (R2 Score) of {model_score:.2f}%. "
+                                 f"Current forecasting suggests {top_prod} as the primary inventory priority.")
+            
+            # 4. Final Export
+            pdf_output = pdf.output(dest='S')
+            
+            # UI DISPLAY
+            c1, c2 = st.columns([1, 2])
+            with c1:
+                st.success("✅ PDF Built Successfully")
                 st.download_button(
-                    label="📥 Download Official PDF Report",
+                    label="📥 Download Detailed Report",
                     data=bytes(pdf_output),
-                    file_name=f"PredictiCorp_Executive_Summary_{pd.Timestamp.now().strftime('%Y%m%d')}.pdf",
+                    file_name=f"PredictiCorp_Strategic_Brief_{pd.Timestamp.now().strftime('%Y%m%d')}.pdf",
                     mime="application/pdf",
                     use_container_width=True
                 )
+            with c2:
+                st.info("**What's in this report?**\n- Revenue & Volume KPIs\n- Product Line Leaderboard\n- Geographic Revenue Rankings\n- AI Model Accuracy & Confidence Scores")
 else:
     # --- WELCOME PAGE ---
     st.markdown("""<div class="welcome-header"><h1>🚀 Welcome to PredictiCorp Intelligence</h1><p>The Global Executive Suite for Data-Driven Market Strategy</p></div>""", unsafe_allow_html=True)
