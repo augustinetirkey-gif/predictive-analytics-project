@@ -541,58 +541,87 @@ if uploaded_file is not None:
             heat_data = df[df['CUSTOMERNAME'].isin(top_custs)].pivot_table(index='CUSTOMERNAME', columns='PRODUCTLINE', values='SALES', aggfunc='sum').fillna(0)
             st.plotly_chart(px.imshow(heat_data, text_auto='.2s', aspect="auto", color_continuous_scale='RdYlBu_r', template="plotly"), use_container_width=True)
            
-        # --- TAB 6: REPORT GENERATION ---
+       # --- TAB 6: EXECUTIVE REPORT (DETAILED PDF) ---
         with tabs[5]:
-            st.header("📄 Executive Summary Report")
-            st.subheader("Data-Driven Strategic Brief")
-            
-            # Auto-calculate metrics for the report
+            st.header("📄 Professional Executive Reporting")
+            st.markdown("Generate a high-fidelity PDF brief for stakeholders.")
+
+            # 1. Prepare Data for the Report
             total_rev = df['SALES'].sum()
             avg_order = df['SALES'].mean()
             top_market = df.groupby('COUNTRY')['SALES'].sum().idxmax()
             top_prod = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
             
-            # Construct the Report Text
-            report_content = f"""
-            PREDICTICORP BI SUITE - EXECUTIVE REPORT
-            Date: {pd.Timestamp.now().strftime('%Y-%m-%d')}
-            ------------------------------------------------
-            OVERALL PERFORMANCE:
-            - Total Revenue: ${total_rev:,.2f}
-            - Average Order Value: ${avg_order:,.2f}
-            - Total Transaction Volume: {len(df):,}
-            
-            STRATEGIC MARKET DATA:
-            - Primary Revenue Market: {top_market}
-            - Leading Product Line: {top_prod}
-            
-            AI & FORECASTING INSIGHTS:
-            - Selected Predictive Model: {model_choice}
-            - Current Model Confidence (R²): {model_score:.2f}%
-            
-            CUSTOMER INTELLIGENCE:
-            - High-Value Clients Identified: {len(cust_metrics[cust_metrics['Deal size'] == 'Large'])}
-            - At-Risk Customers (Churn): {len(churn_df)}
-            
-            ------------------------------------------------
-            CONFIDENTIAL: FOR INTERNAL STRATEGIC USE ONLY
-            """
+            # 2. PDF Class Definition
+            class PDF(FPDF):
+                def header(self):
+                    self.set_font('Arial', 'B', 15)
+                    self.set_text_color(31, 78, 121) # Matches your UI Blue
+                    self.cell(0, 10, 'PREDICTICORP STRATEGIC INTELLIGENCE REPORT', 0, 1, 'C')
+                    self.ln(5)
 
-            # Display the report preview in a clean box
-            st.markdown("#### Report Preview")
-            st.code(report_content, language='text')
-            
-            # Download functionality
-            st.download_button(
-                label="📥 Export Report as TXT",
-                data=report_content,
-                file_name=f"PredictiCorp_Report_{pd.Timestamp.now().strftime('%Y%m%d')}.txt",
-                mime="text/plain",
-                use_container_width=True
-            )
-            
-            st.success("The report summarizes findings based on your current sidebar filters.")
+                def footer(self):
+                    self.set_y(-15)
+                    self.set_font('Arial', 'I', 8)
+                    self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
 
+            # 3. Create PDF Instance
+            pdf = PDF()
+            pdf.add_page()
+            pdf.set_font("Arial", size=12)
+
+            # --- REPORT CONTENT ---
+            pdf.set_font("Arial", 'B', 12)
+            pdf.cell(0, 10, f"Report Generated: {pd.Timestamp.now().strftime('%Y-%m-%d')}", 0, 1)
+            pdf.ln(5)
+
+            # Section: Key Performance Indicators
+            pdf.set_fill_color(240, 240, 240)
+            pdf.set_font("Arial", 'B', 11)
+            pdf.cell(0, 10, " 1. FINANCIAL PERFORMANCE SUMMARY", 1, 1, 'L', fill=True)
+            pdf.set_font("Arial", size=10)
+            pdf.cell(0, 8, f" - Total Aggregate Revenue: ${total_rev:,.2f}", 0, 1)
+            pdf.cell(0, 8, f" - Average Transaction Value: ${avg_order:,.2f}", 0, 1)
+            pdf.cell(0, 8, f" - Total Processed Orders: {len(df):,}", 0, 1)
+            pdf.ln(5)
+
+            # Section: Market Analysis
+            pdf.set_font("Arial", 'B', 11)
+            pdf.cell(0, 10, " 2. STRATEGIC MARKET INSIGHTS", 1, 1, 'L', fill=True)
+            pdf.set_font("Arial", size=10)
+            pdf.cell(0, 8, f" - Top Performing Territory: {top_market}", 0, 1)
+            pdf.cell(0, 8, f" - Primary Product Category: {top_prod}", 0, 1)
+            pdf.cell(0, 8, f" - Active International Markets: {df['COUNTRY'].nunique()}", 0, 1)
+            pdf.ln(5)
+
+            # Section: AI Model Diagnostics
+            pdf.set_font("Arial", 'B', 11)
+            pdf.cell(0, 10, " 3. AI & PREDICTIVE DIAGNOSTICS", 1, 1, 'L', fill=True)
+            pdf.set_font("Arial", size=10)
+            pdf.cell(0, 8, f" - Simulation Engine: {model_choice}", 0, 1)
+            pdf.cell(0, 8, f" - Statistical Confidence (R-Squared): {model_score:.2f}%", 0, 1)
+            pdf.ln(10)
+
+            # Disclaimer
+            pdf.set_font("Arial", 'I', 9)
+            pdf.multi_cell(0, 5, "DISCLAIMER: This report is generated by the PredictiCorp AI Suite using historical data. Predictions are based on statistical probability and should be used as decision-support tools, not financial guarantees.")
+
+            # 4. Output PDF to Buffer
+            pdf_output = pdf.output(dest='S') # Output as string/bytes
+
+            # 5. UI Layout
+            col_left, col_right = st.columns(2)
+            with col_left:
+                st.info("### Detailed Report Ready\nThe PDF includes:\n- Financial KPIs\n- Market Breakdown\n- AI Confidence Scoring\n- Strategic Disclaimers")
+            
+            with col_right:
+                st.download_button(
+                    label="📥 Download Official PDF Report",
+                    data=bytes(pdf_output),
+                    file_name=f"PredictiCorp_Executive_Summary_{pd.Timestamp.now().strftime('%Y%m%d')}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True
+                )
 else:
     # --- WELCOME PAGE ---
     st.markdown("""<div class="welcome-header"><h1>🚀 Welcome to PredictiCorp Intelligence</h1><p>The Global Executive Suite for Data-Driven Market Strategy</p></div>""", unsafe_allow_html=True)
