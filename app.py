@@ -15,7 +15,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 import xgboost as xgb
 import io
-
+from fpdf import FPDF
 # --- SYSTEM CONFIGURATION ---
 st.set_page_config(page_title="PredictiCorp BI Suite", layout="wide", initial_sidebar_state="expanded")
 
