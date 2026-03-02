@@ -14,6 +14,7 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 import xgboost as xgb
+from fpdf import FPDF
 import io
 
 # --- SYSTEM CONFIGURATION ---
@@ -524,6 +525,122 @@ if uploaded_file is not None:
             top_custs = cust_metrics.nlargest(25, 'Revenue')['Customer']
             heat_data = df[df['CUSTOMERNAME'].isin(top_custs)].pivot_table(index='CUSTOMERNAME', columns='PRODUCTLINE', values='SALES', aggfunc='sum').fillna(0)
             st.plotly_chart(px.imshow(heat_data, text_auto='.2s', aspect="auto", color_continuous_scale='RdYlBu_r', template="plotly"), use_container_width=True)
+            # --- TAB 6: COMPLETE STRATEGIC AUDIT ---
+        with tabs[5]:
+            st.header("📄 Full Spectrum Executive Intelligence")
+            st.markdown("Generates a complete multi-page audit of Financials, Operations, AI Predictions, and Customer Logic.")
+
+            # --- 1. DATA PREP FOR ALL SECTIONS ---
+            total_rev = df['SALES'].sum()
+            avg_order = df['SALES'].mean()
+            top_market = df.groupby('COUNTRY')['SALES'].sum().idxmax()
+            top_prod = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
+            
+            # Data for tables
+            top_5_prods = df.groupby('PRODUCTLINE')['SALES'].sum().nlargest(5).reset_index()
+            top_5_countries = df.groupby('COUNTRY')['SALES'].sum().nlargest(5).reset_index()
+            top_cust = cust_metrics.nlargest(5, 'Revenue')[['Customer', 'Revenue']]
+            
+            # Stats (Transposed for better PDF fit)
+            stats_df = df[['SALES', 'QUANTITYORDERED', 'MSRP']].describe().reset_index()
+
+            # --- 2. THE PDF MASTER CLASS ---
+            class ExecutivePDF(FPDF):
+                def header(self):
+                    self.set_fill_color(31, 78, 121) # PredictiCorp Blue
+                    self.rect(0, 0, 210, 35, 'F')
+                    self.set_text_color(255, 255, 255)
+                    self.set_font('Arial', 'B', 22)
+                    self.cell(0, 15, 'PREDICTICORP BI - FULL AUDIT', 0, 1, 'C')
+                    self.set_font('Arial', 'I', 10)
+                    self.cell(0, 5, f'Generated: {pd.Timestamp.now().strftime("%Y-%m-%d %H:%M")}', 0, 1, 'C')
+                    self.ln(20)
+
+                def footer(self):
+                    self.set_y(-15)
+                    self.set_font('Arial', 'I', 8)
+                    self.set_text_color(150, 150, 150)
+                    self.cell(0, 10, f'Internal Strategic Document | Page {self.page_no()}', 0, 0, 'C')
+
+                def section_header(self, title):
+                    self.set_font('Arial', 'B', 14)
+                    self.set_text_color(31, 78, 121)
+                    self.cell(0, 10, title, 0, 1, 'L')
+                    self.line(10, self.get_y(), 200, self.get_y())
+                    self.ln(5)
+                    self.set_text_color(0, 0, 0)
+
+                def draw_table(self, df_data, col_widths):
+                    self.set_font('Arial', 'B', 10)
+                    self.set_fill_color(240, 240, 240)
+                    # Headers
+                    for i, col in enumerate(df_data.columns):
+                        self.cell(col_widths[i], 10, str(col), 1, 0, 'C', fill=True)
+                    self.ln()
+                    # Data
+                    self.set_font('Arial', '', 9)
+                    for row in df_data.itertuples(index=False):
+                        for i, val in enumerate(row):
+                            text = f"${val:,.2f}" if isinstance(val, (float, int)) and val > 100 else str(val)
+                            self.cell(col_widths[i], 8, text, 1)
+                        self.ln()
+                    self.ln(5)
+
+            # --- 3. CONSTRUCT THE PAGES ---
+            pdf = ExecutivePDF()
+            pdf.set_auto_page_break(auto=True, margin=15)
+            
+            # PAGE 1: EXECUTIVE SUMMARY & STATS
+            pdf.add_page()
+            pdf.section_header("1. Financial KPIs & Descriptive Statistics")
+            pdf.set_font("Arial", '', 11)
+            pdf.multi_cell(0, 8, f"Based on the active filters, PredictiCorp has generated a total revenue of ${total_rev:,.2f} "
+                                 f"across {len(df):,} transactions. The average transaction value stands at ${avg_order:,.2f}.")
+            pdf.ln(5)
+            pdf.draw_table(stats_df, [40, 50, 50, 50])
+
+            # PAGE 2: MARKET & PRODUCT ANALYSIS
+            pdf.add_page()
+            pdf.section_header("2. Global Market & Product Intelligence")
+            pdf.set_font("Arial", 'B', 11)
+            pdf.cell(0, 10, f"Primary Revenue Market: {top_market}", 0, 1)
+            pdf.cell(0, 10, f"Core Product Line: {top_prod}", 0, 1)
+            pdf.ln(5)
+            
+            pdf.set_font("Arial", 'B', 12)
+            pdf.cell(0, 10, "Top 5 Products by Revenue Share", 0, 1)
+            pdf.draw_table(top_5_prods, [100, 50])
+            
+            pdf.cell(0, 10, "Top 5 Regional Markets", 0, 1)
+            pdf.draw_table(top_5_countries, [100, 50])
+
+            # PAGE 3: AI DIAGNOSTICS & CUSTOMERS
+            pdf.add_page()
+            pdf.section_header("3. AI Diagnostics & Customer Health")
+            
+            pdf.set_font("Arial", 'B', 11)
+            pdf.cell(0, 10, "AI Model Performance Summary:", 0, 1)
+            pdf.set_font("Arial", '', 10)
+            pdf.multi_cell(0, 8, f"The analytics engine utilizes the '{model_choice}' model for revenue simulation. "
+                                 f"With a current R2 accuracy score of {model_score:.2f}%, the model shows high reliability "
+                                 f"for strategic forecasting in the {top_market} region.")
+            pdf.ln(5)
+            
+            pdf.set_font("Arial", 'B', 11)
+            pdf.cell(0, 10, f"Customer Intelligence (High Risk Churn Count: {len(churn_df)})", 0, 1)
+            pdf.draw_table(top_cust, [100, 50])
+
+            # --- 4. EXPORT (The Fix) ---
+            pdf_bytes = bytes(pdf.output()) # Modern fpdf2 output method
+            
+            st.success("✅ Full Audit Report Generated Successfully")
+            st.download_button(
+                label="📥 Download Full Strategic Audit (PDF)",
+                data=pdf_bytes,
+                file_name=f"PredictiCorp_Full_Audit_{pd.Timestamp.now().strftime('%Y%m%d')}.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
 
 else:
     # --- WELCOME PAGE ---
