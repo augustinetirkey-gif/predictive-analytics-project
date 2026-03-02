@@ -151,7 +151,8 @@ if uploaded_file is not None:
 
     trained_models = train_models(df_master)
 
-  tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights", "📅 Demand Forecast", "👥 Customer Analytics", "📄 Executive Report"])
+  # Make sure this has the same number of leading spaces as the line above it
+    tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights", "📅 Demand Forecast", "👥 Customer Analytics", "📄 Executive Report"])
     if df.empty:
         st.warning("⚠️ No data available for the current selection. Please adjust your filters.")
     else:
