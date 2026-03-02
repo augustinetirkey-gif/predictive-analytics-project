@@ -59,6 +59,23 @@ st.markdown("""
         transition: transform 0.3s ease;
     }
     .feature-box:hover { transform: translateY(-10px); }
+    [data-testid="stMetric"] {
+        background-color: rgba(128, 128, 128, 0.05); 
+        border: 1px solid rgba(128, 128, 128, 0.2);
+        padding: 15px 20px;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease;
+    }
+    [data-testid="stMetricLabel"] p {
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    [data-testid="stMetricValue"] div {
+        font-weight: 700;
+        font-size: 2rem;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -75,6 +92,7 @@ st.sidebar.download_button(label="📥 Download CSV Template", data=csv_template
 st.sidebar.divider()
 uploaded_file = st.sidebar.file_uploader("Upload Sales Data (CSV)", type=["csv"])
 
+# Define prediction features globally for use in functions and tuning
 MODEL_FEATURES = ['MONTH_ID', 'QTR_ID', 'MSRP', 'QUANTITYORDERED', 'PRODUCTLINE', 'COUNTRY']
 
 if uploaded_file is not None:
@@ -89,95 +107,55 @@ if uploaded_file is not None:
             df['YEAR'] = df['YEAR_ID']
         return df
 
-    df_historical = load_and_process_data(uploaded_file)
+    df_master = load_and_process_data(uploaded_file)
     
-    # --- 🤖 AUTO-GENERATION ENGINE ---
-    @st.cache_resource
-    def train_auto_gen_engine(data):
-        X = data[MODEL_FEATURES]
-        y = data['SALES']
-        preprocessor = ColumnTransformer([
-            ('cat', OneHotEncoder(handle_unknown='ignore'), ['PRODUCTLINE', 'COUNTRY']),
-            ('num', StandardScaler(), ['MONTH_ID','QTR_ID','MSRP','QUANTITYORDERED'])
-        ])
-        engine = Pipeline(steps=[('pre', preprocessor), ('model', xgb.XGBRegressor(objective='reg:squarederror'))])
-        engine.fit(X, y)
-        return engine
-
-    last_year = int(df_historical['YEAR'].max())
-    gen_model = train_auto_gen_engine(df_historical)
-    
-    future_rows = []
-    for yr in range(last_year + 1, last_year + 6):
-        for m in range(1, 13):
-            for country in df_historical['COUNTRY'].unique(): 
-                for prod in df_historical['PRODUCTLINE'].unique():
-                    future_rows.append({
-                        'YEAR': yr, 'MONTH_ID': m, 'QTR_ID': (m-1)//3+1, 
-                        'MSRP': df_historical['MSRP'].mean(),
-                        'QUANTITYORDERED': df_historical['QUANTITYORDERED'].mean(),
-                        'PRODUCTLINE': prod, 'COUNTRY': country,
-                        'ORDERDATE': pd.to_datetime(f"{yr}-{m}-01"), 'STATUS': 'AI Forecast'
-                    })
-    
-    df_future = pd.DataFrame(future_rows)
-    df_future['SALES'] = gen_model.predict(df_future[MODEL_FEATURES])
-    df_master = pd.concat([df_historical, df_future], ignore_index=True)
-    
-    # --- SIDEBAR: ORGANIZED FILTER STRATEGY ---
     st.sidebar.subheader("🔍 Filter Strategy")
-    
-    # Historical Years Column
-    st.sidebar.markdown("### 📅 Historical Data")
-    hist_years = sorted(df_historical['YEAR'].unique())
-    st_year_hist = st.sidebar.multiselect("Select Past Years", options=hist_years, default=hist_years)
-    
-    # Future Prediction Column
-    st.sidebar.markdown("### 🔮 Future Predictions")
-    future_years = sorted(df_future['YEAR'].unique())
-    st_year_future = st.sidebar.multiselect("Select Forecast Years", options=future_years, default=future_years)
-    
-    st.sidebar.divider()
-    
+    st_year = st.sidebar.multiselect("Fiscal Year", options=sorted(df_master['YEAR'].unique()), default=df_master['YEAR'].unique())
     st_country = st.sidebar.multiselect("Active Markets", options=sorted(df_master['COUNTRY'].unique()), default=df_master['COUNTRY'].unique())
     st_product = st.sidebar.multiselect("Product Line", options=sorted(df_master['PRODUCTLINE'].unique()), default=df_master['PRODUCTLINE'].unique())
     
-    # Combined filter for processing
-    selected_years = st_year_hist + st_year_future
     df = df_master[
-        (df_master['YEAR'].isin(selected_years)) & 
+        (df_master['YEAR'].isin(st_year)) & 
         (df_master['COUNTRY'].isin(st_country)) & 
         (df_master['PRODUCTLINE'].isin(st_product))
     ]
 
-    # Model Training
     @st.cache_resource
     def train_models(data):
         data = data[MODEL_FEATURES + ['SALES']].dropna()
+
         X = data[MODEL_FEATURES]
         y = data['SALES']
+
         preprocessor = ColumnTransformer([
          ('cat', OneHotEncoder(handle_unknown='ignore'), ['PRODUCTLINE', 'COUNTRY']),
           ('num', StandardScaler(), ['MONTH_ID','QTR_ID','MSRP','QUANTITYORDERED'])
         ])
-        models = {"Linear Regression": LinearRegression(), "XGBoost": xgb.XGBRegressor()}
+
+        models = {
+            "Linear Regression": LinearRegression(),
+            "Decision Tree": DecisionTreeRegressor(max_depth=5),
+            "Random Forest": RandomForestRegressor(n_estimators=100, random_state=42),
+            "Gradient Boosting": GradientBoostingRegressor(),
+            "XGBoost": xgb.XGBRegressor(objective='reg:squarederror')
+        }
+
         trained_results = {}
-        for name, m in models.items():
-            pipe = Pipeline(steps=[('pre', preprocessor), ('model', m)])
+        for name, model in models.items():
+            pipe = Pipeline(steps=[('pre', preprocessor), ('model', model)])
             pipe.fit(X, y)
-            trained_results[name] = (pipe, r2_score(y, pipe.predict(X)) * 100)
+            score = r2_score(y, pipe.predict(X)) * 100
+            trained_results[name] = (pipe, score)
         return trained_results
 
     trained_models = train_models(df_master)
 
-    tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights", "📅 Demand Forecast", "👥 Customer Analytics","📑 Executive Report"])
+    tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights", "📅 Demand Forecast", "👥 Customer Analytics"])
 
     if df.empty:
-        st.warning("⚠️ No data available. Please select at least one year from the sidebar.")
-    
+        st.warning("⚠️ No data available for the current selection. Please adjust your filters.")
     else:
-     
-       # --- TAB 1: EXECUTIVE DASHBOARD ---
+        # --- TAB 1: EXECUTIVE DASHBOARD ---
         with tabs[0]:
             st.subheader("Performance KPIs")
             k1, k2, k3, k4 = st.columns(4)
@@ -494,19 +472,7 @@ if uploaded_file is not None:
             }).reset_index()
             cust_metrics.columns = ['Customer', 'Revenue', 'Frequency', 'LastOrder', 'Country', 'Phone', 'Typical_Deal']
             cust_metrics['Recency'] = (current_date - cust_metrics['LastOrder']).dt.days
-            # ✅ SAFE SEGMENTATION (No Crash Version)
-            try:
-                cust_metrics['Deal size'] = pd.qcut(
-                    cust_metrics['Revenue'],
-                    q=3,
-                    labels=['Small', 'Medium', 'Large'],
-                    duplicates='drop'
-                )
-            except ValueError:
-                cust_metrics['Deal size'] = "Single Tier"
-
-           
-
+            cust_metrics['Deal size'] = pd.qcut(cust_metrics['Revenue'], q=3, labels=['Small', 'Medium', 'Large'])
             
             col_s1, col_s2 = st.columns([1, 1])
             with col_s1:
@@ -546,36 +512,6 @@ if uploaded_file is not None:
             top_custs = cust_metrics.nlargest(25, 'Revenue')['Customer']
             heat_data = df[df['CUSTOMERNAME'].isin(top_custs)].pivot_table(index='CUSTOMERNAME', columns='PRODUCTLINE', values='SALES', aggfunc='sum').fillna(0)
             st.plotly_chart(px.imshow(heat_data, text_auto='.2s', aspect="auto", color_continuous_scale='RdYlBu_r', template="plotly"), use_container_width=True)
-
-        
-            # --- TAB 6: EXECUTIVE REPORT (NEW STRUCTURED SUMMARY) ---
-      # --- TAB 6: EXECUTIVE REPORT ---
-        with tabs[5]:
-            st.header("📑 Executive Business Summary")
-            st.markdown("Structured overview of historical performance and AI-generated forecasts.")
-            
-            # KPI Cards
-            rep_col1, rep_col2, rep_col3 = st.columns(3)
-            rep_col1.metric("Historical Revenue", f"${df_historical['SALES'].sum()/1e6:.2f}M")
-            rep_col2.metric("AI Forecasted Value", f"${df_future['SALES'].sum()/1e6:.2f}M")
-            rep_col3.metric("Total Ecosystem Value", f"${df_master['SALES'].sum()/1e6:.2f}M")
-            
-            st.divider()
-            
-            col_left, col_right = st.columns(2)
-            with col_left:
-                st.subheader("🏁 Market Leaders")
-                st.table(df.groupby('COUNTRY')['SALES'].sum().nlargest(5).reset_index())
-            with col_right:
-                st.subheader("📈 Yearly Growth")
-                st.table(df_master.groupby('YEAR')['SALES'].sum().reset_index())
-            
-            st.divider()
-            st.subheader("📥 Export Center")
-            st.download_button("Download Full CSV Report", 
-                               data=convert_df_to_csv(df_master), 
-                               file_name="full_executive_report.csv", 
-                               mime="text/csv", use_container_width=True)
 
 else:
     # --- WELCOME PAGE ---
