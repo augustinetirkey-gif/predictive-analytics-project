@@ -14,6 +14,7 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 import xgboost as xgb
+from fpdf import FPDF
 import io
 
 # --- SYSTEM CONFIGURATION ---
@@ -150,8 +151,8 @@ if uploaded_file is not None:
 
     trained_models = train_models(df_master)
 
-    tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights", "📅 Demand Forecast", "👥 Customer Analytics"])
-
+  # Make sure this has the same number of leading spaces as the line above it
+    tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights", "📅 Demand Forecast", "👥 Customer Analytics", "📄 Executive Report"])
     if df.empty:
         st.warning("⚠️ No data available for the current selection. Please adjust your filters.")
     else:
@@ -524,6 +525,104 @@ if uploaded_file is not None:
             top_custs = cust_metrics.nlargest(25, 'Revenue')['Customer']
             heat_data = df[df['CUSTOMERNAME'].isin(top_custs)].pivot_table(index='CUSTOMERNAME', columns='PRODUCTLINE', values='SALES', aggfunc='sum').fillna(0)
             st.plotly_chart(px.imshow(heat_data, text_auto='.2s', aspect="auto", color_continuous_scale='RdYlBu_r', template="plotly"), use_container_width=True)
+           # --- TAB 6: COMPREHENSIVE STRATEGIC AUDIT ---
+        with tabs[5]:
+            st.header("📄 Comprehensive Strategic Intelligence Report")
+            st.markdown("This module compiles all analytical findings into a formal, multi-page audit for manual review.")
+
+            # --- 1. DATA AGGREGATION FOR ALL MODULES ---
+            total_rev = df['SALES'].sum() # [cite: 4]
+            avg_val = df['SALES'].mean() # [cite: 5]
+            top_mkt = df.groupby('COUNTRY')['SALES'].sum().idxmax() # [cite: 8]
+            top_pd = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax() # [cite: 9]
+            
+            # Leaderboards
+            mkt_tab = df.groupby('COUNTRY')['SALES'].sum().nlargest(5).reset_index()
+            prod_tab = df.groupby('PRODUCTLINE')['SALES'].sum().nlargest(5).reset_index()
+            # Customer Data
+            top_cust_tab = cust_metrics.nlargest(5, 'Revenue')[['Customer', 'Revenue', 'Typical_Deal']]
+            # Stats Summary
+            stats_tab = df[['SALES', 'QUANTITYORDERED', 'MSRP']].describe().reset_index()
+
+            # --- 2. THE PDF ENGINE ---
+            class AuditPDF(FPDF):
+                def header(self):
+                    self.set_fill_color(31, 78, 121) 
+                    self.rect(0, 0, 210, 40, 'F')
+                    self.set_text_color(255, 255, 255)
+                    self.set_font('Arial', 'B', 22)
+                    self.cell(0, 15, 'PREDICTICORP STRATEGIC AUDIT', 0, 1, 'C')
+                    self.set_font('Arial', 'I', 11)
+                    self.cell(0, 5, f'Generated: {pd.Timestamp.now().strftime("%Y-%m-%d")} | Internal Use', 0, 1, 'C')
+                    self.ln(20)
+
+                def footer(self):
+                    self.set_y(-15)
+                    self.set_font('Arial', 'I', 8)
+                    self.set_text_color(128, 128, 128)
+                    self.cell(0, 10, f'Page {self.page_no()} | PredictiCorp Intelligence', 0, 0, 'C')
+
+                def draw_table(self, title, data_df, col_widths):
+                    self.set_font('Arial', 'B', 12)
+                    self.set_text_color(31, 78, 121)
+                    self.cell(0, 10, title, 0, 1)
+                    self.set_font('Arial', 'B', 10)
+                    self.set_fill_color(230, 235, 245)
+                    self.set_text_color(0, 0, 0)
+                    for i, col in enumerate(data_df.columns):
+                        self.cell(col_widths[i], 10, str(col), 1, 0, 'C', fill=True)
+                    self.ln()
+                    self.set_font('Arial', '', 9)
+                    for row in data_df.itertuples(index=False):
+                        for i, val in enumerate(row):
+                            val_str = f"${val:,.2f}" if isinstance(val, (float, int)) and val > 100 else str(val)
+                            self.cell(col_widths[i], 8, val_str, 1)
+                        self.ln()
+                    self.ln(5)
+
+            # --- 3. BUILD THE DOCUMENT ---
+            pdf = AuditPDF()
+            pdf.set_auto_page_break(auto=True, margin=15)
+            
+            # PAGE 1: Financial & Descriptive Stats
+            pdf.add_page()
+            pdf.draw_table("1. Descriptive Statistics & Financial KPIs", stats_tab, [45, 45, 45, 45])
+            pdf.ln(5)
+            pdf.set_font("Arial", 'B', 11)
+            pdf.cell(0, 8, f"Total Aggregate Revenue: ${total_rev:,.2f}", 0, 1) # [cite: 4]
+            pdf.cell(0, 8, f"Total Processed Orders: {len(df):,}", 0, 1) # [cite: 6]
+
+            # PAGE 2: Market Rankings
+            pdf.add_page()
+            pdf.draw_table("2. Regional Market Leaderboard (Top 5)", mkt_tab, [100, 60]) # [cite: 7, 8]
+            pdf.draw_table("3. Product Line Performance (Top 5)", prod_tab, [100, 60]) # [cite: 9]
+
+            # PAGE 3: AI & Customers
+            pdf.add_page()
+            pdf.set_font('Arial', 'B', 14)
+            pdf.set_text_color(31, 78, 121)
+            pdf.cell(0, 10, "4. AI Diagnostics & Customer Health", 0, 1)
+            pdf.set_font("Arial", '', 11)
+            pdf.set_text_color(0, 0, 0)
+            # Model details [cite: 12, 13]
+            pdf.multi_cell(0, 8, f"Simulation Engine: {model_choice}\n"
+                                 f"Model Confidence (R2): {model_score:.2f}%\n"
+                                 f"Active Churn Risk: {len(churn_df)} clients identified.\n"
+                                 f"Priority Action: Inventory check for {top_pd} in {top_mkt}.")
+            pdf.ln(5)
+            pdf.draw_table("Top Value Client Portfolio", top_cust_tab, [60, 50, 50])
+
+            # --- 4. OUTPUT ---
+            pdf_bytes = bytes(pdf.output()) 
+
+            st.success("✅ Full Strategic Audit Compiled Successfully")
+            st.download_button(
+                label="📥 Download Professional Strategic Report",
+                data=pdf_bytes,
+                file_name=f"PredictiCorp_Full_Audit_{pd.Timestamp.now().strftime('%Y%m%d')}.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
 
 else:
     # --- WELCOME PAGE ---
