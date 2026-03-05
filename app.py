@@ -629,6 +629,7 @@ with tabs[5]:
         mime="application/pdf",
         use_container_width=True
     )
+    
 
 else:
     # --- WELCOME PAGE ---
