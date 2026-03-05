@@ -96,8 +96,30 @@ uploaded_file = st.sidebar.file_uploader("Upload Sales Data (CSV)", type=["csv"]
 MODEL_FEATURES = ['MONTH_ID', 'QTR_ID', 'MSRP', 'QUANTITYORDERED', 'PRODUCTLINE', 'COUNTRY']
 
 if uploaded_file is not None:
+    # --- 1. VALIDATION LOGIC ---
+    # Read only the header to save memory and check validity
+    try:
+        check_df = pd.read_csv(uploaded_file, nrows=0)
+        actual_columns = set(check_df.columns)
+        expected_columns = set(template_df.columns)
+        
+        # Check if all required template columns exist in the uploaded file
+        if not expected_columns.issubset(actual_columns):
+            missing = expected_columns - actual_columns
+            st.error(f"❌ **Invalid File Format!**")
+            st.warning(f"Your file is missing the following required columns: `{', '.join(missing)}`")
+            st.info("Please download and follow the **CSV Template** from the sidebar.")
+            st.stop() # Halts execution so the app doesn't crash on bad data
+            
+    except Exception as e:
+        st.error(f"Could not read file: {e}")
+        st.stop()
+
+    # --- 2. DATA PROCESSING (Only runs if validation passes) ---
     @st.cache_data
     def load_and_process_data(file):
+        # Reset file pointer since we read the header above
+        file.seek(0)
         df = pd.read_csv(file)
         if 'ORDERDATE' in df.columns:
             df['ORDERDATE'] = pd.to_datetime(df['ORDERDATE'])
@@ -106,6 +128,11 @@ if uploaded_file is not None:
         elif 'YEAR_ID' in df.columns:
             df['YEAR'] = df['YEAR_ID']
         return df
+
+    df_master = load_and_process_data(uploaded_file)
+    st.success("✅ File validated and loaded successfully!")
+    
+    # ... rest of your filter and tab logic follows ...
 
     df_master = load_and_process_data(uploaded_file)
     
