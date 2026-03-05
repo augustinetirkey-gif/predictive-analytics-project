@@ -629,7 +629,9 @@ with tabs[5]:
         mime="application/pdf",
         use_container_width=True
     )
-    
+
+
+
 else:
     # --- WELCOME PAGE ---
     st.markdown("""<div class="welcome-header"><h1>🚀 Welcome to PredictiCorp Intelligence</h1><p>The Global Executive Suite for Data-Driven Market Strategy</p></div>""", unsafe_allow_html=True)
