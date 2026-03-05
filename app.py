@@ -14,7 +14,6 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 import xgboost as xgb
-from fpdf import FPDF
 import io
 
 # --- SYSTEM CONFIGURATION ---
@@ -151,8 +150,8 @@ if uploaded_file is not None:
 
     trained_models = train_models(df_master)
 
-  # Make sure this has the same number of leading spaces as the line above it
     tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights", "📅 Demand Forecast", "👥 Customer Analytics"])
+
     if df.empty:
         st.warning("⚠️ No data available for the current selection. Please adjust your filters.")
     else:
@@ -525,7 +524,6 @@ if uploaded_file is not None:
             top_custs = cust_metrics.nlargest(25, 'Revenue')['Customer']
             heat_data = df[df['CUSTOMERNAME'].isin(top_custs)].pivot_table(index='CUSTOMERNAME', columns='PRODUCTLINE', values='SALES', aggfunc='sum').fillna(0)
             st.plotly_chart(px.imshow(heat_data, text_auto='.2s', aspect="auto", color_continuous_scale='RdYlBu_r', template="plotly"), use_container_width=True)
-        
 
 else:
     # --- WELCOME PAGE ---
