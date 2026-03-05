@@ -525,8 +525,8 @@ if uploaded_file is not None:
             top_custs = cust_metrics.nlargest(25, 'Revenue')['Customer']
             heat_data = df[df['CUSTOMERNAME'].isin(top_custs)].pivot_table(index='CUSTOMERNAME', columns='PRODUCTLINE', values='SALES', aggfunc='sum').fillna(0)
             st.plotly_chart(px.imshow(heat_data, text_auto='.2s', aspect="auto", color_continuous_scale='RdYlBu_r', template="plotly"), use_container_width=True)
-            
-with tabs[5]:
+
+        with tabs[5]:
     st.header("📄 Advanced Strategic Intelligence Report")
     st.markdown("Complete multi-page business intelligence audit with detailed insights.")
 
@@ -540,66 +540,96 @@ with tabs[5]:
     top_product = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
 
     # Tables
-    market_table = df.groupby('COUNTRY')['SALES'].sum().sort_values(ascending=False).reset_index()
-    product_table = df.groupby('PRODUCTLINE')['SALES'].sum().sort_values(ascending=False).reset_index()
-    customer_table = cust_metrics.sort_values(by="Revenue", ascending=False).head(10)
+    market_table = (
+        df.groupby('COUNTRY')['SALES']
+        .sum()
+        .sort_values(ascending=False)
+        .reset_index()
+    )
 
-    stats_table = df[['SALES','QUANTITYORDERED','MSRP']].describe().reset_index()
+    product_table = (
+        df.groupby('PRODUCTLINE')['SALES']
+        .sum()
+        .sort_values(ascending=False)
+        .reset_index()
+    )
+
+    customer_table = cust_metrics.sort_values(
+        by="Revenue", ascending=False
+    ).head(10)
+
+    stats_table = df[['SALES', 'QUANTITYORDERED', 'MSRP']].describe().reset_index()
 
     # ---------------- PDF ENGINE ----------------
     class AuditPDF(FPDF):
 
         def header(self):
-            self.set_fill_color(25,55,102)
-            self.rect(0,0,210,35,'F')
-            self.set_text_color(255,255,255)
-            self.set_font("Arial","B",20)
-            self.cell(0,12,"PredictiCorp Business Intelligence Audit",0,1,"C")
-            self.set_font("Arial","",10)
-            self.cell(0,6,f"Generated on: {pd.Timestamp.now().strftime('%Y-%m-%d')}",0,1,"C")
+            self.set_fill_color(25, 55, 102)
+            self.rect(0, 0, 210, 35, 'F')
+
+            self.set_text_color(255, 255, 255)
+            self.set_font("Arial", "B", 20)
+            self.cell(0, 12, "PredictiCorp Business Intelligence Audit", 0, 1, "C")
+
+            self.set_font("Arial", "", 10)
+            self.cell(
+                0,
+                6,
+                f"Generated on: {pd.Timestamp.now().strftime('%Y-%m-%d')}",
+                0,
+                1,
+                "C"
+            )
             self.ln(10)
 
         def footer(self):
             self.set_y(-15)
-            self.set_font("Arial","I",8)
-            self.set_text_color(120,120,120)
-            self.cell(0,10,f"Page {self.page_no()} | PredictiCorp Analytics Division",0,0,"C")
+            self.set_font("Arial", "I", 8)
+            self.set_text_color(120, 120, 120)
 
-        def section_title(self,title):
-            self.set_font("Arial","B",14)
-            self.set_text_color(25,55,102)
-            self.cell(0,10,title,0,1)
+            self.cell(
+                0,
+                10,
+                f"Page {self.page_no()} | PredictiCorp Analytics Division",
+                0,
+                0,
+                "C"
+            )
 
-        def paragraph(self,text):
-            self.set_font("Arial","",11)
-            self.set_text_color(0,0,0)
-            self.multi_cell(0,8,text)
+        def section_title(self, title):
+            self.set_font("Arial", "B", 14)
+            self.set_text_color(25, 55, 102)
+            self.cell(0, 10, title, 0, 1)
+
+        def paragraph(self, text):
+            self.set_font("Arial", "", 11)
+            self.set_text_color(0, 0, 0)
+            self.multi_cell(0, 8, text)
             self.ln(3)
 
-        def draw_table(self,title,data,col_widths):
+        def draw_table(self, title, data, col_widths):
 
-            self.set_font("Arial","B",12)
-            self.cell(0,8,title,0,1)
+            self.set_font("Arial", "B", 12)
+            self.cell(0, 8, title, 0, 1)
 
-            self.set_font("Arial","B",10)
+            self.set_font("Arial", "B", 10)
 
-            for i,col in enumerate(data.columns):
-                self.cell(col_widths[i],8,str(col),1,0,"C")
+            for i, col in enumerate(data.columns):
+                self.cell(col_widths[i], 8, str(col), 1, 0, "C")
 
             self.ln()
 
-            self.set_font("Arial","",9)
+            self.set_font("Arial", "", 9)
 
             for row in data.itertuples(index=False):
+                for i, val in enumerate(row):
 
-                for i,val in enumerate(row):
-
-                    if isinstance(val,(float,int)):
-                        text=f"{val:,.2f}"
+                    if isinstance(val, (float, int)):
+                        text = f"{val:,.2f}"
                     else:
-                        text=str(val)
+                        text = str(val)
 
-                    self.cell(col_widths[i],7,text,1)
+                    self.cell(col_widths[i], 7, text, 1)
 
                 self.ln()
 
@@ -607,7 +637,7 @@ with tabs[5]:
 
     # ---------------- BUILD REPORT ----------------
     pdf = AuditPDF()
-    pdf.set_auto_page_break(True,15)
+    pdf.set_auto_page_break(auto=True, margin=15)
 
     # PAGE 1 – EXECUTIVE SUMMARY
     pdf.add_page()
@@ -642,11 +672,7 @@ with tabs[5]:
         "including sales value, product pricing and quantity ordered."
     )
 
-    pdf.draw_table(
-        "Statistical Summary",
-        stats_table,
-        [40,40,40,40]
-    )
+    pdf.draw_table("Statistical Summary", stats_table, [40, 40, 40, 40])
 
     # PAGE 3 – MARKET ANALYSIS
     pdf.add_page()
@@ -655,15 +681,10 @@ with tabs[5]:
 
     pdf.paragraph(
         "Regional analysis identifies revenue contribution across different markets. "
-        "Understanding geographic performance helps optimize expansion strategy "
-        "and regional investment."
+        "Understanding geographic performance helps optimize expansion strategy."
     )
 
-    pdf.draw_table(
-        "Country Revenue Leaderboard",
-        market_table.head(10),
-        [90,60]
-    )
+    pdf.draw_table("Country Revenue Leaderboard", market_table.head(10), [90, 60])
 
     # PAGE 4 – PRODUCT ANALYSIS
     pdf.add_page()
@@ -671,15 +692,10 @@ with tabs[5]:
     pdf.section_title("4. Product Performance Analysis")
 
     pdf.paragraph(
-        "Product line analysis highlights which products drive the majority "
-        "of revenue. This helps in identifying high-value inventory segments."
+        "Product line analysis highlights which products drive the majority of revenue."
     )
 
-    pdf.draw_table(
-        "Product Revenue Ranking",
-        product_table.head(10),
-        [90,60]
-    )
+    pdf.draw_table("Product Revenue Ranking", product_table.head(10), [90, 60])
 
     # PAGE 5 – CUSTOMER INTELLIGENCE
     pdf.add_page()
@@ -687,14 +703,13 @@ with tabs[5]:
     pdf.section_title("5. Customer Portfolio Analysis")
 
     pdf.paragraph(
-        "Customer segmentation identifies high-value clients contributing "
-        "to business revenue. Retaining top customers is critical for long-term stability."
+        "Customer segmentation identifies high-value clients contributing to business revenue."
     )
 
     pdf.draw_table(
         "Top 10 Customers",
-        customer_table[['Customer','Revenue','Typical_Deal']],
-        [70,50,50]
+        customer_table[['Customer', 'Revenue', 'Typical_Deal']],
+        [70, 50, 50]
     )
 
     # PAGE 6 – AI MODEL DIAGNOSTICS
@@ -710,7 +725,7 @@ with tabs[5]:
 
     pdf.paragraph(
         f"Strategic action is recommended for product category '{top_product}' "
-        f"in market '{top_market}' due to its high sales impact."
+        f"in market '{top_market}'."
     )
 
     # PAGE 7 – STRATEGIC RECOMMENDATIONS
@@ -719,15 +734,15 @@ with tabs[5]:
     pdf.section_title("7. Strategic Business Recommendations")
 
     pdf.paragraph(
-        "1. Increase marketing investment in top performing markets.\n"
-        "2. Maintain sufficient inventory for high demand product lines.\n"
-        "3. Implement customer retention programs for high value clients.\n"
-        "4. Use AI predictions to improve sales forecasting.\n"
-        "5. Monitor churn indicators to prevent revenue loss."
+        "1. Increase marketing investment in top markets.\n"
+        "2. Maintain sufficient inventory for high demand products.\n"
+        "3. Implement customer retention strategies.\n"
+        "4. Use AI predictions to improve forecasting.\n"
+        "5. Monitor churn indicators."
     )
 
     # ---------------- EXPORT ----------------
-    pdf_bytes = bytes(pdf.output())
+    pdf_bytes = pdf.output(dest="S").encode("latin-1")
 
     st.success("✅ Detailed Strategic Intelligence Report Ready")
 
@@ -738,10 +753,6 @@ with tabs[5]:
         mime="application/pdf",
         use_container_width=True
     )
-
-
-         
-        
         
 
 else:
