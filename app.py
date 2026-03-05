@@ -127,12 +127,7 @@ if uploaded_file is not None:
         st.stop()  # stops execution until correct CSV is uploaded
     
 
-# --- Check if all required columns exist ---
-missing_cols = [col for col in TEMPLATE_COLUMNS if col not in df_master.columns]
 
-if missing_cols:
-    st.error(f"⚠️ Uploaded CSV is missing these required columns: {', '.join(missing_cols)}")
-    st.stop()  # stop further execution until correct file is uploaded
     
     st.sidebar.subheader("🔍 Filter Strategy")
     st_year = st.sidebar.multiselect("Fiscal Year", options=sorted(df_master['YEAR'].unique()), default=df_master['YEAR'].unique())
