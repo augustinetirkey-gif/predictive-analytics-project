@@ -85,6 +85,10 @@ def convert_df_to_csv(df):
 
 template_df = pd.DataFrame(columns=['ORDERNUMBER', 'QUANTITYORDERED', 'PRICEEACH', 'SALES', 'ORDERDATE', 'STATUS', 'QTR_ID', 'MONTH_ID', 'YEAR_ID', 'PRODUCTLINE', 'MSRP', 'PRODUCTCODE', 'CUSTOMERNAME', 'COUNTRY', 'TERRITORY', 'DEALSIZE'])
 csv_template = convert_df_to_csv(template_df)
+# --- REQUIRED TEMPLATE COLUMNS ---
+TEMPLATE_COLUMNS = ['ORDERNUMBER', 'QUANTITYORDERED', 'PRICEEACH', 'SALES', 'ORDERDATE', 
+                    'STATUS', 'QTR_ID', 'MONTH_ID', 'YEAR_ID', 'PRODUCTLINE', 'MSRP', 
+                    'PRODUCTCODE', 'CUSTOMERNAME', 'COUNTRY', 'TERRITORY', 'DEALSIZE']
 
 # --- SIDEBAR ---
 st.sidebar.title("🏢 BI Command Center")
