@@ -130,7 +130,7 @@ if uploaded_file is not None:
         return df
 
     df_master = load_and_process_data(uploaded_file)
-    st.success("✅ File validated and loaded successfully!")
+    
     
     # ... rest of your filter and tab logic follows ...
 
