@@ -85,10 +85,6 @@ def convert_df_to_csv(df):
 
 template_df = pd.DataFrame(columns=['ORDERNUMBER', 'QUANTITYORDERED', 'PRICEEACH', 'SALES', 'ORDERDATE', 'STATUS', 'QTR_ID', 'MONTH_ID', 'YEAR_ID', 'PRODUCTLINE', 'MSRP', 'PRODUCTCODE', 'CUSTOMERNAME', 'COUNTRY', 'TERRITORY', 'DEALSIZE'])
 csv_template = convert_df_to_csv(template_df)
-# --- REQUIRED TEMPLATE COLUMNS ---
-TEMPLATE_COLUMNS = ['ORDERNUMBER', 'QUANTITYORDERED', 'PRICEEACH', 'SALES', 'ORDERDATE', 
-                    'STATUS', 'QTR_ID', 'MONTH_ID', 'YEAR_ID', 'PRODUCTLINE', 'MSRP', 
-                    'PRODUCTCODE', 'CUSTOMERNAME', 'COUNTRY', 'TERRITORY', 'DEALSIZE']
 
 # --- SIDEBAR ---
 st.sidebar.title("🏢 BI Command Center")
@@ -112,22 +108,6 @@ if uploaded_file is not None:
         return df
 
     df_master = load_and_process_data(uploaded_file)
-
-    # --- VALIDATE TEMPLATE ---
-    missing_cols = [col for col in TEMPLATE_COLUMNS if col not in df_master.columns]
-    extra_cols = [col for col in df_master.columns if col not in TEMPLATE_COLUMNS]
-
-    if missing_cols or extra_cols:
-        st.error("⚠️ Uploaded CSV does NOT match the required template!")
-        if missing_cols:
-            st.write(f"❌ Missing columns: {', '.join(missing_cols)}")
-        if extra_cols:
-            st.write(f"❌ Extra/unexpected columns: {', '.join(extra_cols)}")
-        st.info("📋 Please use the CSV template provided in the sidebar.")
-        st.stop()  # stops execution until correct CSV is uploaded
-    
-
-
     
     st.sidebar.subheader("🔍 Filter Strategy")
     st_year = st.sidebar.multiselect("Fiscal Year", options=sorted(df_master['YEAR'].unique()), default=df_master['YEAR'].unique())
