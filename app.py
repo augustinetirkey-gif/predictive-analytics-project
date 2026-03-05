@@ -526,9 +526,9 @@ if uploaded_file is not None:
             heat_data = df[df['CUSTOMERNAME'].isin(top_custs)].pivot_table(index='CUSTOMERNAME', columns='PRODUCTLINE', values='SALES', aggfunc='sum').fillna(0)
             st.plotly_chart(px.imshow(heat_data, text_auto='.2s', aspect="auto", color_continuous_scale='RdYlBu_r', template="plotly"), use_container_width=True)
 
-        with tabs[5]:
-             st.header("📄 Advanced Strategic Intelligence Report")
-             st.markdown("Complete multi-page business intelligence audit with detailed insights.")
+   with tabs[5]:
+    st.header("📄 Advanced Strategic Intelligence Report")
+    st.markdown("Complete multi-page business intelligence audit with detailed insights.")
 
     # ---------------- DATA PREPARATION ----------------
     total_revenue = df['SALES'].sum()
@@ -539,7 +539,6 @@ if uploaded_file is not None:
     top_market = df.groupby('COUNTRY')['SALES'].sum().idxmax()
     top_product = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
 
-    # Tables
     market_table = (
         df.groupby('COUNTRY')['SALES']
         .sum()
@@ -554,10 +553,7 @@ if uploaded_file is not None:
         .reset_index()
     )
 
-    customer_table = cust_metrics.sort_values(
-        by="Revenue", ascending=False
-    ).head(10)
-
+    customer_table = cust_metrics.sort_values(by="Revenue", ascending=False).head(10)
     stats_table = df[['SALES', 'QUANTITYORDERED', 'MSRP']].describe().reset_index()
 
     # ---------------- PDF ENGINE ----------------
@@ -566,35 +562,18 @@ if uploaded_file is not None:
         def header(self):
             self.set_fill_color(25, 55, 102)
             self.rect(0, 0, 210, 35, 'F')
-
             self.set_text_color(255, 255, 255)
             self.set_font("Arial", "B", 20)
             self.cell(0, 12, "PredictiCorp Business Intelligence Audit", 0, 1, "C")
-
             self.set_font("Arial", "", 10)
-            self.cell(
-                0,
-                6,
-                f"Generated on: {pd.Timestamp.now().strftime('%Y-%m-%d')}",
-                0,
-                1,
-                "C"
-            )
+            self.cell(0, 6, f"Generated on: {pd.Timestamp.now().strftime('%Y-%m-%d')}", 0, 1, "C")
             self.ln(10)
 
         def footer(self):
             self.set_y(-15)
             self.set_font("Arial", "I", 8)
             self.set_text_color(120, 120, 120)
-
-            self.cell(
-                0,
-                10,
-                f"Page {self.page_no()} | PredictiCorp Analytics Division",
-                0,
-                0,
-                "C"
-            )
+            self.cell(0, 10, f"Page {self.page_no()} | PredictiCorp Analytics Division", 0, 0, "C")
 
         def section_title(self, title):
             self.set_font("Arial", "B", 14)
@@ -608,31 +587,18 @@ if uploaded_file is not None:
             self.ln(3)
 
         def draw_table(self, title, data, col_widths):
-
             self.set_font("Arial", "B", 12)
             self.cell(0, 8, title, 0, 1)
-
             self.set_font("Arial", "B", 10)
-
             for i, col in enumerate(data.columns):
                 self.cell(col_widths[i], 8, str(col), 1, 0, "C")
-
             self.ln()
-
             self.set_font("Arial", "", 9)
-
             for row in data.itertuples(index=False):
                 for i, val in enumerate(row):
-
-                    if isinstance(val, (float, int)):
-                        text = f"{val:,.2f}"
-                    else:
-                        text = str(val)
-
+                    text = f"{val:,.2f}" if isinstance(val, (float, int)) else str(val)
                     self.cell(col_widths[i], 7, text, 1)
-
                 self.ln()
-
             self.ln(5)
 
     # ---------------- BUILD REPORT ----------------
@@ -641,9 +607,7 @@ if uploaded_file is not None:
 
     # PAGE 1 – EXECUTIVE SUMMARY
     pdf.add_page()
-
     pdf.section_title("1. Executive Summary")
-
     pdf.paragraph(
         f"This strategic audit evaluates company sales performance, customer behavior, "
         f"market distribution and AI forecasting diagnostics. The dataset contains "
@@ -652,9 +616,7 @@ if uploaded_file is not None:
         f"product category is {top_product}. This report highlights operational insights, "
         f"risk indicators and strategic opportunities for business growth."
     )
-
     pdf.section_title("Key Financial Indicators")
-
     pdf.paragraph(
         f"Total Revenue: ${total_revenue:,.2f}\n"
         f"Average Sales Value: ${avg_sales:,.2f}\n"
@@ -664,48 +626,36 @@ if uploaded_file is not None:
 
     # PAGE 2 – DATASET STATISTICS
     pdf.add_page()
-
     pdf.section_title("2. Dataset Statistical Overview")
-
     pdf.paragraph(
         "This section summarizes the statistical distribution of key business variables "
         "including sales value, product pricing and quantity ordered."
     )
-
     pdf.draw_table("Statistical Summary", stats_table, [40, 40, 40, 40])
 
     # PAGE 3 – MARKET ANALYSIS
     pdf.add_page()
-
     pdf.section_title("3. Market Performance Analysis")
-
     pdf.paragraph(
         "Regional analysis identifies revenue contribution across different markets. "
         "Understanding geographic performance helps optimize expansion strategy."
     )
-
     pdf.draw_table("Country Revenue Leaderboard", market_table.head(10), [90, 60])
 
     # PAGE 4 – PRODUCT ANALYSIS
     pdf.add_page()
-
     pdf.section_title("4. Product Performance Analysis")
-
     pdf.paragraph(
         "Product line analysis highlights which products drive the majority of revenue."
     )
-
     pdf.draw_table("Product Revenue Ranking", product_table.head(10), [90, 60])
 
     # PAGE 5 – CUSTOMER INTELLIGENCE
     pdf.add_page()
-
     pdf.section_title("5. Customer Portfolio Analysis")
-
     pdf.paragraph(
         "Customer segmentation identifies high-value clients contributing to business revenue."
     )
-
     pdf.draw_table(
         "Top 10 Customers",
         customer_table[['Customer', 'Revenue', 'Typical_Deal']],
@@ -714,15 +664,12 @@ if uploaded_file is not None:
 
     # PAGE 6 – AI MODEL DIAGNOSTICS
     pdf.add_page()
-
     pdf.section_title("6. AI Forecasting Diagnostics")
-
     pdf.paragraph(
         f"Predictive modeling was conducted using the {model_choice} algorithm. "
         f"The model achieved an R2 accuracy score of {model_score:.2f}. "
         f"Churn analysis identified {len(churn_df)} customers at potential risk."
     )
-
     pdf.paragraph(
         f"Strategic action is recommended for product category '{top_product}' "
         f"in market '{top_market}'."
@@ -730,9 +677,7 @@ if uploaded_file is not None:
 
     # PAGE 7 – STRATEGIC RECOMMENDATIONS
     pdf.add_page()
-
     pdf.section_title("7. Strategic Business Recommendations")
-
     pdf.paragraph(
         "1. Increase marketing investment in top markets.\n"
         "2. Maintain sufficient inventory for high demand products.\n"
@@ -742,10 +687,10 @@ if uploaded_file is not None:
     )
 
     # ---------------- EXPORT ----------------
-    pdf_bytes = pdf.output(dest="S").encode("latin-1")
+    pdf_output = pdf.output(dest="S")
+    pdf_bytes = pdf_output.encode("latin-1") if isinstance(pdf_output, str) else pdf_output
 
     st.success("✅ Detailed Strategic Intelligence Report Ready")
-
     st.download_button(
         label="📥 Download Full Intelligence Report",
         data=pdf_bytes,
