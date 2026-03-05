@@ -527,8 +527,8 @@ if uploaded_file is not None:
             st.plotly_chart(px.imshow(heat_data, text_auto='.2s', aspect="auto", color_continuous_scale='RdYlBu_r', template="plotly"), use_container_width=True)
 
         with tabs[5]:
-    st.header("📄 Advanced Strategic Intelligence Report")
-    st.markdown("Complete multi-page business intelligence audit with detailed insights.")
+             st.header("📄 Advanced Strategic Intelligence Report")
+             st.markdown("Complete multi-page business intelligence audit with detailed insights.")
 
     # ---------------- DATA PREPARATION ----------------
     total_revenue = df['SALES'].sum()
