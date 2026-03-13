@@ -138,7 +138,6 @@ if uploaded_file is not None:
     
     st.sidebar.subheader("🔍 Filter Strategy")
     st_year = st.sidebar.multiselect("Fiscal Year", options=sorted(df_master['YEAR'].unique()), default=df_master['YEAR'].unique())
-    st_year = st.sidebar.multiselect("Fiscal Year", options=sorted(df_master['YEAR'].unique()), default=df_master['YEAR'].unique())
     forecast_year = st.sidebar.multiselect(
          "Select Forecast Year (AI Prediction)",
           [None, 2006, 2007, 2008, 2009, 2010]
