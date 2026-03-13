@@ -92,7 +92,6 @@ st.sidebar.download_button(label="📥 Download CSV Template", data=csv_template
 st.sidebar.divider()
 uploaded_file = st.sidebar.file_uploader("Upload Sales Data (CSV)", type=["csv"])
 
-
 # Define prediction features globally for use in functions and tuning
 MODEL_FEATURES = ['MONTH_ID', 'QTR_ID', 'MSRP', 'QUANTITYORDERED', 'PRODUCTLINE', 'COUNTRY']
 
@@ -139,10 +138,6 @@ if uploaded_file is not None:
     
     st.sidebar.subheader("🔍 Filter Strategy")
     st_year = st.sidebar.multiselect("Fiscal Year", options=sorted(df_master['YEAR'].unique()), default=df_master['YEAR'].unique())
-    forecast_year = st.sidebar.multiselect(
-         "Select Forecast Year (AI Prediction)",
-          [None, 2006, 2007, 2008, 2009, 2010]
-    )
     st_country = st.sidebar.multiselect("Active Markets", options=sorted(df_master['COUNTRY'].unique()), default=df_master['COUNTRY'].unique())
     st_product = st.sidebar.multiselect("Product Line", options=sorted(df_master['PRODUCTLINE'].unique()), default=df_master['PRODUCTLINE'].unique())
     
@@ -152,38 +147,37 @@ if uploaded_file is not None:
         (df_master['PRODUCTLINE'].isin(st_product))
     ]
 
- 
-# --- TRAIN MODELS (always outside if-else) ---
-@st.cache_resource
-def train_models(data):
-    data = data[MODEL_FEATURES + ['SALES']].dropna()
-    X = data[MODEL_FEATURES]
-    y = data['SALES']
+    @st.cache_resource
+    def train_models(data):
+        data = data[MODEL_FEATURES + ['SALES']].dropna()
 
-    preprocessor = ColumnTransformer([
-        ('cat', OneHotEncoder(handle_unknown='ignore'), ['PRODUCTLINE', 'COUNTRY']),
-        ('num', StandardScaler(), ['MONTH_ID','QTR_ID','MSRP','QUANTITYORDERED'])
-    ])
+        X = data[MODEL_FEATURES]
+        y = data['SALES']
 
-    models = {
-        "Linear Regression": LinearRegression(),
-        "Decision Tree": DecisionTreeRegressor(max_depth=5),
-        "Random Forest": RandomForestRegressor(n_estimators=100, random_state=42),
-        "Gradient Boosting": GradientBoostingRegressor(),
-        "XGBoost": xgb.XGBRegressor(objective='reg:squarederror')
-    }
+        preprocessor = ColumnTransformer([
+         ('cat', OneHotEncoder(handle_unknown='ignore'), ['PRODUCTLINE', 'COUNTRY']),
+          ('num', StandardScaler(), ['MONTH_ID','QTR_ID','MSRP','QUANTITYORDERED'])
+        ])
 
-    trained_results = {}
-    for name, model in models.items():
-        pipe = Pipeline(steps=[('pre', preprocessor), ('model', model)])
-        pipe.fit(X, y)
-        score = r2_score(y, pipe.predict(X)) * 100
-        trained_results[name] = (pipe, score)
-    return trained_results
+        models = {
+            "Linear Regression": LinearRegression(),
+            "Decision Tree": DecisionTreeRegressor(max_depth=5),
+            "Random Forest": RandomForestRegressor(n_estimators=100, random_state=42),
+            "Gradient Boosting": GradientBoostingRegressor(),
+            "XGBoost": xgb.XGBRegressor(objective='reg:squarederror')
+        }
 
-trained_models = train_models(df_master)
-   
- tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights", "📅 Demand Forecast", "👥 Customer Analytics"])
+        trained_results = {}
+        for name, model in models.items():
+            pipe = Pipeline(steps=[('pre', preprocessor), ('model', model)])
+            pipe.fit(X, y)
+            score = r2_score(y, pipe.predict(X)) * 100
+            trained_results[name] = (pipe, score)
+        return trained_results
+
+    trained_models = train_models(df_master)
+
+    tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights", "📅 Demand Forecast", "👥 Customer Analytics"])
 
     if df.empty:
         st.warning("⚠️ No data available for the current selection. Please adjust your filters.")
