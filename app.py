@@ -151,15 +151,14 @@ if uploaded_file is not None:
         (df_master['COUNTRY'].isin(st_country)) & 
         (df_master['PRODUCTLINE'].isin(st_product))
     ]
-   
 
-# --- FUTURE FORECAST GENERATION ---
+    # --- FUTURE FORECAST GENERATION ---
 if forecast_year is not None:
     st.sidebar.success(f"📅 Forecasting AI predictions for {forecast_year}")
 
     forecast_rows = []
     for month in range(1, 13):
-        sample = df_master.sample(1).copy()  # Take a random row to keep the structure
+        sample = df_master.sample(1).copy()
         sample['YEAR'] = forecast_year
         sample['YEAR_ID'] = forecast_year
         sample['MONTH_ID'] = month
@@ -168,40 +167,49 @@ if forecast_year is not None:
 
     future_df = pd.concat(forecast_rows, ignore_index=True)
 
-    model = trained_models["Random Forest"][0]  # Or any model you choose
+    model = trained_models["Random Forest"][0]
     future_df['SALES'] = model.predict(future_df[MODEL_FEATURES])
 
-    df = future_df  # This df will be used in all tabs
+    df = future_df
+else:
+    df = df_master[
+        (df_master['YEAR'].isin(st_year)) &
+        (df_master['COUNTRY'].isin(st_country)) &
+        (df_master['PRODUCTLINE'].isin(st_product))
+    ]
 
-    @st.cache_resource
-    def train_models(data):
-        data = data[MODEL_FEATURES + ['SALES']].dropna()
+# --- TRAIN MODELS (always outside if-else) ---
+@st.cache_resource
+def train_models(data):
+    data = data[MODEL_FEATURES + ['SALES']].dropna()
+    X = data[MODEL_FEATURES]
+    y = data['SALES']
 
-        X = data[MODEL_FEATURES]
-        y = data['SALES']
+    preprocessor = ColumnTransformer([
+        ('cat', OneHotEncoder(handle_unknown='ignore'), ['PRODUCTLINE', 'COUNTRY']),
+        ('num', StandardScaler(), ['MONTH_ID','QTR_ID','MSRP','QUANTITYORDERED'])
+    ])
 
-        preprocessor = ColumnTransformer([
-         ('cat', OneHotEncoder(handle_unknown='ignore'), ['PRODUCTLINE', 'COUNTRY']),
-          ('num', StandardScaler(), ['MONTH_ID','QTR_ID','MSRP','QUANTITYORDERED'])
-        ])
+    models = {
+        "Linear Regression": LinearRegression(),
+        "Decision Tree": DecisionTreeRegressor(max_depth=5),
+        "Random Forest": RandomForestRegressor(n_estimators=100, random_state=42),
+        "Gradient Boosting": GradientBoostingRegressor(),
+        "XGBoost": xgb.XGBRegressor(objective='reg:squarederror')
+    }
 
-        models = {
-            "Linear Regression": LinearRegression(),
-            "Decision Tree": DecisionTreeRegressor(max_depth=5),
-            "Random Forest": RandomForestRegressor(n_estimators=100, random_state=42),
-            "Gradient Boosting": GradientBoostingRegressor(),
-            "XGBoost": xgb.XGBRegressor(objective='reg:squarederror')
-        }
+    trained_results = {}
+    for name, model in models.items():
+        pipe = Pipeline(steps=[('pre', preprocessor), ('model', model)])
+        pipe.fit(X, y)
+        score = r2_score(y, pipe.predict(X)) * 100
+        trained_results[name] = (pipe, score)
+    return trained_results
 
-        trained_results = {}
-        for name, model in models.items():
-            pipe = Pipeline(steps=[('pre', preprocessor), ('model', model)])
-            pipe.fit(X, y)
-            score = r2_score(y, pipe.predict(X)) * 100
-            trained_results[name] = (pipe, score)
-        return trained_results
+trained_models = train_models(df_master)
+   
 
-    trained_models = train_models(df_master)
+
   
 
     tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights", "📅 Demand Forecast", "👥 Customer Analytics"])
