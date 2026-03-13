@@ -208,11 +208,7 @@ def train_models(data):
 
 trained_models = train_models(df_master)
    
-
-
-  
-
-    tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights", "📅 Demand Forecast", "👥 Customer Analytics"])
+ tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights", "📅 Demand Forecast", "👥 Customer Analytics"])
 
     if df.empty:
         st.warning("⚠️ No data available for the current selection. Please adjust your filters.")
