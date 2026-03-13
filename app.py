@@ -182,7 +182,7 @@ if uploaded_file is not None:
     trained_models = train_models(df_master)
     # --- FUTURE FORECAST GENERATION USING MULTISELECT ---
 
-predict_year = forecast_year[0] if len(forecast_year) > 0 else None
+    predict_year = forecast_year[0] if len(forecast_year) > 0 else None
 
     st.sidebar.success(f"📅 AI Forecast Mode: {', '.join(map(str, forecast_year))}")
 
