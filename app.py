@@ -183,34 +183,7 @@ if uploaded_file is not None:
         return trained_results
 
     trained_models = train_models(df_master)
-    # --- FUTURE FORECAST GENERATION ---
-if forecast_year is not None:
-    st.sidebar.success(f"📅 Forecasting AI predictions for {forecast_year}")
-
-    forecast_rows = []
-    for month in range(1, 13):
-        # sample one random row to reuse categorical values
-        sample = df_master.sample(1).copy()
-        sample['YEAR'] = forecast_year
-        sample['YEAR_ID'] = forecast_year
-        sample['MONTH_ID'] = month
-        sample['QTR_ID'] = (month - 1) // 3 + 1
-        forecast_rows.append(sample)
-
-    future_df = pd.concat(forecast_rows, ignore_index=True)
-
-    # use Random Forest model for forecasting
-    model = trained_models["Random Forest"][0]
-    future_df['SALES'] = model.predict(future_df[MODEL_FEATURES])
-
-    # Replace dataset for dashboards
-    df = future_df
-else:
-    df = df_master[
-        (df_master['YEAR'].isin(st_year))
-        & (df_master['COUNTRY'].isin(st_country))
-        & (df_master['PRODUCTLINE'].isin(st_product))
-    ]
+  
 
     tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights", "📅 Demand Forecast", "👥 Customer Analytics"])
 
