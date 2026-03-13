@@ -347,26 +347,16 @@ if forecast_year and len(forecast_year) > 0:
                         selected_model = grid.best_estimator_
 
             # --- PREDICTION EXECUTION ---
+            # --- PREDICTION EXECUTION ---
             if st.button("RUN AI SIMULATION & REALITY CHECK", use_container_width=True, type="primary"):
-
-                # Ensure year always exists
-                predict_year = int(forecast_year[0]) if forecast_year else int(df_master['YEAR'].max())
-
-                sample = pd.DataFrame([{
-                    'YEAR': predict_year,
-                    'MONTH_ID': int(in_month),
-                    'QTR_ID': int((in_month-1)//3+1),
-                    'MSRP': float(in_msrp),
-                    'QUANTITYORDERED': int(in_qty),
-                    'PRODUCTLINE': in_prod,
+                inp = pd.DataFrame([{
+                    'MONTH_ID': in_month, 
+                    'QTR_ID': (in_month-1)//3+1, 
+                    'MSRP': in_msrp, 
+                    'QUANTITYORDERED': in_qty, 
+                    'PRODUCTLINE': in_prod, 
                     'COUNTRY': in_country
                 }])
-
-                # Fill missing values just in case
-                sample = sample.fillna(0)
-
-                pred = selected_model.predict(sample[MODEL_FEATURES])[0]
-           
                 
                 # The model will now predict based on the high input values
                 pred = selected_model.predict(inp)[0]
