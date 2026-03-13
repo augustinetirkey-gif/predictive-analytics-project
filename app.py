@@ -349,22 +349,23 @@ if uploaded_file is not None:
             # --- PREDICTION EXECUTION ---
             if st.button("RUN AI SIMULATION & REALITY CHECK", use_container_width=True, type="primary"):
 
-               if predict_year is None:
-                   st.warning("Please select a prediction year to run AI simulation.")
-               else:
-                   inp = pd.DataFrame([{
-                       'YEAR': predict_year,
-                       'MONTH_ID': in_month,
-                       'QTR_ID': (in_month-1)//3+1,
-                       'MSRP': in_msrp,
-                       'QUANTITYORDERED': in_qty,
-                       'PRODUCTLINE': in_prod,
-                       'COUNTRY': in_country
-                   }])
+    if predict_year is None:
+        st.warning("Please select a prediction year to run AI simulation.")
+    else:
+        inp = pd.DataFrame([{
+            'YEAR': predict_year,
+            'MONTH_ID': in_month,
+            'QTR_ID': (in_month-1)//3+1,
+            'MSRP': in_msrp,
+            'QUANTITYORDERED': in_qty,
+            'PRODUCTLINE': in_prod,
+            'COUNTRY': in_country
+        }])
 
-                   pred = selected_model.predict(inp)[0]
-
-                st.markdown(f"""
+        pred = selected_model.predict(inp)[0]
+           
+                       
+            st.markdown(f"""
                     <div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;border: 2px solid #1f4e79;margin-bottom:25px;'>
                         <p style='color:#1f4e79; font-weight:bold; margin-bottom:0;'>PROJECTED REVENUE</p>
                         <h1 style='color:#1f4e79; font-size:48px; margin-top:0;'>${pred:,.2f}</h1>
