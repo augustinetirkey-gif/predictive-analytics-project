@@ -360,9 +360,9 @@ if uploaded_file is not None:
                        'QUANTITYORDERED': in_qty,
                        'PRODUCTLINE': in_prod,
                        'COUNTRY': in_country
-                  }])
+                   }])
 
-                  pred = selected_model.predict(inp)[0]
+                   pred = selected_model.predict(inp)[0]
 
                 st.markdown(f"""
                     <div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;border: 2px solid #1f4e79;margin-bottom:25px;'>
