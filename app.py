@@ -91,13 +91,7 @@ st.sidebar.title("🏢 BI Command Center")
 st.sidebar.download_button(label="📥 Download CSV Template", data=csv_template, file_name="sales_data_template.csv", mime="text/csv")
 st.sidebar.divider()
 uploaded_file = st.sidebar.file_uploader("Upload Sales Data (CSV)", type=["csv"])
-# --- FORECAST YEAR SELECTION ---
-st.sidebar.subheader("🔮 Forecast Settings")
 
-forecast_year = st.sidebar.selectbox(
-    "Select Forecast Year (AI Prediction)",
-    [None, 2006, 2007, 2008, 2009, 2010]
-)
 
 # Define prediction features globally for use in functions and tuning
 MODEL_FEATURES = ['MONTH_ID', 'QTR_ID', 'MSRP', 'QUANTITYORDERED', 'PRODUCTLINE', 'COUNTRY']
