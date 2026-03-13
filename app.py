@@ -91,6 +91,13 @@ st.sidebar.title("🏢 BI Command Center")
 st.sidebar.download_button(label="📥 Download CSV Template", data=csv_template, file_name="sales_data_template.csv", mime="text/csv")
 st.sidebar.divider()
 uploaded_file = st.sidebar.file_uploader("Upload Sales Data (CSV)", type=["csv"])
+# --- FORECAST YEAR SELECTION ---
+st.sidebar.subheader("🔮 Forecast Settings")
+
+forecast_year = st.sidebar.selectbox(
+    "Select Forecast Year (AI Prediction)",
+    [None, 2006, 2007, 2008, 2009, 2010]
+)
 
 # Define prediction features globally for use in functions and tuning
 MODEL_FEATURES = ['MONTH_ID', 'QTR_ID', 'MSRP', 'QUANTITYORDERED', 'PRODUCTLINE', 'COUNTRY']
@@ -176,6 +183,34 @@ if uploaded_file is not None:
         return trained_results
 
     trained_models = train_models(df_master)
+    # --- FUTURE FORECAST GENERATION ---
+if forecast_year is not None:
+    st.sidebar.success(f"📅 Forecasting AI predictions for {forecast_year}")
+
+    forecast_rows = []
+    for month in range(1, 13):
+        # sample one random row to reuse categorical values
+        sample = df_master.sample(1).copy()
+        sample['YEAR'] = forecast_year
+        sample['YEAR_ID'] = forecast_year
+        sample['MONTH_ID'] = month
+        sample['QTR_ID'] = (month - 1) // 3 + 1
+        forecast_rows.append(sample)
+
+    future_df = pd.concat(forecast_rows, ignore_index=True)
+
+    # use Random Forest model for forecasting
+    model = trained_models["Random Forest"][0]
+    future_df['SALES'] = model.predict(future_df[MODEL_FEATURES])
+
+    # Replace dataset for dashboards
+    df = future_df
+else:
+    df = df_master[
+        (df_master['YEAR'].isin(st_year))
+        & (df_master['COUNTRY'].isin(st_country))
+        & (df_master['PRODUCTLINE'].isin(st_product))
+    ]
 
     tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights", "📅 Demand Forecast", "👥 Customer Analytics"])
 
