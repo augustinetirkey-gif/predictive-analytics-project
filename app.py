@@ -349,7 +349,10 @@ if forecast_year and len(forecast_year) > 0:
             # --- PREDICTION EXECUTION ---
             # --- PREDICTION EXECUTION ---
             if st.button("RUN AI SIMULATION & REALITY CHECK", use_container_width=True, type="primary"):
+                predict_year = forecast_year[0] if forecast_year else df_master['YEAR'].max()
+
                 inp = pd.DataFrame([{
+                    'YEAR': predict_year,
                     'MONTH_ID': in_month, 
                     'QTR_ID': (in_month-1)//3+1, 
                     'MSRP': in_msrp, 
