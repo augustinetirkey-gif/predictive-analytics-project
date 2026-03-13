@@ -151,6 +151,37 @@ if uploaded_file is not None:
         (df_master['COUNTRY'].isin(st_country)) & 
         (df_master['PRODUCTLINE'].isin(st_product))
     ]
+    # --- Apply Filter Strategy ---
+st_year = st.sidebar.multiselect("Fiscal Year", options=sorted(df_master['YEAR'].unique()), default=df_master['YEAR'].unique())
+st_country = st.sidebar.multiselect("Active Markets", options=sorted(df_master['COUNTRY'].unique()), default=df_master['COUNTRY'].unique())
+st_product = st.sidebar.multiselect("Product Line", options=sorted(df_master['PRODUCTLINE'].unique()), default=df_master['PRODUCTLINE'].unique())
+forecast_year = st.sidebar.selectbox("Select Forecast Year (AI Prediction)", [None, 2006, 2007, 2008, 2009, 2010])
+
+# --- FUTURE FORECAST GENERATION ---
+if forecast_year is not None:
+    st.sidebar.success(f"📅 Forecasting AI predictions for {forecast_year}")
+
+    forecast_rows = []
+    for month in range(1, 13):
+        sample = df_master.sample(1).copy()  # Take a random row to keep the structure
+        sample['YEAR'] = forecast_year
+        sample['YEAR_ID'] = forecast_year
+        sample['MONTH_ID'] = month
+        sample['QTR_ID'] = (month - 1) // 3 + 1
+        forecast_rows.append(sample)
+
+    future_df = pd.concat(forecast_rows, ignore_index=True)
+
+    model = trained_models["Random Forest"][0]  # Or any model you choose
+    future_df['SALES'] = model.predict(future_df[MODEL_FEATURES])
+
+    df = future_df  # This df will be used in all tabs
+ else:
+    df = df_master[
+        (df_master['YEAR'].isin(st_year)) &
+        (df_master['COUNTRY'].isin(st_country)) &
+        (df_master['PRODUCTLINE'].isin(st_product))
+    ]
 
     @st.cache_resource
     def train_models(data):
