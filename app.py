@@ -176,7 +176,7 @@ if forecast_year is not None:
     future_df['SALES'] = model.predict(future_df[MODEL_FEATURES])
 
     df = future_df  # This df will be used in all tabs
- else:
+else:
     df = df_master[
         (df_master['YEAR'].isin(st_year)) &
         (df_master['COUNTRY'].isin(st_country)) &
