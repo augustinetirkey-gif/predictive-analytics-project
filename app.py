@@ -182,7 +182,7 @@ if uploaded_file is not None:
     trained_models = train_models(df_master)
     # --- FUTURE FORECAST GENERATION USING MULTISELECT ---
 
-if forecast_year and len(forecast_year) > 0:
+predict_year = forecast_year[0] if len(forecast_year) > 0 else None
 
     st.sidebar.success(f"📅 AI Forecast Mode: {', '.join(map(str, forecast_year))}")
 
@@ -347,22 +347,22 @@ if forecast_year and len(forecast_year) > 0:
                         selected_model = grid.best_estimator_
 
             # --- PREDICTION EXECUTION ---
-            # --- PREDICTION EXECUTION ---
-            if st.button("RUN AI SIMULATION & REALITY CHECK", use_container_width=True, type="primary"):
-                predict_year = forecast_year[0] if forecast_year else df_master['YEAR'].max()
+           if st.button("RUN AI SIMULATION & REALITY CHECK", use_container_width=True, type="primary"):
 
-                inp = pd.DataFrame([{
-                    'YEAR': predict_year,
-                    'MONTH_ID': in_month, 
-                    'QTR_ID': (in_month-1)//3+1, 
-                    'MSRP': in_msrp, 
-                    'QUANTITYORDERED': in_qty, 
-                    'PRODUCTLINE': in_prod, 
-                    'COUNTRY': in_country
-                }])
-                
-                # The model will now predict based on the high input values
-                pred = selected_model.predict(inp)[0]
+               if predict_year is None:
+                   st.warning("Please select a prediction year to run AI simulation.")
+               else:
+                   inp = pd.DataFrame([{
+                       'YEAR': predict_year,
+                       'MONTH_ID': in_month,
+                       'QTR_ID': (in_month-1)//3+1,
+                       'MSRP': in_msrp,
+                       'QUANTITYORDERED': in_qty,
+                       'PRODUCTLINE': in_prod,
+                       'COUNTRY': in_country
+                  }])
+
+                  pred = selected_model.predict(inp)[0]
 
                 st.markdown(f"""
                     <div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;border: 2px solid #1f4e79;margin-bottom:25px;'>
