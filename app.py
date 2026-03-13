@@ -144,7 +144,7 @@ if uploaded_file is not None:
     # ✅ ADD THIS PART HERE
     st.sidebar.subheader("🔮 Forecast Settings")
 
-    forecast_year = st.sidebar.selectbox(
+    forecast_year = st.sidebar.multiselect(
          "Select Forecast Year (AI Prediction)",
           [None, 2006, 2007, 2008, 2009, 2010]
     )
