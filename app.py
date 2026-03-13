@@ -144,10 +144,10 @@ if uploaded_file is not None:
     # ✅ ADD THIS PART HERE
     st.sidebar.subheader("🔮 Forecast Settings")
 
-     forecast_year = st.sidebar.selectbox(
-     "Select Forecast Year (AI Prediction)",
-      [None, 2006, 2007, 2008, 2009, 2010]
-      )
+    forecast_year = st.sidebar.selectbox(
+         "Select Forecast Year (AI Prediction)",
+          [None, 2006, 2007, 2008, 2009, 2010]
+    )
     df = df_master[
         (df_master['YEAR'].isin(st_year)) & 
         (df_master['COUNTRY'].isin(st_country)) & 
