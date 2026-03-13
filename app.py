@@ -347,7 +347,7 @@ if uploaded_file is not None:
                         selected_model = grid.best_estimator_
 
             # --- PREDICTION EXECUTION ---
-           if st.button("RUN AI SIMULATION & REALITY CHECK", use_container_width=True, type="primary"):
+            if st.button("RUN AI SIMULATION & REALITY CHECK", use_container_width=True, type="primary"):
 
                if predict_year is None:
                    st.warning("Please select a prediction year to run AI simulation.")
