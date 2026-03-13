@@ -348,9 +348,8 @@ if forecast_year and len(forecast_year) > 0:
 
             # --- PREDICTION EXECUTION ---
             if st.button("RUN AI SIMULATION & REALITY CHECK", use_container_width=True, type="primary"):
-                
-                predict_year = forecast_year[0] if forecast_year else df_master['YEAR'].max()
-                
+                predict_year = forecast_year[0] if forecast_year and forecast_year[0] is not None else int(df_master['YEAR'].max())
+              
                 inp = pd.DataFrame([{
                     'YEAR': predict_year,
                     'MONTH_ID': in_month, 
