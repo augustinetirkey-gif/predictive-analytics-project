@@ -93,7 +93,7 @@ st.sidebar.divider()
 uploaded_file = st.sidebar.file_uploader("Upload Sales Data (CSV)", type=["csv"])
 
 # Define prediction features globally for use in functions and tuning
-MODEL_FEATURES = ['MONTH_ID', 'QTR_ID', 'MSRP', 'QUANTITYORDERED', 'PRODUCTLINE', 'COUNTRY']
+MODEL_FEATURES = ['YEAR','MONTH_ID', 'QTR_ID', 'MSRP', 'QUANTITYORDERED', 'PRODUCTLINE', 'COUNTRY']
 
 if uploaded_file is not None:
     # --- 1. VALIDATION LOGIC ---
@@ -160,7 +160,7 @@ if uploaded_file is not None:
 
         preprocessor = ColumnTransformer([
          ('cat', OneHotEncoder(handle_unknown='ignore'), ['PRODUCTLINE', 'COUNTRY']),
-          ('num', StandardScaler(), ['MONTH_ID','QTR_ID','MSRP','QUANTITYORDERED'])
+          ('num', StandardScaler(), ['YEAR','MONTH_ID','QTR_ID','MSRP','QUANTITYORDERED'])
         ])
 
         models = {
@@ -348,7 +348,9 @@ if forecast_year and len(forecast_year) > 0:
 
             # --- PREDICTION EXECUTION ---
             if st.button("RUN AI SIMULATION & REALITY CHECK", use_container_width=True, type="primary"):
+               predict_year = forecast_year[0] if forecast_year else df_master['YEAR'].max()
                 inp = pd.DataFrame([{
+                    'YEAR': predict_year,
                     'MONTH_ID': in_month, 
                     'QTR_ID': (in_month-1)//3+1, 
                     'MSRP': in_msrp, 
