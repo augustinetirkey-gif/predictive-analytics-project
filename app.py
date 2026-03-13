@@ -151,11 +151,7 @@ if uploaded_file is not None:
         (df_master['COUNTRY'].isin(st_country)) & 
         (df_master['PRODUCTLINE'].isin(st_product))
     ]
-    # --- Apply Filter Strategy ---
-st_year = st.sidebar.multiselect("Fiscal Year", options=sorted(df_master['YEAR'].unique()), default=df_master['YEAR'].unique())
-st_country = st.sidebar.multiselect("Active Markets", options=sorted(df_master['COUNTRY'].unique()), default=df_master['COUNTRY'].unique())
-st_product = st.sidebar.multiselect("Product Line", options=sorted(df_master['PRODUCTLINE'].unique()), default=df_master['PRODUCTLINE'].unique())
-forecast_year = st.sidebar.selectbox("Select Forecast Year (AI Prediction)", [None, 2006, 2007, 2008, 2009, 2010])
+   
 
 # --- FUTURE FORECAST GENERATION ---
 if forecast_year is not None:
