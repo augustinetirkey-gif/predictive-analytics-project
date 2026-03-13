@@ -180,6 +180,36 @@ if uploaded_file is not None:
         return trained_results
 
     trained_models = train_models(df_master)
+    # --- FUTURE FORECAST GENERATION USING MULTISELECT ---
+
+if forecast_year and len(forecast_year) > 0:
+
+    st.sidebar.success(f"📅 AI Forecast Mode: {', '.join(map(str, forecast_year))}")
+
+    model = trained_models["Random Forest"][0]
+
+    forecast_rows = []
+
+    for year in forecast_year:
+        for month in range(1, 13):
+
+            sample = df_master.sample(1).copy()
+
+            sample['YEAR'] = year
+            sample['YEAR_ID'] = year
+            sample['MONTH_ID'] = month
+            sample['QTR_ID'] = (month - 1)//3 + 1
+
+            pred = model.predict(sample[MODEL_FEATURES])[0]
+
+            sample['SALES'] = pred
+
+            forecast_rows.append(sample)
+
+    future_df = pd.concat(forecast_rows, ignore_index=True)
+
+    # combine historical + predicted data
+    df = pd.concat([df, future_df], ignore_index=True)
 
     tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights", "📅 Demand Forecast", "👥 Customer Analytics"])
 
