@@ -349,20 +349,20 @@ if uploaded_file is not None:
             # --- PREDICTION EXECUTION ---
             if st.button("RUN AI SIMULATION & REALITY CHECK", use_container_width=True, type="primary"):
 
-    if predict_year is None:
-        st.warning("Please select a prediction year to run AI simulation.")
-    else:
-        inp = pd.DataFrame([{
-            'YEAR': predict_year,
-            'MONTH_ID': in_month,
-            'QTR_ID': (in_month-1)//3+1,
-            'MSRP': in_msrp,
-            'QUANTITYORDERED': in_qty,
-            'PRODUCTLINE': in_prod,
-            'COUNTRY': in_country
-        }])
+                if predict_year is None:
+                    st.warning("Please select a prediction year to run AI simulation.")
+                else:
+                    inp = pd.DataFrame([{
+                        'YEAR': predict_year,
+                        'MONTH_ID': in_month,
+                        'QTR_ID': (in_month-1)//3+1,
+                        'MSRP': in_msrp,
+                        'QUANTITYORDERED': in_qty,
+                         'PRODUCTLINE': in_prod,
+                        'COUNTRY': in_country
+                    }])
 
-        pred = selected_model.predict(inp)[0]
+                    pred = selected_model.predict(inp)[0]
            
                        
             st.markdown(f"""
