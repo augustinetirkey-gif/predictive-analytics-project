@@ -206,7 +206,7 @@ if uploaded_file is not None:
 
             forecast_rows.append(sample)
 
-    future_df = pd.concat(forecast_rows, ignore_index=True)
+    future_df = pd.concat(forecast_rows, ignore_index=True) if len(forecast_rows) > 0 else pd.DataFrame()
 
     # combine historical + predicted data
     df = pd.concat([df, future_df], ignore_index=True)
