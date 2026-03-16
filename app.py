@@ -209,16 +209,7 @@ if uploaded_file is not None:
 
     # Combine all forecast rows into a DataFrame
     future_df = pd.DataFrame(forecast_rows)
-    # Combine historical + forecast
-    df_combined = pd.concat([df_master, future_df], ignore_index=True)
-
-    # Calculate total revenue per year
-    total_revenue_by_year = df_combined.groupby('YEAR')['SALES'].sum()
-
-    # Display in Streamlit
-    st.subheader("💰 Total Revenue by Year (Historical + Forecast)")
-    st.dataframe(total_revenue_by_year)
-
+    
     future_df = pd.concat(forecast_rows, ignore_index=True) if len(forecast_rows) > 0 else pd.DataFrame()
 
     # combine historical + predicted data
