@@ -187,27 +187,25 @@ if uploaded_file is not None:
     st.sidebar.success(f"📅 AI Forecast Mode: {', '.join(map(str, forecast_year))}")
 
     model = trained_models["Random Forest"][0]
+
     forecast_rows = []
 
     for year in forecast_year:
-        for idx, row in df_master.iterrows():
-            sample = row.copy()
+        for month in range(1, 13):
+
+            sample = df_master.sample(1).copy()
+
             sample['YEAR'] = year
             sample['YEAR_ID'] = year
-            sample['QTR_ID'] = (row['MONTH_ID']-1)//3 + 1
+            sample['MONTH_ID'] = month
+            sample['QTR_ID'] = (month - 1)//3 + 1
 
-            # Predict SALES for this modified row
-            sample['SALES'] = model.predict(pd.DataFrame([sample[MODEL_FEATURES]]))[0]
+            pred = model.predict(sample[MODEL_FEATURES])[0]
 
-            # Append the predicted row
+            sample['SALES'] = pred
+
             forecast_rows.append(sample)
 
-    # Combine into a DataFrame
-    future_df = pd.DataFrame(forecast_rows)
-
-   # Merge with historical data
-   df = pd.concat([df, future_df], ignore_index=True)
-    
     future_df = pd.concat(forecast_rows, ignore_index=True) if len(forecast_rows) > 0 else pd.DataFrame()
 
     # combine historical + predicted data
@@ -602,4 +600,4 @@ else:
     with s2: st.markdown("""<div class="feature-box"><h2>📥</h2><h3>Step 2</h3><p>Upload your sales data.</p></div>""", unsafe_allow_html=True)
     with s3: st.markdown("""<div class="feature-box"><h2>💡</h2><h3>Step 3</h3><p>Explore analytical tabs.</p></div>""", unsafe_allow_html=True)
     st.markdown("---")
-    st.info("👈 Please upload your Sales Data CSV in the sidebar to activate insights.")
+    st.info("👈 Please upload your Sales Data CSV in the sidebar to activate insights.")TELL ME WHAT IS THE HISTORICAJL REVENUEAND FOCASTING REVENUE
