@@ -200,7 +200,7 @@ if uploaded_file is not None:
             sample['MONTH_ID'] = month
             sample['QTR_ID'] = (month - 1)//3 + 1
 
-           sample['SALES'] = model.predict(sample[MODEL_FEATURES])
+            sample['SALES'] = model.predict(sample[MODEL_FEATURES])
 
 
             forecast_rows.append(sample)
