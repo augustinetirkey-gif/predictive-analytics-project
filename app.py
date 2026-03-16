@@ -189,26 +189,24 @@ if uploaded_file is not None:
     model = trained_models["Random Forest"][0]
     forecast_rows = []
 
-    # Loop over forecast years
     for year in forecast_year:
         for idx, row in df_master.iterrows():
-            # Copy historical row
             sample = row.copy()
-
-            # Update year and quarter
             sample['YEAR'] = year
             sample['YEAR_ID'] = year
-            sample['MONTH_ID'] = row['MONTH_ID']
             sample['QTR_ID'] = (row['MONTH_ID']-1)//3 + 1
 
-        # Predict sales for this row
-        sample['SALES'] = model.predict(pd.DataFrame([sample[MODEL_FEATURES]]))[0]
+            # Predict SALES for this modified row
+            sample['SALES'] = model.predict(pd.DataFrame([sample[MODEL_FEATURES]]))[0]
 
-        # Append to forecast list
-        forecast_rows.append(sample)
+            # Append the predicted row
+            forecast_rows.append(sample)
 
-    # Combine all forecast rows into a DataFrame
+    # Combine into a DataFrame
     future_df = pd.DataFrame(forecast_rows)
+
+   # Merge with historical data
+   df = pd.concat([df, future_df], ignore_index=True)
     
     future_df = pd.concat(forecast_rows, ignore_index=True) if len(forecast_rows) > 0 else pd.DataFrame()
 
