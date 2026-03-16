@@ -193,7 +193,7 @@ if uploaded_file is not None:
     for year in forecast_year:
         for month in range(1, 13):
 
-            sample = df_master.sample(1).copy()
+            sample = df_master.copy()
 
             sample['YEAR'] = year
             sample['YEAR_ID'] = year
