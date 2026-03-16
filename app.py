@@ -202,7 +202,6 @@ if uploaded_file is not None:
 
            sample['SALES'] = model.predict(sample[MODEL_FEATURES])
 
-            sample['SALES'] = pred
 
             forecast_rows.append(sample)
 
