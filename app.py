@@ -207,8 +207,8 @@ if uploaded_file is not None:
         # Append to forecast list
         forecast_rows.append(sample)
 
-   # Combine all forecast rows into a DataFrame
-   future_df = pd.DataFrame(forecast_rows)
+    # Combine all forecast rows into a DataFrame
+    future_df = pd.DataFrame(forecast_rows)
 
     future_df = pd.concat(forecast_rows, ignore_index=True) if len(forecast_rows) > 0 else pd.DataFrame()
 
