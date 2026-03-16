@@ -600,4 +600,4 @@ else:
     with s2: st.markdown("""<div class="feature-box"><h2>📥</h2><h3>Step 2</h3><p>Upload your sales data.</p></div>""", unsafe_allow_html=True)
     with s3: st.markdown("""<div class="feature-box"><h2>💡</h2><h3>Step 3</h3><p>Explore analytical tabs.</p></div>""", unsafe_allow_html=True)
     st.markdown("---")
-    st.info("👈 Please upload your Sales Data CSV in the sidebar to activate insights.")TELL ME WHAT IS THE HISTORICAJL REVENUEAND FOCASTING REVENUE
+    st.info("👈 Please upload your Sales Data CSV in the sidebar to activate insights.")
