@@ -191,7 +191,7 @@ if uploaded_file is not None:
 
     # Loop over forecast years
     for year in forecast_year:
-    for idx, row in df_master.iterrows():
+        for idx, row in df_master.iterrows():
         # Copy historical row
         sample = row.copy()
 
