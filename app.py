@@ -197,9 +197,9 @@ if uploaded_file is not None:
                 'YEAR': year,
                 'MONTH_ID': month,
                 'QTR_ID': (month - 1)//3 + 1
-             }])
+            }])
 
-             pred = model.predict(sample)[0]
+            pred = model.predict(sample)[0]
 
             sample['SALES'] = pred
 
