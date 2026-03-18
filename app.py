@@ -153,11 +153,11 @@ if uploaded_file is not None:
 
     @st.cache_resource
     def train_models(data):
-        data = data[MODEL_FEATURES + ['SALES']].dropna()
+    # Convert to monthly revenue
+    monthly_data = data.groupby(['YEAR','MONTH_ID','QTR_ID'])['SALES'].sum().reset_index()
 
-        X = data[MODEL_FEATURES]
-        y = data['SALES']
-
+    X = monthly_data[['YEAR','MONTH_ID','QTR_ID']]
+    y = monthly_data['SALES']
         preprocessor = ColumnTransformer([
          ('cat', OneHotEncoder(handle_unknown='ignore'), ['PRODUCTLINE', 'COUNTRY']),
           ('num', StandardScaler(), ['YEAR','MONTH_ID','QTR_ID','MSRP','QUANTITYORDERED'])
