@@ -158,7 +158,7 @@ if uploaded_file is not None:
 
         X = monthly_data[['YEAR','MONTH_ID','QTR_ID']]
         y = monthly_data['SALES']
-        preprocessor = ColumnTransformer([
+        
         preprocessor = ColumnTransformer([
             ('num', StandardScaler(), ['YEAR','MONTH_ID','QTR_ID'])
 
