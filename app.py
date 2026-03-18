@@ -187,21 +187,19 @@ if uploaded_file is not None:
 
     st.sidebar.success(f"📅 AI Forecast Mode: {', '.join(map(str, forecast_year))}")
 
-    model = trained_models["Random Forest"][0]
+    model = trained_models["Linear Regression"][0]
 
     forecast_rows = []
 
     for year in forecast_year:
         for month in range(1, 13):
+            sample = pd.DataFrame([{
+                'YEAR': year,
+                'MONTH_ID': month,
+                'QTR_ID': (month - 1)//3 + 1
+             }])
 
-            sample = df_master.sample(1).copy()
-
-            sample['YEAR'] = year
-            sample['YEAR_ID'] = year
-            sample['MONTH_ID'] = month
-            sample['QTR_ID'] = (month - 1)//3 + 1
-
-            pred = model.predict(sample[MODEL_FEATURES])[0]
+             pred = model.predict(sample)[0]
 
             sample['SALES'] = pred
 
