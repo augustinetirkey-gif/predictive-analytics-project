@@ -265,26 +265,8 @@ if uploaded_file is not None:
             c1, c2 = st.columns([2, 1])
             with c1:
                 st.markdown("#### Monthly Sales Trend")
-                trend_actual = df_actual.groupby(['YEAR','MONTH_ID','MONTH_NAME'])['SALES'].sum().reset_index()
-                trend_pred = df_predicted.groupby(['YEAR','MONTH_ID','MONTH_NAME'])['SALES'].sum().reset_index()
-
-                fig_trend = go.Figure()
-
-                fig_trend.add_trace(go.Scatter(
-                    x=trend_actual['MONTH_NAME'],
-                    y=trend_actual['SALES'],
-                    name='Actual',
-                    line=dict(color='blue')
-                ))
-
-                fig_trend.add_trace(go.Scatter(
-                   x=trend_pred['MONTH_NAME'],
-                   y=trend_pred['SALES'],
-                   name='Predicted',
-                   line=dict(dash='dot', color='orange')
-                ))
-
-                st.plotly_chart(fig_trend, use_container_width=True)
+                trend = df.groupby(['YEAR', 'MONTH_ID', 'MONTH_NAME'])['SALES'].sum().reset_index()
+                fig_trend = px.line(trend, x='MONTH_NAME', y='SALES', color='YEAR')
               
             with c2:
                 st.markdown("#### Revenue by Product Line")
