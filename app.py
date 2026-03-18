@@ -198,8 +198,8 @@ if uploaded_file is not None:
                 'MONTH_ID': month,
                 'QTR_ID': (month - 1)//3 + 1,
                 'MONTH_NAME': pd.to_datetime(month, format='%m').month_name(),
-                'PRODUCTLINE': 'Predicted',
-                'COUNTRY': 'Predicted'
+                'PRODUCTLINE': st_product[0] if st_product else df_master['PRODUCTLINE'].iloc[0],
+                'COUNTRY': st_country[0] if st_country else df_master['COUNTRY'].iloc[0]
             }])
             pred = model.predict(sample)[0]
 
