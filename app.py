@@ -159,8 +159,9 @@ if uploaded_file is not None:
     X = monthly_data[['YEAR','MONTH_ID','QTR_ID']]
     y = monthly_data['SALES']
         preprocessor = ColumnTransformer([
-         ('cat', OneHotEncoder(handle_unknown='ignore'), ['PRODUCTLINE', 'COUNTRY']),
-          ('num', StandardScaler(), ['YEAR','MONTH_ID','QTR_ID','MSRP','QUANTITYORDERED'])
+        preprocessor = ColumnTransformer([
+            ('num', StandardScaler(), ['YEAR','MONTH_ID','QTR_ID'])
+
         ])
 
         models = {
