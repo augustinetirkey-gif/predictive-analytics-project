@@ -235,7 +235,7 @@ if uploaded_file is not None:
             top_country = country_sales.idxmax()
 
             st.write("Top Country:", top_country)
-            top_product = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
+            top_product = df_master.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
 
             st.markdown(f"""
           • Total revenue generated is **${total_rev:,.2f}** • Highest revenue comes from **{top_country}** • Best performing product line is **{top_product}** • Sales show seasonal monthly variation  
