@@ -277,15 +277,15 @@ if uploaded_file is not None:
                     line=dict(color='blue')
                 ))
 
-               fig_trend.add_trace(go.Scatter(
+                fig_trend.add_trace(go.Scatter(
                    x=trend_pred['MONTH_NAME'],
                    y=trend_pred['SALES'],
                    name='Predicted',
                    line=dict(dash='dot', color='orange')
-              ))
+               ))
 
-              st.plotly_chart(fig_trend, use_container_width=True)
-              st.plotly_chart(fig_trend, use_container_width=True)
+               st.plotly_chart(fig_trend, use_container_width=True)
+               st.plotly_chart(fig_trend, use_container_width=True)
             with c2:
                 st.markdown("#### Revenue by Product Line")
                 fig_pie = px.pie(df_actual, values='SALES', names='PRODUCTLINE', hole=0.5)
