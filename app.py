@@ -267,6 +267,7 @@ if uploaded_file is not None:
                 st.markdown("#### Monthly Sales Trend")
                 trend = df.groupby(['YEAR', 'MONTH_ID', 'MONTH_NAME'])['SALES'].sum().reset_index()
                 fig_trend = px.line(trend, x='MONTH_NAME', y='SALES', color='YEAR')
+                st.plotly_chart(fig_trend, use_container_width=True)
               
             with c2:
                 st.markdown("#### Revenue by Product Line")
