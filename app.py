@@ -211,7 +211,8 @@ if uploaded_file is not None:
     df_combined = pd.concat([df, future_df], ignore_index=True)
 
     # combine historical + predicted data
-    df = pd.concat([df, future_df], ignore_index=True)
+    df_actual = df.copy()
+    df_predicted = future_df.copy()
 
     tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights", "📅 Demand Forecast", "👥 Customer Analytics"])
 
@@ -222,10 +223,11 @@ if uploaded_file is not None:
         with tabs[0]:
             st.subheader("Performance KPIs")
             k1, k2, k3, k4 = st.columns(4)
-            k1.metric("Total Revenue", f"${df['SALES'].sum()/1e6:.2f}M")
-            k2.metric("Avg Order Value", f"${df['SALES'].mean():,.2f}")
-            k3.metric("Transaction Volume", f"{len(df):,}")
-            k4.metric("Active Regions", f"{df['COUNTRY'].nunique()}")
+            k1.metric("Total Revenue", f"${df_actual['SALES'].sum()/1e6:.2f}M")
+            k2.metric("Avg Order Value", f"${df_actual['SALES'].mean():,.2f}")
+            k3.metric("Transaction Volume", f"{len(df_actual):,}")
+            k4.metric("Active Regions", f"{df_actual['COUNTRY'].nunique()}")
+            
             st.markdown("---")
             
             st.subheader("📊 Descriptive Statistics Summary")
@@ -263,16 +265,34 @@ if uploaded_file is not None:
             c1, c2 = st.columns([2, 1])
             with c1:
                 st.markdown("#### Monthly Sales Trend")
-                trend = df.groupby(['YEAR', 'MONTH_ID', 'MONTH_NAME'])['SALES'].sum().reset_index().sort_values(['YEAR', 'MONTH_ID'])
-                fig_trend = px.line(trend, x='MONTH_NAME', y='SALES', color='YEAR', markers=True, template="plotly")
-                st.plotly_chart(fig_trend, use_container_width=True)
+                trend_actual = df_actual.groupby(['YEAR','MONTH_ID','MONTH_NAME'])['SALES'].sum().reset_index()
+                trend_pred = df_predicted.groupby(['YEAR','MONTH_ID','MONTH_NAME'])['SALES'].sum().reset_index()
+
+                fig_trend = go.Figure()
+
+                fig_trend.add_trace(go.Scatter(
+                    x=trend_actual['MONTH_NAME'],
+                    y=trend_actual['SALES'],
+                    name='Actual',
+                    line=dict(color='blue')
+                ))
+
+               fig_trend.add_trace(go.Scatter(
+                   x=trend_pred['MONTH_NAME'],
+                   y=trend_pred['SALES'],
+                   name='Predicted',
+                   line=dict(dash='dot', color='orange')
+              ))
+
+              st.plotly_chart(fig_trend, use_container_width=True)
+              st.plotly_chart(fig_trend, use_container_width=True)
             with c2:
                 st.markdown("#### Revenue by Product Line")
-                fig_pie = px.pie(df, values='SALES', names='PRODUCTLINE', hole=0.5, template="plotly")
+                fig_pie = px.pie(df_actual, values='SALES', names='PRODUCTLINE', hole=0.5)
                 st.plotly_chart(fig_pie, use_container_width=True)
             
             st.markdown("#### Revenue Performance by Country (Ranked)")
-            country_revenue = df.groupby('COUNTRY')['SALES'].sum().reset_index().sort_values('SALES', ascending=False)
+            country_revenue = df_actual.groupby('COUNTRY')['SALES'].sum().reset_index()
             fig_bar = px.bar(country_revenue, x='COUNTRY', y='SALES', text_auto='.2s', color='SALES', template="plotly")
             st.plotly_chart(fig_bar, use_container_width=True)
 
