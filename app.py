@@ -402,7 +402,11 @@ if uploaded_file is not None:
         with tabs[2]:
             st.header("🌍 Strategic Market Insights")
             st.header("💡 Business Directives")
-            top_country = df.groupby('COUNTRY')['SALES'].sum().idxmax()
+            df['SALES'] = pd.to_numeric(df['SALES'], errors='coerce')
+            df = df.dropna(subset=['SALES', 'COUNTRY'])
+
+            grouped = df.groupby('COUNTRY')['SALES'].sum()
+            top_country = grouped.idxmax() if not grouped.empty else "No Data"
             top_prod = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
             
             col_i1, col_i2 = st.columns(2)
