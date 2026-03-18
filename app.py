@@ -231,7 +231,10 @@ if uploaded_file is not None:
             st.subheader("🧠 Key EDA Insights")
 
             total_rev = df['SALES'].sum()
-            top_country = df.groupby('COUNTRY')['SALES'].sum().idxmax()
+            country_sales = df_master.groupby('COUNTRY')['SALES'].sum()
+            top_country = country_sales.idxmax()
+
+            st.write("Top Country:", top_country)
             top_product = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
 
             st.markdown(f"""
