@@ -196,9 +196,11 @@ if uploaded_file is not None:
             sample = pd.DataFrame([{
                 'YEAR': year,
                 'MONTH_ID': month,
-                'QTR_ID': (month - 1)//3 + 1
+                'QTR_ID': (month - 1)//3 + 1,
+                'MONTH_NAME': pd.to_datetime(month, format='%m').month_name(),
+                'PRODUCTLINE': 'Predicted',
+                'COUNTRY': 'Predicted'
             }])
-
             pred = model.predict(sample)[0]
 
             sample['SALES'] = pred
@@ -455,9 +457,8 @@ if uploaded_file is not None:
             st.header("📅 Demand Forecasting (Predictive Planning)")
             
             # --- 1. DATA PREPARATION & FORECAST LOGIC ---
-            forecast_df = df.groupby(['YEAR', 'MONTH_ID'])['SALES'].sum().reset_index()
-            
-            # Calculate simple AI Forecast (Rolling Mean)
+            forecast_df = df_combined.groupby(['YEAR', 'MONTH_ID'])['SALES'].sum().reset_index()
+             # Calculate simple AI Forecast (Rolling Mean)
             forecast_df['Target_Forecast'] = forecast_df['SALES'].rolling(window=3).mean().shift(-1)
             
             # Add Uncertainty (Confidence Intervals: +/- 20% range)
