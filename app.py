@@ -350,32 +350,37 @@ if uploaded_file is not None:
                         grid.fit(df_master[MODEL_FEATURES], df_master['SALES'])
                         st.success(f"Best Params for {model_choice}: {grid.best_params_}")
                         selected_model = grid.best_estimator_
+            # Add this line
+            pred = None            
 
             # --- PREDICTION EXECUTION ---
             if st.button("RUN AI SIMULATION & REALITY CHECK", use_container_width=True, type="primary"):
 
+                # If no prediction year selected
                 if predict_year is None:
-                    st.warning("Please select a prediction year to run AI simulation.")
-                else:
-                    inp = pd.DataFrame([{
-                        'YEAR': predict_year,
-                        'MONTH_ID': in_month,
-                        'QTR_ID': (in_month-1)//3+1,
-                        'MSRP': in_msrp,
-                        'QUANTITYORDERED': in_qty,
-                         'PRODUCTLINE': in_prod,
-                        'COUNTRY': in_country
-                    }])
+                    predict_year = df_master['YEAR'].max() + 1
 
-                    pred = selected_model.predict(inp)[0]
-           
-                       
-                st.markdown(f"""
+                inp = pd.DataFrame([{
+                    'YEAR': predict_year,
+                    'MONTH_ID': in_month,
+                    'QTR_ID': (in_month-1)//3+1,
+                    'MSRP': in_msrp,
+                    'QUANTITYORDERED': in_qty,
+                    'PRODUCTLINE': in_prod,
+                    'COUNTRY': in_country
+                }])
+
+                pred = selected_model.predict(inp)[0]
                     <div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;border: 2px solid #1f4e79;margin-bottom:25px;'>
                         <p style='color:#1f4e79; font-weight:bold; margin-bottom:0;'>PROJECTED REVENUE</p>
-                        <h1 style='color:#1f4e79; font-size:48px; margin-top:0;'>${pred:,.2f}</h1>
-                    </div>
-                """, unsafe_allow_html=True)
+                        if pred is not None:
+                             st.markdown(f"""
+                             <div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;border:2px solid #1f4e79;margin-bottom:25px;'>
+                                 <p style='color:#1f4e79;font-weight:bold;margin-bottom:0;'>PROJECTED REVENUE</p>
+                                 <h1 style='color:#1f4e79;font-size:48px;margin-top:0;'>${pred:,.2f}</h1>
+                            </div>
+                            """, unsafe_allow_html=True)
+                    
                 
                 st.divider()
                 st.subheader(f"📊 Historical Performance Review: {in_prod} in {in_country}")
