@@ -373,12 +373,12 @@ if uploaded_file is not None:
                 pred = selected_model.predict(inp)[0]
                
                 if pred is not None:
-                st.markdown(f"""
-                <div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;border:2px solid #1f4e79;margin-bottom:25px;'>
-                <p style='color:#1f4e79;font-weight:bold;margin-bottom:0;'>PROJECTED REVENUE</p>
-                <h1 style='color:#1f4e79;font-size:48px;margin-top:0;'>${pred:,.2f}</h1>
-                </div>
-                """, unsafe_allow_html=True)
+                    st.markdown(f"""
+                    <div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;border:2px solid #1f4e79;margin-bottom:25px;'>
+                    <p style='color:#1f4e79;font-weight:bold;margin-bottom:0;'>PROJECTED REVENUE</p>
+                    <h1 style='color:#1f4e79;font-size:48px;margin-top:0;'>${pred:,.2f}</h1>
+                    </div>
+                    """, unsafe_allow_html=True)
                     
                 
                 st.divider()
