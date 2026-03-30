@@ -371,8 +371,7 @@ if uploaded_file is not None:
                 }])
 
                 pred = selected_model.predict(inp)[0]
-                    <div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;border: 2px solid #1f4e79;margin-bottom:25px;'>
-                        <p style='color:#1f4e79; font-weight:bold; margin-bottom:0;'>PROJECTED REVENUE</p>
+               
                         if pred is not None:
                              st.markdown(f"""
                              <div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;border:2px solid #1f4e79;margin-bottom:25px;'>
