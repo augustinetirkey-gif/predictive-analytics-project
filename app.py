@@ -198,26 +198,37 @@ if uploaded_file is not None:
 
     st.sidebar.success(f"📅 AI Forecast Mode: {', '.join(map(str, forecast_year))}")
 
-    model = trained_models["Linear Regression"][0]
-
+    model = trained_models["Random Forest"][0]
     forecast_rows = []
 
     for year in forecast_year:
         for month in range(1, 13):
-            sample = pd.DataFrame([{
-                'YEAR': year,
-                'MONTH_ID': month,
-                'QTR_ID': (month - 1)//3 + 1,
-                'MSRP': df_master['MSRP'].mean(),              # ✅ ADD
-                'QUANTITYORDERED': df_master['QUANTITYORDERED'].mean(),  # ✅ ADD
-                'PRODUCTLINE': st_product[0] if st_product else df_master['PRODUCTLINE'].iloc[0],
-                'COUNTRY': st_country[0] if st_country else df_master['COUNTRY'].iloc[0]
-            }])
-            pred = model.predict(sample)[0]
 
+           # 🔥 simulate multiple transactions
+           for i in range(50):   # you can increase to 100
+
+               sample = pd.DataFrame([{
+                   'YEAR': year,
+                   'MONTH_ID': month,
+                   'QTR_ID': (month - 1)//3 + 1,
+
+                   # ✅ random realistic values
+                   'MSRP': np.random.uniform(df_master['MSRP'].min(), df_master['MSRP'].max()),
+                   'QUANTITYORDERED': np.random.randint(20, 200),
+
+                   # ✅ multiple products
+                   'PRODUCTLINE': np.random.choice(df_master['PRODUCTLINE']),
+
+                   # ✅ multiple countries
+                   'COUNTRY': np.random.choice(df_master['COUNTRY'])
+               }])
+
+            pred = model.predict(sample)[0]
             sample['SALES'] = pred
 
             forecast_rows.append(sample)
+
+   
 
     future_df = pd.concat(forecast_rows, ignore_index=True) if len(forecast_rows) > 0 else pd.DataFrame()
     df_combined = pd.concat([df, future_df], ignore_index=True)
