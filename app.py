@@ -93,7 +93,7 @@ st.sidebar.divider()
 uploaded_file = st.sidebar.file_uploader("Upload Sales Data (CSV)", type=["csv"])
 
 # Define prediction features globally for use in functions and tuning
-MODEL_FEATURES = ['MONTH_ID', 'QTR_ID', 'MSRP', 'QUANTITYORDERED', 'PRODUCTLINE', 'COUNTRY']
+MODEL_FEATURES = ['YEAR','MONTH_ID', 'QTR_ID', 'MSRP', 'QUANTITYORDERED', 'PRODUCTLINE', 'COUNTRY']
 
 if uploaded_file is not None:
     # --- 1. VALIDATION LOGIC ---
@@ -138,6 +138,10 @@ if uploaded_file is not None:
     
     st.sidebar.subheader("🔍 Filter Strategy")
     st_year = st.sidebar.multiselect("Fiscal Year", options=sorted(df_master['YEAR'].unique()), default=df_master['YEAR'].unique())
+    forecast_year = st.sidebar.multiselect(
+         "Select Forecast Year (AI Prediction)",
+          [2006, 2007, 2008, 2009, 2010]
+    )
     st_country = st.sidebar.multiselect("Active Markets", options=sorted(df_master['COUNTRY'].unique()), default=df_master['COUNTRY'].unique())
     st_product = st.sidebar.multiselect("Product Line", options=sorted(df_master['PRODUCTLINE'].unique()), default=df_master['PRODUCTLINE'].unique())
     
@@ -149,14 +153,15 @@ if uploaded_file is not None:
 
     @st.cache_resource
     def train_models(data):
-        data = data[MODEL_FEATURES + ['SALES']].dropna()
+        # Convert to monthly revenue
+        monthly_data = data.groupby(['YEAR','MONTH_ID','QTR_ID'])['SALES'].sum().reset_index()
 
-        X = data[MODEL_FEATURES]
-        y = data['SALES']
-
+        X = monthly_data[['YEAR','MONTH_ID','QTR_ID']]
+        y = monthly_data['SALES']
+        
         preprocessor = ColumnTransformer([
-         ('cat', OneHotEncoder(handle_unknown='ignore'), ['PRODUCTLINE', 'COUNTRY']),
-          ('num', StandardScaler(), ['MONTH_ID','QTR_ID','MSRP','QUANTITYORDERED'])
+            ('num', StandardScaler(), ['YEAR','MONTH_ID','QTR_ID'])
+
         ])
 
         models = {
@@ -176,6 +181,37 @@ if uploaded_file is not None:
         return trained_results
 
     trained_models = train_models(df_master)
+    # --- FUTURE FORECAST GENERATION USING MULTISELECT ---
+
+    predict_year = forecast_year[0] if len(forecast_year) > 0 else None
+
+    st.sidebar.success(f"📅 AI Forecast Mode: {', '.join(map(str, forecast_year))}")
+
+    model = trained_models["Linear Regression"][0]
+
+    forecast_rows = []
+
+    for year in forecast_year:
+        for month in range(1, 13):
+            sample = pd.DataFrame([{
+                'YEAR': year,
+                'MONTH_ID': month,
+                'QTR_ID': (month - 1)//3 + 1,
+                'MONTH_NAME': pd.to_datetime(month, format='%m').month_name(),
+                'PRODUCTLINE': st_product[0] if st_product else df_master['PRODUCTLINE'].iloc[0],
+                'COUNTRY': st_country[0] if st_country else df_master['COUNTRY'].iloc[0]
+            }])
+            pred = model.predict(sample)[0]
+
+            sample['SALES'] = pred
+
+            forecast_rows.append(sample)
+
+    future_df = pd.concat(forecast_rows, ignore_index=True) if len(forecast_rows) > 0 else pd.DataFrame()
+    df_combined = pd.concat([df, future_df], ignore_index=True)
+
+    # combine historical + predicted data
+    df = pd.concat([df, future_df], ignore_index=True)
 
     tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights", "📅 Demand Forecast", "👥 Customer Analytics"])
 
@@ -198,8 +234,11 @@ if uploaded_file is not None:
             st.subheader("🧠 Key EDA Insights")
 
             total_rev = df['SALES'].sum()
-            top_country = df.groupby('COUNTRY')['SALES'].sum().idxmax()
-            top_product = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
+            country_sales = df_master.groupby('COUNTRY')['SALES'].sum()
+            top_country = country_sales.idxmax()
+
+            st.write("Top Country:", top_country)
+            top_product = df_master.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
 
             st.markdown(f"""
           • Total revenue generated is **${total_rev:,.2f}** • Highest revenue comes from **{top_country}** • Best performing product line is **{top_product}** • Sales show seasonal monthly variation  
@@ -311,27 +350,36 @@ if uploaded_file is not None:
                         grid.fit(df_master[MODEL_FEATURES], df_master['SALES'])
                         st.success(f"Best Params for {model_choice}: {grid.best_params_}")
                         selected_model = grid.best_estimator_
+            # Add this line
+            pred = None            
 
             # --- PREDICTION EXECUTION ---
             if st.button("RUN AI SIMULATION & REALITY CHECK", use_container_width=True, type="primary"):
+
+                # If no prediction year selected
+                if predict_year is None:
+                    predict_year = df_master['YEAR'].max() + 1
+
                 inp = pd.DataFrame([{
-                    'MONTH_ID': in_month, 
-                    'QTR_ID': (in_month-1)//3+1, 
-                    'MSRP': in_msrp, 
-                    'QUANTITYORDERED': in_qty, 
-                    'PRODUCTLINE': in_prod, 
+                    'YEAR': predict_year,
+                    'MONTH_ID': in_month,
+                    'QTR_ID': (in_month-1)//3+1,
+                    'MSRP': in_msrp,
+                    'QUANTITYORDERED': in_qty,
+                    'PRODUCTLINE': in_prod,
                     'COUNTRY': in_country
                 }])
-                
-                # The model will now predict based on the high input values
-                pred = selected_model.predict(inp)[0]
 
-                st.markdown(f"""
-                    <div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;border: 2px solid #1f4e79;margin-bottom:25px;'>
-                        <p style='color:#1f4e79; font-weight:bold; margin-bottom:0;'>PROJECTED REVENUE</p>
-                        <h1 style='color:#1f4e79; font-size:48px; margin-top:0;'>${pred:,.2f}</h1>
+                pred = selected_model.predict(inp)[0]
+               
+                if pred is not None:
+                    st.markdown(f"""
+                    <div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;border:2px solid #1f4e79;margin-bottom:25px;'>
+                    <p style='color:#1f4e79;font-weight:bold;margin-bottom:0;'>PROJECTED REVENUE</p>
+                    <h1 style='color:#1f4e79;font-size:48px;margin-top:0;'>${pred:,.2f}</h1>
                     </div>
-                """, unsafe_allow_html=True)
+                    """, unsafe_allow_html=True)
+                    
                 
                 st.divider()
                 st.subheader(f"📊 Historical Performance Review: {in_prod} in {in_country}")
@@ -361,8 +409,16 @@ if uploaded_file is not None:
         with tabs[2]:
             st.header("🌍 Strategic Market Insights")
             st.header("💡 Business Directives")
-            top_country = df.groupby('COUNTRY')['SALES'].sum().idxmax()
-            top_prod = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
+            df['SALES'] = pd.to_numeric(df['SALES'], errors='coerce')
+            df = df.dropna(subset=['SALES', 'COUNTRY'])
+
+            grouped = df.groupby('COUNTRY')['SALES'].sum()
+            top_country = grouped.idxmax() if not grouped.empty else "No Data"
+            df['SALES'] = pd.to_numeric(df['SALES'], errors='coerce')
+            df = df.dropna(subset=['SALES', 'PRODUCTLINE'])
+
+            grouped_prod = df.groupby('PRODUCTLINE')['SALES'].sum()
+            top_prod = grouped_prod.idxmax() if not grouped_prod.empty else "No Data"
             
             col_i1, col_i2 = st.columns(2)
             with col_i1:
@@ -406,9 +462,8 @@ if uploaded_file is not None:
             st.header("📅 Demand Forecasting (Predictive Planning)")
             
             # --- 1. DATA PREPARATION & FORECAST LOGIC ---
-            forecast_df = df.groupby(['YEAR', 'MONTH_ID'])['SALES'].sum().reset_index()
-            
-            # Calculate simple AI Forecast (Rolling Mean)
+            forecast_df = df_combined.groupby(['YEAR', 'MONTH_ID'])['SALES'].sum().reset_index()
+             # Calculate simple AI Forecast (Rolling Mean)
             forecast_df['Target_Forecast'] = forecast_df['SALES'].rolling(window=3).mean().shift(-1)
             
             # Add Uncertainty (Confidence Intervals: +/- 20% range)
