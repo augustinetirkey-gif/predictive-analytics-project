@@ -208,7 +208,8 @@ if uploaded_file is not None:
                 'YEAR': year,
                 'MONTH_ID': month,
                 'QTR_ID': (month - 1)//3 + 1,
-                'MONTH_NAME': pd.to_datetime(month, format='%m').month_name(),
+                'MSRP': df_master['MSRP'].mean(),              # ✅ ADD
+                'QUANTITYORDERED': df_master['QUANTITYORDERED'].mean(),  # ✅ ADD
                 'PRODUCTLINE': st_product[0] if st_product else df_master['PRODUCTLINE'].iloc[0],
                 'COUNTRY': st_country[0] if st_country else df_master['COUNTRY'].iloc[0]
             }])
