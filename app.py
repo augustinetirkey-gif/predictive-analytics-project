@@ -93,7 +93,7 @@ st.sidebar.divider()
 uploaded_file = st.sidebar.file_uploader("Upload Sales Data (CSV)", type=["csv"])
 
 # Define prediction features globally for use in functions and tuning
-MODEL_FEATURES = ['YEAR','MONTH_ID', 'QTR_ID', 'MSRP', 'QUANTITYORDERED', 'PRODUCTLINE', 'COUNTRY']
+MODEL_FEATURES = ['MONTH_ID', 'QTR_ID', 'MSRP', 'QUANTITYORDERED', 'PRODUCTLINE', 'COUNTRY']
 
 if uploaded_file is not None:
     # --- 1. VALIDATION LOGIC ---
@@ -138,10 +138,6 @@ if uploaded_file is not None:
     
     st.sidebar.subheader("🔍 Filter Strategy")
     st_year = st.sidebar.multiselect("Fiscal Year", options=sorted(df_master['YEAR'].unique()), default=df_master['YEAR'].unique())
-    forecast_year = st.sidebar.multiselect(
-         "Select Forecast Year (AI Prediction)",
-          [2006, 2007, 2008, 2009, 2010]
-    )
     st_country = st.sidebar.multiselect("Active Markets", options=sorted(df_master['COUNTRY'].unique()), default=df_master['COUNTRY'].unique())
     st_product = st.sidebar.multiselect("Product Line", options=sorted(df_master['PRODUCTLINE'].unique()), default=df_master['PRODUCTLINE'].unique())
     
@@ -153,15 +149,14 @@ if uploaded_file is not None:
 
     @st.cache_resource
     def train_models(data):
-        # Convert to monthly revenue
-        monthly_data = data.groupby(['YEAR','MONTH_ID','QTR_ID'])['SALES'].sum().reset_index()
+        data = data[MODEL_FEATURES + ['SALES']].dropna()
 
-        X = monthly_data[['YEAR','MONTH_ID','QTR_ID']]
-        y = monthly_data['SALES']
-        
+        X = data[MODEL_FEATURES]
+        y = data['SALES']
+
         preprocessor = ColumnTransformer([
-            ('num', StandardScaler(), ['YEAR','MONTH_ID','QTR_ID'])
-
+         ('cat', OneHotEncoder(handle_unknown='ignore'), ['PRODUCTLINE', 'COUNTRY']),
+          ('num', StandardScaler(), ['MONTH_ID','QTR_ID','MSRP','QUANTITYORDERED'])
         ])
 
         models = {
@@ -181,38 +176,6 @@ if uploaded_file is not None:
         return trained_results
 
     trained_models = train_models(df_master)
-    # --- FUTURE FORECAST GENERATION USING MULTISELECT ---
-
-    predict_year = forecast_year[0] if len(forecast_year) > 0 else None
-
-    st.sidebar.success(f"📅 AI Forecast Mode: {', '.join(map(str, forecast_year))}")
-
-    model = trained_models["Linear Regression"][0]
-
-    forecast_rows = []
-
-    for year in forecast_year:
-        for month in range(1, 13):
-            sample = pd.DataFrame([{
-                'YEAR': year,
-                'MONTH_ID': month,
-                'QTR_ID': (month - 1)//3 + 1,
-                'MONTH_NAME': pd.to_datetime(month, format='%m').month_name(),
-                'PRODUCTLINE': 'Predicted',
-                'COUNTRY': 'Predicted'
-            }])
-            pred = model.predict(sample)[0]
-
-            sample['SALES'] = pred
-
-            forecast_rows.append(sample)
-
-    future_df = pd.concat(forecast_rows, ignore_index=True) if len(forecast_rows) > 0 else pd.DataFrame()
-    df_combined = pd.concat([df, future_df], ignore_index=True)
-
-    # combine historical + predicted data
-    df_actual = df.copy()
-    df_predicted = future_df.copy()
 
     tabs = st.tabs(["📈 Executive Dashboard", "🔮 Revenue Simulator", "🌍 Strategic Market Insights", "📅 Demand Forecast", "👥 Customer Analytics"])
 
@@ -223,11 +186,10 @@ if uploaded_file is not None:
         with tabs[0]:
             st.subheader("Performance KPIs")
             k1, k2, k3, k4 = st.columns(4)
-            k1.metric("Total Revenue", f"${df_actual['SALES'].sum()/1e6:.2f}M")
-            k2.metric("Avg Order Value", f"${df_actual['SALES'].mean():,.2f}")
-            k3.metric("Transaction Volume", f"{len(df_actual):,}")
-            k4.metric("Active Regions", f"{df_actual['COUNTRY'].nunique()}")
-            
+            k1.metric("Total Revenue", f"${df['SALES'].sum()/1e6:.2f}M")
+            k2.metric("Avg Order Value", f"${df['SALES'].mean():,.2f}")
+            k3.metric("Transaction Volume", f"{len(df):,}")
+            k4.metric("Active Regions", f"{df['COUNTRY'].nunique()}")
             st.markdown("---")
             
             st.subheader("📊 Descriptive Statistics Summary")
@@ -236,11 +198,8 @@ if uploaded_file is not None:
             st.subheader("🧠 Key EDA Insights")
 
             total_rev = df['SALES'].sum()
-            country_sales = df_master.groupby('COUNTRY')['SALES'].sum()
-            top_country = country_sales.idxmax()
-
-            st.write("Top Country:", top_country)
-            top_product = df_master.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
+            top_country = df.groupby('COUNTRY')['SALES'].sum().idxmax()
+            top_product = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
 
             st.markdown(f"""
           • Total revenue generated is **${total_rev:,.2f}** • Highest revenue comes from **{top_country}** • Best performing product line is **{top_product}** • Sales show seasonal monthly variation  
@@ -265,17 +224,16 @@ if uploaded_file is not None:
             c1, c2 = st.columns([2, 1])
             with c1:
                 st.markdown("#### Monthly Sales Trend")
-                trend = df.groupby(['YEAR', 'MONTH_ID', 'MONTH_NAME'])['SALES'].sum().reset_index()
-                fig_trend = px.line(trend, x='MONTH_NAME', y='SALES', color='YEAR')
+                trend = df.groupby(['YEAR', 'MONTH_ID', 'MONTH_NAME'])['SALES'].sum().reset_index().sort_values(['YEAR', 'MONTH_ID'])
+                fig_trend = px.line(trend, x='MONTH_NAME', y='SALES', color='YEAR', markers=True, template="plotly")
                 st.plotly_chart(fig_trend, use_container_width=True)
-              
             with c2:
                 st.markdown("#### Revenue by Product Line")
-                fig_pie = px.pie(df_actual, values='SALES', names='PRODUCTLINE', hole=0.5)
+                fig_pie = px.pie(df, values='SALES', names='PRODUCTLINE', hole=0.5, template="plotly")
                 st.plotly_chart(fig_pie, use_container_width=True)
             
             st.markdown("#### Revenue Performance by Country (Ranked)")
-            country_revenue = df_actual.groupby('COUNTRY')['SALES'].sum().reset_index()
+            country_revenue = df.groupby('COUNTRY')['SALES'].sum().reset_index().sort_values('SALES', ascending=False)
             fig_bar = px.bar(country_revenue, x='COUNTRY', y='SALES', text_auto='.2s', color='SALES', template="plotly")
             st.plotly_chart(fig_bar, use_container_width=True)
 
@@ -356,23 +314,18 @@ if uploaded_file is not None:
 
             # --- PREDICTION EXECUTION ---
             if st.button("RUN AI SIMULATION & REALITY CHECK", use_container_width=True, type="primary"):
+                inp = pd.DataFrame([{
+                    'MONTH_ID': in_month, 
+                    'QTR_ID': (in_month-1)//3+1, 
+                    'MSRP': in_msrp, 
+                    'QUANTITYORDERED': in_qty, 
+                    'PRODUCTLINE': in_prod, 
+                    'COUNTRY': in_country
+                }])
+                
+                # The model will now predict based on the high input values
+                pred = selected_model.predict(inp)[0]
 
-                if predict_year is None:
-                    st.warning("Please select a prediction year to run AI simulation.")
-                else:
-                    inp = pd.DataFrame([{
-                        'YEAR': predict_year,
-                        'MONTH_ID': in_month,
-                        'QTR_ID': (in_month-1)//3+1,
-                        'MSRP': in_msrp,
-                        'QUANTITYORDERED': in_qty,
-                         'PRODUCTLINE': in_prod,
-                        'COUNTRY': in_country
-                    }])
-
-                    pred = selected_model.predict(inp)[0]
-           
-                       
                 st.markdown(f"""
                     <div style='background-color:#e3f2fd;padding:30px;border-radius:15px;text-align:center;border: 2px solid #1f4e79;margin-bottom:25px;'>
                         <p style='color:#1f4e79; font-weight:bold; margin-bottom:0;'>PROJECTED REVENUE</p>
@@ -408,16 +361,8 @@ if uploaded_file is not None:
         with tabs[2]:
             st.header("🌍 Strategic Market Insights")
             st.header("💡 Business Directives")
-            df['SALES'] = pd.to_numeric(df['SALES'], errors='coerce')
-            df = df.dropna(subset=['SALES', 'COUNTRY'])
-
-            grouped = df.groupby('COUNTRY')['SALES'].sum()
-            top_country = grouped.idxmax() if not grouped.empty else "No Data"
-            df['SALES'] = pd.to_numeric(df['SALES'], errors='coerce')
-            df = df.dropna(subset=['SALES', 'PRODUCTLINE'])
-
-            grouped_prod = df.groupby('PRODUCTLINE')['SALES'].sum()
-            top_prod = grouped_prod.idxmax() if not grouped_prod.empty else "No Data"
+            top_country = df.groupby('COUNTRY')['SALES'].sum().idxmax()
+            top_prod = df.groupby('PRODUCTLINE')['SALES'].sum().idxmax()
             
             col_i1, col_i2 = st.columns(2)
             with col_i1:
@@ -461,8 +406,9 @@ if uploaded_file is not None:
             st.header("📅 Demand Forecasting (Predictive Planning)")
             
             # --- 1. DATA PREPARATION & FORECAST LOGIC ---
-            forecast_df = df_combined.groupby(['YEAR', 'MONTH_ID'])['SALES'].sum().reset_index()
-             # Calculate simple AI Forecast (Rolling Mean)
+            forecast_df = df.groupby(['YEAR', 'MONTH_ID'])['SALES'].sum().reset_index()
+            
+            # Calculate simple AI Forecast (Rolling Mean)
             forecast_df['Target_Forecast'] = forecast_df['SALES'].rolling(window=3).mean().shift(-1)
             
             # Add Uncertainty (Confidence Intervals: +/- 20% range)
