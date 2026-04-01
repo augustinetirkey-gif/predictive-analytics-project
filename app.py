@@ -223,10 +223,10 @@ if uploaded_file is not None:
                    'COUNTRY': np.random.choice(df_master['COUNTRY'])
                }])
 
-            pred = model.predict(sample)[0]
-            sample['SALES'] = pred
+               pred = model.predict(sample)[0]
+               sample['SALES'] = pred
 
-            forecast_rows.append(sample)
+               forecast_rows.append(sample)
 
    
 
