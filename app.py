@@ -154,15 +154,21 @@ if uploaded_file is not None:
     @st.cache_resource
     def train_models(data):
         # Convert to monthly revenue
-        monthly_data = data.groupby(['YEAR','MONTH_ID','QTR_ID'])['SALES'].sum().reset_index()
+        from sklearn.model_selection import train_test_split
 
-        X = monthly_data[['YEAR','MONTH_ID','QTR_ID']]
-        y = monthly_data['SALES']
-        
+        data = data[MODEL_FEATURES + ['SALES']].dropna()
+
+        X = data[MODEL_FEATURES]
+        y = data['SALES']
+
+        X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
+        )
         preprocessor = ColumnTransformer([
-            ('num', StandardScaler(), ['YEAR','MONTH_ID','QTR_ID'])
-
+        ('cat', OneHotEncoder(handle_unknown='ignore'), ['PRODUCTLINE','COUNTRY']),
+        ('num', StandardScaler(), ['YEAR','MONTH_ID','QTR_ID','MSRP','QUANTITYORDERED'])
         ])
+       
 
         models = {
             "Linear Regression": LinearRegression(),
@@ -175,9 +181,14 @@ if uploaded_file is not None:
         trained_results = {}
         for name, model in models.items():
             pipe = Pipeline(steps=[('pre', preprocessor), ('model', model)])
-            pipe.fit(X, y)
-            score = r2_score(y, pipe.predict(X)) * 100
-            trained_results[name] = (pipe, score)
+            pipe.fit(X_train, y_train)
+
+            y_pred = pipe.predict(X_test)
+
+            err = np.mean(abs(y_test - y_pred) / np.maximum(y_test, 1)) * 100
+            score = r2_score(y_test, y_pred) * 100
+
+            trained_results[name] = (pipe, score, err)
         return trained_results
 
     trained_models = train_models(df_master)
@@ -310,8 +321,9 @@ if uploaded_file is not None:
             st.caption("🚀 *Tip: Use 'Linear Regression' for predictions far beyond historical price/quantity ranges.*")
             
             model_choice = st.selectbox("Choose Prediction Model", list(trained_models.keys()))
-            selected_model, model_score = trained_models[model_choice]
-            st.info(f"Model Accuracy (R²): {model_score:.2f}%")
+            selected_model, model_score, model_error = trained_models[model_choice]
+
+            st.info(f"Accuracy (R²): {model_score:.2f}% | Error: {model_error:.2f}%")
 
             # --- HYPERPARAMETER TUNING (Logic remains identical) ---
             if st.checkbox(f"Run Hyperparameter Tuning ({model_choice})"):
@@ -393,7 +405,10 @@ if uploaded_file is not None:
                     fig_compare.update_layout(title="AI vs Historical Reality", template="plotly_white", xaxis_title="Timeline", yaxis_title="Revenue ($)")
                     st.plotly_chart(fig_compare, use_container_width=True)
                     
-                    err = np.mean(abs(history['SALES'] - history['AI_PREDICTION']) / history['SALES']) * 100
+                    err = np.mean(
+                    abs(history['SALES'] - history['AI_PREDICTION']) /
+                    np.maximum(history['SALES'], 1)
+                    ) * 100
                     mae = mean_absolute_error(history['SALES'], history['AI_PREDICTION'])
                     rmse = np.sqrt(mean_squared_error(history['SALES'], history['AI_PREDICTION']))
                     r2 = r2_score(history['SALES'], history['AI_PREDICTION'])
