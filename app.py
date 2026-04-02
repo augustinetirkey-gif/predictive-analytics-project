@@ -218,12 +218,7 @@ if uploaded_file is not None:
                    'CUSTOMERNAME': f"Forecast_Customer_{np.random.randint(1,1000)}",
                    'ORDERNUMBER': np.random.randint(10000, 99999),
 
-                   # existing
-                   'MSRP': np.random.uniform(df_master['MSRP'].min(), df_master['MSRP'].max()),
-                   'QUANTITYORDERED': np.random.randint(20, 200),
-                   'PRODUCTLINE': np.random.choice(df_master['PRODUCTLINE']),
-                   'COUNTRY': np.random.choice(df_master['COUNTRY'])
-               }])
+                  
 
                    # ✅ random realistic values
                    'MSRP': np.random.uniform(df_master['MSRP'].min(), df_master['MSRP'].max()),
