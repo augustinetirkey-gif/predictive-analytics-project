@@ -206,6 +206,11 @@ if uploaded_file is not None:
 
            # 🔥 simulate multiple transactions
            for i in range(50):   # you can increase to 100
+               # 🔥 SEASONAL QUANTITY (IMPORTANT)
+               if month in [10, 11, 12]:   # festive season
+                   qty = np.random.randint(150, 400)
+               else:
+                   qty = np.random.randint(20, 120)
 
                sample = pd.DataFrame([{
                    'YEAR': year,
@@ -237,6 +242,9 @@ if uploaded_file is not None:
                # 🔥 add yearly growth
                growth = 1 + (year - 2005) * 0.05
                pred = pred * growth
+               
+               sample['SALES'] = pred
+              
 
                forecast_rows.append(sample)
 
