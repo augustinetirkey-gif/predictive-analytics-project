@@ -232,7 +232,11 @@ if uploaded_file is not None:
                }])
 
                pred = model.predict(sample)[0]
-               sample['SALES'] = pred
+               
+
+               # 🔥 add yearly growth
+               growth = 1 + (year - 2005) * 0.05
+               pred = pred * growth
 
                forecast_rows.append(sample)
 
