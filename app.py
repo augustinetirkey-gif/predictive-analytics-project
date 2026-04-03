@@ -217,16 +217,16 @@ if uploaded_file is not None:
 
                 'PRODUCTLINE': df_master['PRODUCTLINE'].mode()[0],
                 'COUNTRY': df_master['COUNTRY'].mode()[0]
-           }])
+            }])
 
-           pred = model.predict(sample)[0]
+            pred = model.predict(sample)[0]
 
-           growth = 1 + (year - 2005) * 0.15
-           pred = pred * growth
+            growth = 1 + (year - 2005) * 0.15
+            pred = pred * growth
 
-           sample['SALES'] = pred
+            sample['SALES'] = pred
 
-           forecast_rows.append(sample)
+            forecast_rows.append(sample)
     
 
    
