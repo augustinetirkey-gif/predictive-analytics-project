@@ -204,49 +204,30 @@ if uploaded_file is not None:
     for year in forecast_year:
         for month in range(1, 13):
 
-           # 🔥 simulate multiple transactions
-           # remove loop OR keep very small (like 5)
-               # 🔥 SEASONAL QUANTITY (IMPORTANT)
-               if month in [10, 11, 12]:   # festive season
-                   qty = np.random.randint(150, 400)
-               else:
-                   qty = np.random.randint(20, 120)
+            base_qty = 100
+            qty = base_qty + (year - 2005) * 25
 
-               sample = pd.DataFrame([{
-                   'YEAR': year,
-                   'MONTH_ID': month,
-                   'QTR_ID': (month - 1)//3 + 1,
-                   
-                   # ✅ ADD THESE (IMPORTANT)
-                   'ORDERDATE': pd.Timestamp(year=year, month=month, day=1),
-                   'MONTH_NAME': pd.Timestamp(year=year, month=month, day=1).month_name(),
-                   'CUSTOMERNAME': f"Forecast_Customer_{np.random.randint(1,1000)}",
-                   'ORDERNUMBER': np.random.randint(10000, 99999),
+            sample = pd.DataFrame([{
+                'YEAR': year,
+                'MONTH_ID': month,
+                'QTR_ID': (month - 1)//3 + 1,
 
-                  
+                'MSRP': df_master['MSRP'].mean(),
+                'QUANTITYORDERED': qty,
 
-                   # ✅ random realistic values
-                   'MSRP': np.random.uniform(df_master['MSRP'].min(), df_master['MSRP'].max()),
-                   base_qty = 100
-                   qty = base_qty + (year - 2005) * 25
+                'PRODUCTLINE': df_master['PRODUCTLINE'].mode()[0],
+                'COUNTRY': df_master['COUNTRY'].mode()[0]
+           }])
 
-                   'QUANTITYORDERED': qty,
+           pred = model.predict(sample)[0]
 
-                   'PRODUCTLINE': df_master['PRODUCTLINE'].mode()[0],
-                   'COUNTRY': df_master['COUNTRY'].mode()[0],
-               }])
+           growth = 1 + (year - 2005) * 0.15
+           pred = pred * growth
 
-               pred = model.predict(sample)[0]
-               
+           sample['SALES'] = pred
 
-               # 🔥 add yearly growth
-               growth = 1 + (year - 2005) * 0.15
-               pred = pred * growth
-               
-               sample['SALES'] = pred
-              
-
-               forecast_rows.append(sample)
+           forecast_rows.append(sample)
+    
 
    
 
