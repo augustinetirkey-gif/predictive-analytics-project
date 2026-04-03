@@ -205,7 +205,7 @@ if uploaded_file is not None:
         for month in range(1, 13):
 
            # 🔥 simulate multiple transactions
-           for i in range(50):   # you can increase to 100
+           # remove loop OR keep very small (like 5)
                # 🔥 SEASONAL QUANTITY (IMPORTANT)
                if month in [10, 11, 12]:   # festive season
                    qty = np.random.randint(150, 400)
@@ -227,20 +227,20 @@ if uploaded_file is not None:
 
                    # ✅ random realistic values
                    'MSRP': np.random.uniform(df_master['MSRP'].min(), df_master['MSRP'].max()),
-                   'QUANTITYORDERED': np.random.randint(20, 200),
+                   base_qty = 100
+                   qty = base_qty + (year - 2005) * 25
 
-                   # ✅ multiple products
-                   'PRODUCTLINE': np.random.choice(df_master['PRODUCTLINE']),
+                   'QUANTITYORDERED': qty,
 
-                   # ✅ multiple countries
-                   'COUNTRY': np.random.choice(df_master['COUNTRY'])
+                   'PRODUCTLINE': df_master['PRODUCTLINE'].mode()[0],
+                   'COUNTRY': df_master['COUNTRY'].mode()[0],
                }])
 
                pred = model.predict(sample)[0]
                
 
                # 🔥 add yearly growth
-               growth = 1 + (year - 2005) * 0.05
+               growth = 1 + (year - 2005) * 0.15
                pred = pred * growth
                
                sample['SALES'] = pred
