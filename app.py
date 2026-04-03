@@ -204,30 +204,49 @@ if uploaded_file is not None:
     for year in forecast_year:
         for month in range(1, 13):
 
-            base_qty = 100
-            qty = base_qty + (year - 2005) * 25
+           # 🔥 simulate multiple transactions
+           for i in range(50):   # you can increase to 100
+               # 🔥 SEASONAL QUANTITY (IMPORTANT)
+               if month in [10, 11, 12]:   # festive season
+                   qty = np.random.randint(150, 400)
+               else:
+                   qty = np.random.randint(20, 120)
 
-            sample = pd.DataFrame([{
-                'YEAR': year,
-                'MONTH_ID': month,
-                'QTR_ID': (month - 1)//3 + 1,
+               sample = pd.DataFrame([{
+                   'YEAR': year,
+                   'MONTH_ID': month,
+                   'QTR_ID': (month - 1)//3 + 1,
+                   
+                   # ✅ ADD THESE (IMPORTANT)
+                   'ORDERDATE': pd.Timestamp(year=year, month=month, day=1),
+                   'MONTH_NAME': pd.Timestamp(year=year, month=month, day=1).month_name(),
+                   'CUSTOMERNAME': f"Forecast_Customer_{np.random.randint(1,1000)}",
+                   'ORDERNUMBER': np.random.randint(10000, 99999),
 
-                'MSRP': df_master['MSRP'].mean(),
-                'QUANTITYORDERED': qty,
+                  
 
-                'PRODUCTLINE': df_master['PRODUCTLINE'].mode()[0],
-                'COUNTRY': df_master['COUNTRY'].mode()[0]
-            }])
+                   # ✅ random realistic values
+                   'MSRP': np.random.uniform(df_master['MSRP'].min(), df_master['MSRP'].max()),
+                   'QUANTITYORDERED': np.random.randint(20, 200),
 
-            pred = model.predict(sample)[0]
+                   # ✅ multiple products
+                   'PRODUCTLINE': np.random.choice(df_master['PRODUCTLINE']),
 
-            growth = 1 + (year - 2005) * 0.15
-            pred = pred * growth
+                   # ✅ multiple countries
+                   'COUNTRY': np.random.choice(df_master['COUNTRY'])
+               }])
 
-            sample['SALES'] = pred
+               pred = model.predict(sample)[0]
+               
 
-            forecast_rows.append(sample)
-    
+               # 🔥 add yearly growth
+               growth = 1 + (year - 2005) * 0.05
+               pred = pred * growth
+               
+               sample['SALES'] = pred
+              
+
+               forecast_rows.append(sample)
 
    
 
