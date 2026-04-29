@@ -15,40 +15,11 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 import xgboost as xgb
 import io
-# --- LOGIN SYSTEM START ---
 
-users = {
-    "admin": "1234",
-    "user": "pass"
-}
-
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-
-def login():
-    st.markdown("## 🔐 Login to PredictiCorp")
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
-
-    if st.button("Login"):
-        if username in users and users[username] == password:
-            st.session_state.logged_in = True
-            st.success("✅ Login Successful")
-            st.rerun()
-        else:
-            st.error("❌ Invalid Username or Password")
-
-def logout():
-    st.session_state.logged_in = False
-    st.rerun()
-
-# --- LOGIN SYSTEM END ---
 
 # --- SYSTEM CONFIGURATION ---
 st.set_page_config(page_title="PredictiCorp BI Suite", layout="wide", initial_sidebar_state="expanded")
-if not st.session_state.logged_in:
-    login()
-    st.stop()
+
 
 # --- EXECUTIVE THEMING ---
 st.markdown("""
@@ -119,8 +90,7 @@ csv_template = convert_df_to_csv(template_df)
 
 # --- SIDEBAR ---
 st.sidebar.title("🏢 BI Command Center")
-if st.session_state.logged_in:
-    st.sidebar.button("Logout", on_click=logout)
+
 st.sidebar.download_button(label="📥 Download CSV Template", data=csv_template, file_name="sales_data_template.csv", mime="text/csv")
 st.sidebar.divider()
 uploaded_file = st.sidebar.file_uploader("Upload Sales Data (CSV)", type=["csv"])
