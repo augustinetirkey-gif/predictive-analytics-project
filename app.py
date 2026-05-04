@@ -16,10 +16,8 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error
 import xgboost as xgb
 import io
 
-
 # --- SYSTEM CONFIGURATION ---
 st.set_page_config(page_title="PredictiCorp BI Suite", layout="wide", initial_sidebar_state="expanded")
-
 
 # --- EXECUTIVE THEMING ---
 st.markdown("""
@@ -90,7 +88,6 @@ csv_template = convert_df_to_csv(template_df)
 
 # --- SIDEBAR ---
 st.sidebar.title("🏢 BI Command Center")
-
 st.sidebar.download_button(label="📥 Download CSV Template", data=csv_template, file_name="sales_data_template.csv", mime="text/csv")
 st.sidebar.divider()
 uploaded_file = st.sidebar.file_uploader("Upload Sales Data (CSV)", type=["csv"])
